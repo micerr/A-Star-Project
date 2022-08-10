@@ -4,6 +4,7 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <unistd.h>
 #include "Graph.h"
 #include "PQ.h"
 
@@ -13,23 +14,23 @@
 extern int errno;
 char err[64];
 
-typedef struct node *link;
+typedef struct node *ptr_node;
 struct node {
   int v;
   int wt;
-  link next;
+  ptr_node next;
 };
 
 struct graph {
   int V;
   int E;
-  link *ladj;
+  ptr_node *ladj;
   ST coords;
-  link z;
+  ptr_node z;
 };
 
 static Edge  EDGEcreate(int v, int w, int wt);
-static link  NEW(int v, int wt, link next);
+static ptr_node  NEW(int v, int wt, ptr_node next);
 static void  insertE(Graph G, Edge e);
 static void  removeE(Graph G, Edge e);
 
@@ -41,8 +42,8 @@ static Edge EDGEcreate(int v, int w, int wt) {
   return e;
 }
 
-static link NEW(int v, int wt, link next) {
-  link x = malloc(sizeof *x);
+static ptr_node NEW(int v, int wt, ptr_node next) {
+  ptr_node x = malloc(sizeof *x);
   if (x == NULL)
     return NULL;
   x->v = v;
@@ -62,7 +63,7 @@ Graph GRAPHinit(int V) {
   G->z = NEW(-1, 0, NULL);
   if (G->z == NULL)
     return NULL;
-  G->ladj = malloc(G->V*sizeof(link));
+  G->ladj = malloc(G->V*sizeof(ptr_node));
   if (G->ladj == NULL)
     return NULL;
   for (v = 0; v < G->V; v++)
@@ -75,7 +76,7 @@ Graph GRAPHinit(int V) {
 
 void GRAPHfree(Graph G) {
   int v;
-  link t, next;
+  ptr_node t, next;
   for (v=0; v < G->V; v++)
     for (t=G->ladj[v]; t != G->z; t = next) {
       next = t->next;
@@ -91,6 +92,15 @@ Graph GRAPHload(char *fin) {
   int V, E, id1, id2;
   short int coord1, coord2, wt;
   Graph G;
+
+  /*
+   * The standard is the following:
+   *  | 4 byte | 4 byte |  => n. nodes, n. edges
+   *  | 2 byte | 2 byte | => cord1, cord2 node i-esimo
+   *  ... x num nodes
+   *  | 4 byte | 4 byte | 2 byte | => v1, v2, w
+   *  ... x num edges
+   */
 
   int fd = open(fin, O_RDONLY);
   if(fd < 0){
@@ -140,30 +150,61 @@ Graph GRAPHload(char *fin) {
 
 void  GRAPHedges(Graph G, Edge *a) {
   int v, E = 0;
-  link t;
+  ptr_node t;
   for (v=0; v < G->V; v++)
     for (t=G->ladj[v]; t != G->z; t = t->next)
       a[E++] = EDGEcreate(v, t->v, t->wt);
 }
 
 void GRAPHstore(Graph G, char *fin) {
-  int i;
   Edge *a;
+  Coord coords;
 
-  int fd = open(fin, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR)
+  /*
+   * The standard is the following:
+   *  | 4 byte | 4 byte |  => n. nodes, n. edges
+   *  | 2 byte | 2 byte | => cord1, cord2 node i-esimo
+   *  ... x num nodes
+   *  | 4 byte | 4 byte | 2 byte | => v1, v2, w
+   *  ... x num edges
+   */
+
+  int fd = open(fin, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 
   a = malloc(G->E * sizeof(Edge));
   if (a == NULL)
     return;
   GRAPHedges(G, a);
 
-  fprintf(fout, "%d\n", G->V);
-  for (i = 0; i < G->V; i++)
-    fprintf(fout, "%s\n", STsearchByIndex(G->tab, i));
+  // TODO parallelize the process
 
-  for (i = 0; i < G->E; i++)
-    fprintf(fout, "%s  %s %d\n", STsearchByIndex(G->tab, a[i].v), STsearchByIndex(G->tab, a[i].w), a[i].wt);
+  // writing num nodes and num edges
+  if(write(fd, &G->V, sizeof(int)) != sizeof(int)
+    || write(fd, &G->E, sizeof(int)) != sizeof(int)){
+    perror("writing num nodes and num edges into file");
+    return;
+  }
+  // writing nodes coordinates
+  for(int i=0; i<G->V; i++){
+    coords = STsearchByIndex(G->coords, i);
+    if(write(fd, &coords->c1, sizeof(short int)) != sizeof(short int)
+      || write(fd, &coords->c2, sizeof(short int)) != sizeof(short int)){
+      sprintf(err, "writing coords of node %d", i);
+      perror(err);
+      return;
+    }
+  }
+  // writing edges
+  for(int i=0; i<G->E; i++){
+    if(write(fd, &a[i].v, sizeof(int)) != sizeof(int)
+      || write(fd, &a[i].w, sizeof(int)) != sizeof(int)
+      || write(fd, &a[i].wt, sizeof(short int)) != sizeof(short int)){
+      perror("writing edges into file");
+      return;
+    }
+  }
 
+  close(fd);
 }
 
 // int GRAPHgetIndex(Graph G, char *label) {
@@ -193,7 +234,7 @@ static void  insertE(Graph G, Edge e) {
 
 static void  removeE(Graph G, Edge e) {
   int v = e.v, w = e.w;
-  link x;
+  ptr_node x;
   if (G->ladj[v]->v == w) {
     G->ladj[v] = G->ladj[v]->next;
     G->E--;
@@ -208,7 +249,7 @@ static void  removeE(Graph G, Edge e) {
 
 void GRAPHspD(Graph G, int id) {
   int v;
-  link t;
+  ptr_node t;
   PQ pq = PQinit(G->V);
   int *st, *mindist;
   st = malloc(G->V*sizeof(int));

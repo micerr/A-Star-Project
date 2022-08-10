@@ -24,7 +24,6 @@ ST STinit(int maxN) {
 }
 
 void STfree(ST st) {
-  int i;
   if (st==NULL)
     return;
   free(st->coord);
@@ -35,7 +34,7 @@ int STsize(ST st) {
   return st->N;
 }
 
-void STinsert(ST st, short coord1, short coord2, int i) {
+void STinsert(ST st, short int coord1, short int coord2, int i) {
   if (i >= st->maxN) {
     st->coord = realloc(st->coord, (2*st->maxN)*sizeof(Coord));
     if (st->coord == NULL)
@@ -50,7 +49,7 @@ void STinsert(ST st, short coord1, short coord2, int i) {
   st->N++;
 }
 
-int STsearch(ST st, short coord1, short coord2) {
+int STsearch(ST st, short int coord1, short int coord2) {
   int i;
   for(i = 0; i  < st->N; i++)
     if( st->coord[i] != NULL 
