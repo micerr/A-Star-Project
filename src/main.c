@@ -28,11 +28,7 @@ int main(void) {
       switch(i) {
             case 1:     printf("Input file name: ");
                         scanf("%s", name);
-                        fin = fopen(name, "r");
-                        if (fin == NULL)
-                          exit(-1);
                         G = GRAPHload(fin);
-                        fclose(fin);
                         break;
             case 2:     printf("Insert first node = ");
                         scanf("%s", label);
