@@ -111,40 +111,67 @@ Graph GRAPHload(char *fin) {
   if(read(fd, &V, sizeof(int)) != sizeof(int)
     || read(fd, &E, sizeof(int)) != sizeof(int)){
     perror("read num nodes or num edges");
+    close(fd);
     return NULL;
   }
+  #ifdef DEBUG
+    printf("#Nodes: %d, #Edges: %d\n", V, E);
+  #endif
 
   G = GRAPHinit(V);
-  if (G == NULL)
+  if (G == NULL){
+    close(fd);
     return NULL;
+  }
   // TODO parallelize everything 
 
   // Reading coordinates of each node
+  #ifdef DEBUG
+    printf("Nodes coordinates:\n");
+  #endif
   for(int i=0; i<V; i++) {
     if(read(fd, &coord1, sizeof(short int)) != sizeof(short int)
       || read(fd, &coord2, sizeof(short int)) != sizeof(short int)){
         sprintf(err, "reading coords of node %d", i);
         perror(err);
         GRAPHfree(G);
+        close(fd);
         return NULL;
       }
+    #ifdef DEBUG
+      printf("%d: %hd %hd\n", i, coord1, coord2);
+    #endif
     STinsert(G->coords, coord1, coord2, i);
   }
 
   // Reading edges of the graph
+  #ifdef DEBUG
+    printf("Edges:\n");
+  #endif
   for(int i=0; i<E; i++){
     if(read(fd, &id1, sizeof(int)) != sizeof(int)
       || read(fd, &id2, sizeof(int)) != sizeof(int)
       || read(fd, &wt, sizeof(short int)) != sizeof(short int)){
       perror("reading edges of the graph");
       GRAPHfree(G);
+      close(fd);
       return NULL;
     }
+    #ifdef DEBUG
+      printf("%d %d %hd\n", id1, id2, wt);
+    #endif
     if (id1 >= 0 && id2 >=0)
       GRAPHinsertE(G, id1, id2, wt);
   }
 
   close(fd);
+
+  if(G->E != E){
+    printf("Something goes wrong during loading\n");
+    return NULL;
+  }
+
+  printf("\nLoaded graph with %d nodes and %d edges\n", G->V, G->E);
   return G;
 }
 
@@ -175,6 +202,12 @@ void GRAPHstore(Graph G, char *fin) {
   if (a == NULL)
     return;
   GRAPHedges(G, a);
+  #ifdef DEBUG
+    printf("Edges:\n");
+    for(int i=0; i<G->E; i++){
+      printf("%d %d %hd\n", a[i].v, a[i].w, a[i].wt);
+    }
+  #endif
 
   // TODO parallelize the process
 
@@ -182,6 +215,7 @@ void GRAPHstore(Graph G, char *fin) {
   if(write(fd, &G->V, sizeof(int)) != sizeof(int)
     || write(fd, &G->E, sizeof(int)) != sizeof(int)){
     perror("writing num nodes and num edges into file");
+    close(fd);
     return;
   }
   // writing nodes coordinates
@@ -191,6 +225,7 @@ void GRAPHstore(Graph G, char *fin) {
       || write(fd, &coords->c2, sizeof(short int)) != sizeof(short int)){
       sprintf(err, "writing coords of node %d", i);
       perror(err);
+      close(fd);
       return;
     }
   }
@@ -200,9 +235,12 @@ void GRAPHstore(Graph G, char *fin) {
       || write(fd, &a[i].w, sizeof(int)) != sizeof(int)
       || write(fd, &a[i].wt, sizeof(short int)) != sizeof(short int)){
       perror("writing edges into file");
+      close(fd);
       return;
     }
   }
+
+  printf("Stored graph in bin file: %s", fin);
 
   close(fd);
 }
