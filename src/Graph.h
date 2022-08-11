@@ -21,4 +21,7 @@ void  GRAPHremoveE(Graph G, int id1, int id2);
 void  GRAPHedges(Graph G, Edge *a);
 void  GRAPHspD(Graph G, int id);
 
+// A-star implementations
+void GRAPHSequentialAStar(Graph G, int start);
+
 #endif

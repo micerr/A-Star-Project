@@ -326,3 +326,29 @@ void GRAPHspD(Graph G, int id) {
 
   PQfree(pq);
 }
+
+
+void GRAPHSequentialAStar(Graph G, int start){
+  int v;
+  ptr_node t;
+  PQ openSet = PQinit(G->V);
+  int *path, *fScore;
+  path = (int*) malloc(G->V * sizeof(int));
+  fScore = (int*) malloc(G->V * sizeof(int));
+  // gScore as a vector?
+
+  if ((path == NULL) || (fScore == NULL)){
+    return;
+  }
+
+  for (v = 0; v < G->V; v++){
+    path[v] = -1;
+    fScore[v] = maxWT;
+    PQinsert(pq, fScore, v);
+  }
+
+  fScore[start] = 0;
+  path[start] = start;
+
+
+}
