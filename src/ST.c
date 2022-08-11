@@ -3,8 +3,7 @@
 #include <string.h>
 #include "ST.h"
 
-struct symboltable {char **a; int maxN; int N;};
-
+struct symboltable {Coord *coord; int maxN; int N;};
 
 ST STinit(int maxN) {
   ST st;
@@ -13,8 +12,8 @@ ST STinit(int maxN) {
     printf("Memory allocation error\n");
     return NULL;
   }
-  st->a = calloc(maxN, sizeof(char *));
-  if (st->a == NULL) {
+  st->coord = malloc(maxN*sizeof(Coord));
+  if (st->coord == NULL) {
     printf("Memory allocation error\n");
     free(st);
     return NULL;
@@ -25,13 +24,9 @@ ST STinit(int maxN) {
 }
 
 void STfree(ST st) {
-  int i;
   if (st==NULL)
     return;
-  for (i=0; i<st->N; i++)
-    if (st->a[i] != NULL)
-      free(st->a[i]);
-  free(st->a);
+  free(st->coord);
   free(st);
 }
 
@@ -39,28 +34,34 @@ int STsize(ST st) {
   return st->N;
 }
 
-void STinsert(ST st, char *str, int i) {
+void STinsert(ST st, short int coord1, short int coord2, int i) {
   if (i >= st->maxN) {
-    st->a = realloc(st->a, (2*st->maxN)*sizeof(char *));
-    if (st->a == NULL)
+    st->coord = realloc(st->coord, (2*st->maxN)*sizeof(Coord));
+    if (st->coord == NULL)
       return;
     st->maxN = 2*st->maxN;
   }
-  st->a[i] = strdup(str);
+
+  Coord c;
+  c = malloc(sizeof(*c));
+  c->c1 = coord1; c->c2 = coord2;
+  st->coord[i] = c;
   st->N++;
 }
 
-int STsearch(ST st, char *str) {
+int STsearch(ST st, short int coord1, short int coord2) {
   int i;
-  for (i = 0; i  < st->N; i++)
-    if (st->a[i]!=NULL && strcmp(str, st->a[i])==0)
+  for(i = 0; i  < st->N; i++)
+    if( st->coord[i] != NULL 
+      && st->coord[i]->c1 == coord1
+      && st->coord[i]->c2 == coord2)
       return i;
   return -1;
 }
 
-char *STsearchByIndex(ST st, int i){
+Coord STsearchByIndex(ST st, int i){
   if (i < 0 || i >= st->N)
     return NULL;
-  return (st->a[i]);
+  return (st->coord[i]);
 }
 

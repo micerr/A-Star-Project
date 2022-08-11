@@ -2,18 +2,35 @@
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
 #include "Graph.h"
 #include "PQ.h"
 
 #define maxWT INT_MAX
 #define MAXC 10
 
-typedef struct node *link;
-struct node { int v; int wt; link next; } ;
-struct graph { int V; int E; link *ladj; ST tab; link z; } ;
+extern int errno;
+char err[64];
+
+typedef struct node *ptr_node;
+struct node {
+  int v;
+  int wt;
+  ptr_node next;
+};
+
+struct graph {
+  int V;
+  int E;
+  ptr_node *ladj;
+  ST coords;
+  ptr_node z;
+};
 
 static Edge  EDGEcreate(int v, int w, int wt);
-static link  NEW(int v, int wt, link next);
+static ptr_node  NEW(int v, int wt, ptr_node next);
 static void  insertE(Graph G, Edge e);
 static void  removeE(Graph G, Edge e);
 
@@ -25,8 +42,8 @@ static Edge EDGEcreate(int v, int w, int wt) {
   return e;
 }
 
-static link NEW(int v, int wt, link next) {
-  link x = malloc(sizeof *x);
+static ptr_node NEW(int v, int wt, ptr_node next) {
+  ptr_node x = malloc(sizeof *x);
   if (x == NULL)
     return NULL;
   x->v = v;
@@ -46,90 +63,197 @@ Graph GRAPHinit(int V) {
   G->z = NEW(-1, 0, NULL);
   if (G->z == NULL)
     return NULL;
-  G->ladj = malloc(G->V*sizeof(link));
+  G->ladj = malloc(G->V*sizeof(ptr_node));
   if (G->ladj == NULL)
     return NULL;
   for (v = 0; v < G->V; v++)
     G->ladj[v] = G->z;
-  G->tab = STinit(V);
-  if (G->tab == NULL)
+  G->coords = STinit(V);
+  if (G->coords == NULL)
     return NULL;
   return G;
 }
 
 void GRAPHfree(Graph G) {
   int v;
-  link t, next;
+  ptr_node t, next;
   for (v=0; v < G->V; v++)
     for (t=G->ladj[v]; t != G->z; t = next) {
       next = t->next;
       free(t);
     }
-  STfree(G->tab);
+  STfree(G->coords);
   free(G->ladj);
   free(G->z);
   free(G);
 }
 
-Graph GRAPHload(FILE *fin) {
-  int V, i, id1, id2, wt;
-  char label1[MAXC], label2[MAXC];
+Graph GRAPHload(char *fin) {
+  int V, E, id1, id2;
+  short int coord1, coord2, wt;
   Graph G;
 
-  fscanf(fin, "%d", &V);
-  G = GRAPHinit(V);
-  if (G == NULL)
-    return NULL;
+  /*
+   * The standard is the following:
+   *  | 4 byte | 4 byte |  => n. nodes, n. edges
+   *  | 2 byte | 2 byte | => cord1, cord2 node i-esimo
+   *  ... x num nodes
+   *  | 4 byte | 4 byte | 2 byte | => v1, v2, w
+   *  ... x num edges
+   */
 
-  for (i=0; i<V; i++) {
-    fscanf(fin, "%s", label1);
-    STinsert(G->tab, label1, i);
+  int fd = open(fin, O_RDONLY);
+  if(fd < 0){
+    perror("open graph bin file");
+    return NULL;
   }
 
-  while(fscanf(fin, "%s %s %d", label1, label2, &wt) == 3) {
-    id1 = STsearch(G->tab, label1);
-    id2 = STsearch(G->tab, label2);
+  if(read(fd, &V, sizeof(int)) != sizeof(int)
+    || read(fd, &E, sizeof(int)) != sizeof(int)){
+    perror("read num nodes or num edges");
+    close(fd);
+    return NULL;
+  }
+  #ifdef DEBUG
+    printf("#Nodes: %d, #Edges: %d\n", V, E);
+  #endif
+
+  G = GRAPHinit(V);
+  if (G == NULL){
+    close(fd);
+    return NULL;
+  }
+  // TODO parallelize everything 
+
+  // Reading coordinates of each node
+  #ifdef DEBUG
+    printf("Nodes coordinates:\n");
+  #endif
+  for(int i=0; i<V; i++) {
+    if(read(fd, &coord1, sizeof(short int)) != sizeof(short int)
+      || read(fd, &coord2, sizeof(short int)) != sizeof(short int)){
+        sprintf(err, "reading coords of node %d", i);
+        perror(err);
+        GRAPHfree(G);
+        close(fd);
+        return NULL;
+      }
+    #ifdef DEBUG
+      printf("%d: %hd %hd\n", i, coord1, coord2);
+    #endif
+    STinsert(G->coords, coord1, coord2, i);
+  }
+
+  // Reading edges of the graph
+  #ifdef DEBUG
+    printf("Edges:\n");
+  #endif
+  for(int i=0; i<E; i++){
+    if(read(fd, &id1, sizeof(int)) != sizeof(int)
+      || read(fd, &id2, sizeof(int)) != sizeof(int)
+      || read(fd, &wt, sizeof(short int)) != sizeof(short int)){
+      perror("reading edges of the graph");
+      GRAPHfree(G);
+      close(fd);
+      return NULL;
+    }
+    #ifdef DEBUG
+      printf("%d %d %hd\n", id1, id2, wt);
+    #endif
     if (id1 >= 0 && id2 >=0)
       GRAPHinsertE(G, id1, id2, wt);
   }
+
+  close(fd);
+
+  if(G->E != E){
+    printf("Something goes wrong during loading\n");
+    return NULL;
+  }
+
+  printf("\nLoaded graph with %d nodes and %d edges\n", G->V, G->E);
   return G;
 }
 
 void  GRAPHedges(Graph G, Edge *a) {
   int v, E = 0;
-  link t;
+  ptr_node t;
   for (v=0; v < G->V; v++)
     for (t=G->ladj[v]; t != G->z; t = t->next)
       a[E++] = EDGEcreate(v, t->v, t->wt);
 }
 
-void GRAPHstore(Graph G, FILE *fout) {
-  int i;
+void GRAPHstore(Graph G, char *fin) {
   Edge *a;
+  Coord coords;
+
+  /*
+   * The standard is the following:
+   *  | 4 byte | 4 byte |  => n. nodes, n. edges
+   *  | 2 byte | 2 byte | => cord1, cord2 node i-esimo
+   *  ... x num nodes
+   *  | 4 byte | 4 byte | 2 byte | => v1, v2, w
+   *  ... x num edges
+   */
+
+  int fd = open(fin, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 
   a = malloc(G->E * sizeof(Edge));
   if (a == NULL)
     return;
   GRAPHedges(G, a);
+  #ifdef DEBUG
+    printf("Edges:\n");
+    for(int i=0; i<G->E; i++){
+      printf("%d %d %hd\n", a[i].v, a[i].w, a[i].wt);
+    }
+  #endif
 
-  fprintf(fout, "%d\n", G->V);
-  for (i = 0; i < G->V; i++)
-    fprintf(fout, "%s\n", STsearchByIndex(G->tab, i));
+  // TODO parallelize the process
 
-  for (i = 0; i < G->E; i++)
-    fprintf(fout, "%s  %s %d\n", STsearchByIndex(G->tab, a[i].v), STsearchByIndex(G->tab, a[i].w), a[i].wt);
-
-}
-
-int GRAPHgetIndex(Graph G, char *label) {
-  int id;
-  id = STsearch(G->tab, label);
-  if (id == -1) {
-    id = STsize(G->tab);
-    STinsert(G->tab, label, id);
+  // writing num nodes and num edges
+  if(write(fd, &G->V, sizeof(int)) != sizeof(int)
+    || write(fd, &G->E, sizeof(int)) != sizeof(int)){
+    perror("writing num nodes and num edges into file");
+    close(fd);
+    return;
   }
-  return id;
+  // writing nodes coordinates
+  for(int i=0; i<G->V; i++){
+    coords = STsearchByIndex(G->coords, i);
+    if(write(fd, &coords->c1, sizeof(short int)) != sizeof(short int)
+      || write(fd, &coords->c2, sizeof(short int)) != sizeof(short int)){
+      sprintf(err, "writing coords of node %d", i);
+      perror(err);
+      close(fd);
+      return;
+    }
+  }
+  // writing edges
+  for(int i=0; i<G->E; i++){
+    if(write(fd, &a[i].v, sizeof(int)) != sizeof(int)
+      || write(fd, &a[i].w, sizeof(int)) != sizeof(int)
+      || write(fd, &a[i].wt, sizeof(short int)) != sizeof(short int)){
+      perror("writing edges into file");
+      close(fd);
+      return;
+    }
+  }
+
+  printf("Stored graph in bin file: %s", fin);
+
+  close(fd);
 }
+
+// int GRAPHgetIndex(Graph G, char *label) {
+//   int id;
+//   id = STsearch(G->tab, label);
+//   if (id == -1) {
+//     id = STsize(G->tab);
+//     STinsert(G->tab, label, id);
+//   }
+//   return id;
+// }
 
 void GRAPHinsertE(Graph G, int id1, int id2, int wt) {
   insertE(G, EDGEcreate(id1, id2, wt));
@@ -148,7 +272,7 @@ static void  insertE(Graph G, Edge e) {
 
 static void  removeE(Graph G, Edge e) {
   int v = e.v, w = e.w;
-  link x;
+  ptr_node x;
   if (G->ladj[v]->v == w) {
     G->ladj[v] = G->ladj[v]->next;
     G->E--;
@@ -163,7 +287,7 @@ static void  removeE(Graph G, Edge e) {
 
 void GRAPHspD(Graph G, int id) {
   int v;
-  link t;
+  ptr_node t;
   PQ pq = PQinit(G->V);
   int *st, *mindist;
   st = malloc(G->V*sizeof(int));
@@ -192,13 +316,13 @@ void GRAPHspD(Graph G, int id) {
     }
   }
 
-  printf("\n Shortest path tree\n");
-  for (v = 0; v < G->V; v++)
-    printf("parent of %s is %s \n", STsearchByIndex(G->tab, v), STsearchByIndex(G->tab, st[v]));
+  // printf("\n Shortest path tree\n");
+  // for (v = 0; v < G->V; v++)
+  //   printf("parent of %s is %s \n", STsearchByIndex(G->tab, v), STsearchByIndex(G->tab, st[v]));
 
-  printf("\n Minimum distances from node %s\n", STsearchByIndex(G->tab, id));
-  for (v = 0; v < G->V; v++)
-    printf("mindist[%s] = %d \n", STsearchByIndex(G->tab, v), mindist[v]);
+  // printf("\n Minimum distances from node %s\n", STsearchByIndex(G->tab, id));
+  // for (v = 0; v < G->V; v++)
+  //   printf("mindist[%s] = %d \n", STsearchByIndex(G->tab, v), mindist[v]);
 
   PQfree(pq);
 }

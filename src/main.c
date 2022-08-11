@@ -4,10 +4,9 @@
 #define MAXC 11
 
 int main(void) {
-  int i, cont, sel, id1, id2, wt;
-  char name[MAXC], label[MAXC];
+  int i, cont, id1, id2, wt;
+  char name[MAXC];
   Graph G;
-  FILE *fin, *fout;
 
   cont = 1;
   while(cont) {
@@ -28,47 +27,28 @@ int main(void) {
       switch(i) {
             case 1:     printf("Input file name: ");
                         scanf("%s", name);
-                        fin = fopen(name, "r");
-                        if (fin == NULL)
-                          exit(-1);
-                        G = GRAPHload(fin);
-                        fclose(fin);
+                        G = GRAPHload(name);
                         break;
             case 2:     printf("Insert first node = ");
-                        scanf("%s", label);
-                        id1 = GRAPHgetIndex(G, label);
+                        scanf("%d", &id1);
                         printf("Insert second node = ");
-                        scanf("%s", label);
-                        id2 = GRAPHgetIndex(G, label);
+                        scanf("%d", &id2);
                         printf("Insert weight = ");
                         scanf("%d", &wt);
                         GRAPHinsertE(G, id1, id2, wt);
                         break;
             case 3:     printf("Insert first node = ");
-                        scanf("%s", label);
-                        id1 = GRAPHgetIndex(G, label);
+                        scanf("%d", &id1);
                         printf("Insert second node = ");
-                        scanf("%s", label);
-                        id2 = GRAPHgetIndex(G, label);
+                        scanf("%d", &id2);
                         GRAPHremoveE(G, id1, id2);
                         break;
-            case 4:     printf("File (0) or Screen (1)? ");
-                        scanf("%d", &sel);
-                        if (sel==0) {
-                          printf("Input file name: ");
-                          scanf("%s", name);
-                          fout = fopen(name, "w");
-                          if (fout == NULL)
-                            exit(-1);
-                          GRAPHstore(G, fout);
-                          fclose(fout);
-                        }
-                        else
-                          GRAPHstore(G,stdout);
+            case 4:     printf("Output file name: ");
+                        scanf("%s", name);
+                        GRAPHstore(G, name);
                         break;
             case 5:     printf("Insert start node = ");
-                        scanf("%s", label);
-                        id1 = GRAPHgetIndex(G, label);
+                        scanf("%d", &id1);
                         GRAPHspD(G, id1);
                         break;
             case 6:     cont = 0;
