@@ -43,7 +43,7 @@ int main(void) {
                         scanf("%d", &id2);
                         GRAPHremoveE(G, id1, id2);
                         break;
-            case 4:     printf("Input file name: ");
+            case 4:     printf("Output file name: ");
                         scanf("%s", name);
                         GRAPHstore(G, name);
                         break;
