@@ -5,7 +5,7 @@
 struct pqueue { int *A; int *qp; int heapsize; };
 
 static void Swap(PQ pq, int n1, int n2);
-static void Heapify(PQ pq, int *mindist, int i);
+static void Heapify(PQ pq, int *priority, int i);
 static int LEFT(int i);
 static int RIGHT(int i);
 static int PARENT(int i);
@@ -43,11 +43,15 @@ int PQempty(PQ pq) {
   return pq->heapsize == 0;
 }
 
-void PQinsert (PQ pq, int *mindist, int node){
+// Inside the while the position of two nodes in the heap is exchanged
+// This happens because the node we want to insert has a lower priority value
+// wrt his parent. In addition to the exchange of the nodes, also the qp
+// vector has to be updated (qp contains the index of a node inside the heap)
+void PQinsert (PQ pq, int *priority, int node){
   int i;
   i = pq->heapsize++;
   pq->qp[node] = i;
-  while (i>=1 && (mindist[pq->A[PARENT(i)]] > mindist[node])) {
+  while (i>=1 && (priority[pq->A[PARENT(i)]] > priority[node])) {
     pq->A[i] = pq->A[PARENT(i)];
     pq->qp[pq->A[i]] = i;
     i = (i-1)/2;
@@ -73,37 +77,37 @@ static void Swap(PQ pq, int n1, int n2){
   return;
 }
 
-static void Heapify(PQ pq, int *mindist, int i) {
+static void Heapify(PQ pq, int *priority, int i) {
   int l, r, smallest;
   l = LEFT(i);
   r = RIGHT(i);
-  if (l < pq->heapsize && (mindist[pq->A[l]] < mindist[pq->A[i]]))
+  if (l < pq->heapsize && (priority[pq->A[l]] < priority[pq->A[i]]))
     smallest = l;
   else
     smallest = i;
-  if (r < pq->heapsize && (mindist[pq->A[r]] < mindist[pq->A[smallest]]))
+  if (r < pq->heapsize && (priority[pq->A[r]] < priority[pq->A[smallest]]))
     smallest = r;
   if (smallest != i) {
     Swap(pq, i,smallest);
-	Heapify(pq, mindist, smallest);
+	Heapify(pq, priority, smallest);
   }
   return;
 }
 
-int PQextractMin(PQ pq, int *mindist) {
+int PQextractMin(PQ pq, int *priority) {
   int k;
   Swap (pq, 0, pq->heapsize-1);
   k = pq->A[pq->heapsize-1];
   pq->heapsize--;
-  Heapify(pq, mindist, 0);
+  Heapify(pq, priority, 0);
   return k;
 }
 
-void PQchange (PQ pq, int *mindist, int k) {
+void PQchange (PQ pq, int *priority, int k) {
   int pos = pq->qp[k];
   int temp = pq->A[pos];
 
-  while (pos>=1 && (mindist[pq->A[PARENT(pos)]] > mindist[pq->A[pos]])) {
+  while (pos>=1 && (priority[pq->A[PARENT(pos)]] > priority[pq->A[pos]])) {
     pq->A[pos] = pq->A[PARENT(pos)];
     pq->qp[pq->A[pos]] = pos;
     pos = (pos-1)/2;
@@ -111,7 +115,7 @@ void PQchange (PQ pq, int *mindist, int k) {
   pq->A[pos] = temp;
   pq->qp[temp] = pos;
 
-  Heapify(pq, mindist, pos);
+  Heapify(pq, priority, pos);
   return;
 }
 
