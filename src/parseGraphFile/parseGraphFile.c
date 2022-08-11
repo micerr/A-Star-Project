@@ -9,33 +9,26 @@
 #include <sys/types.h>
 #include <pthread.h>
 
-typedef struct{
-    pthread_t tid;
-    int outFd;      //descriptord of the output file
-    FILE *intFd;    //descriptor of the input file
-    int pos;        //number of lines to be skipped
-    long inputSize; //total size of the input file
-} thStruct_t;
+typedef struct {
+    char *name;
+    char *path;
+} par_t;
 
 typedef struct{
-    char c;
-    int num;
     int coord1;
     int coord2;
 } vert_t;
 
 typedef struct{
-    char c;
     int vert1, vert2;
-    int wt;
+    short wt;
 } edge_t;
 
 long maxThread;
 
 void parseFiles(char *name, char *path);
-void parseDistanceWeight(char *name, char *path);
-void parseTimeWeight(char *name, char *path);
-void *readVertex(void *par);
+void *parseDistanceWeight(void *arg);
+void *parseTimeWeight(void *arg);
 
 int main(int argc, char *argv[]){
 
@@ -97,27 +90,41 @@ int main(int argc, char *argv[]){
 }
 
 void parseFiles(char *name, char *path){
+    pthread_t tid1, tid2;
+    par_t par;
+
+    par.name = name;
+    par.path = path;
+
     printf("\tname: %s\n\tpath: %s\n", name, path);    
     
-    parseDistanceWeight(name, path);
-    parseTimeWeight(name, path);
+    // create 2 threads to parallelize the merging of the two files
+    pthread_create(&tid1, NULL, parseDistanceWeight, (void *) &par);
+    pthread_create(&tid2, NULL, parseTimeWeight, (void *) &par);
+    
+    pthread_join(tid1, NULL);
+    pthread_join(tid2, NULL);
 
     printf("\n");
     return;
 }
 
-void parseDistanceWeight(char *name, char *path){
+void *parseDistanceWeight(void *arg){
     char *outFilePath, prefix[4], buf[1024];
     char *coordinatesFile, *distanceFile;
-    int outFd, num;
-    struct stat st;
+    char type;
+    vert_t vert;
+    edge_t edge;
+    int outFd, num, totVert=0;
     FILE *coordinatesFd, *distanceFd;
-    thStruct_t *thArray = (thStruct_t *)malloc(maxThread*sizeof(thStruct_t));
+    char *name, *path;
+    par_t *par = (par_t *)arg;
+    name = par->name;
+    path = par->path;
     
     //create the path of the file
     outFilePath = (char *)malloc(100 * sizeof(char));
-    sprintf(outFilePath,"%s/%s-distanceWeight.txt",path,name);
-    printf("\tfinal file: %s\n",outFilePath);
+    sprintf(outFilePath,"%s/%s-distanceWeight.bin",path,name);
 
     //create the final file
     outFd = open(outFilePath, O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXO | S_IRWXG);
@@ -160,67 +167,148 @@ void parseDistanceWeight(char *name, char *path){
         exit(1);
     }
 
-//START MERGING
-    
     //skip first 4 bytes of the out file. They will store the number of vertex
     lseek(outFd,4,SEEK_SET);
 
-    //skip first 6 rows of the file containing the coordinates
-    for(int i=0; i<=6; i++)
-        fgets(buf,1024,coordinatesFd);
+    //start reading all nodes
+    while(fgets(buf, 1024, coordinatesFd) != NULL){
+        sscanf(buf,"%c",&type);
 
-    //retrieve size of the input file
-    if(stat(coordinatesFile, &st) < 0){
-        perror("Errore retrieving the size of the file: ");
-        exit(1);
-    }
-    
-
-    //create N thread to read all vertexes
-    for(int i=0; i<maxThread; i++){
-        thArray[i].outFd = outFd;
-        thArray[i].intFd = distanceFd;
-        thArray[i].pos = i;
-        thArray[i].inputSize = st.st_size;
-        pthread_create(&thArray[i].tid,NULL,readVertex,(void*)&thArray[i]);        
+        //check if a vertex has been found
+        if(type=='v'){
+            sscanf(buf,"%c %d %d %d", &type, &num, &vert.coord1, &vert.coord2);
+            //write the new vertex on the output file
+            if(write(outFd, &vert, sizeof(vert_t)) < sizeof(vert_t)){
+                perror("Error writing a vertex on the output file: ");
+                exit(1);
+            }
+            //update the total number of nodes
+            totVert++;
+        }
     }
 
-    //wait their termination
-    for(int i=0; i<maxThread; i++)
-        pthread_join(thArray[i].tid,NULL);
+    //start reading all edges
+    while(fgets(buf, 1024, distanceFd) != NULL){
+        sscanf(buf,"%c",&type);
+
+        //check if an edge has been found
+        if(type=='e'){
+            sscanf(buf,"%c %d %d %hd", &type, &edge.vert1, &edge.vert2, &edge.wt);
+            //write the new edge on the output file
+            if(write(outFd, &edge, sizeof(vert_t)) < sizeof(edge_t)){
+                perror("Error writing an edge on the output file: ");
+                exit(1);
+            }
+        }
+    }
+
+    //write the total amount of nodes
+    lseek(outFd,0,SEEK_SET);
+    write(outFd,&totVert,sizeof(int));
     
-    return;
+    printf("\tfile: %s\t\tCOMPLETED\n",outFilePath);
+
+    pthread_exit(NULL);
 }
 
-
-void parseTimeWeight(char *name, char *path){
-    char *outFilePath;
-    int fd;
+void *parseTimeWeight(void *arg){
+    char *outFilePath, prefix[4], buf[1024];
+    char *coordinatesFile, *timeFile;
+    char type;
+    vert_t vert;
+    edge_t edge;
+    int outFd, num, totVert=0;
+    FILE *coordinatesFd, *timeFd;
+    char *name, *path;
+    par_t *par = (par_t *)arg;
+    name = par->name;
+    path = par->path;
     
     //create the path of the file
     outFilePath = (char *)malloc(100 * sizeof(char));
-    sprintf(outFilePath,"%s/%s-timeWeight.txt",path,name);
-    printf("\tfinal file: %s\n",outFilePath);
+    sprintf(outFilePath,"%s/%s-timeWeight.bin",path,name);
 
     //create the final file
-    fd = open(outFilePath, O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXO | S_IRWXG);
-    if(fd < 0){
+    outFd = open(outFilePath, O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXO | S_IRWXG);
+    if(outFd < 0){
         printf("Error creating the file %s: ", name);
         perror("");
         exit(1);
     }
 
-    return;
-}
+    //retrieve the prefix of all input files
+    sscanf(name,"%d-%s", &num, prefix);
 
-void *readVertex(void *par){
-    thStruct_t *thS = (thStruct_t *)par;
-
-    long offset = thS->pos;
-    while(1){
-        printf("1");
+    //create the path of the file containing all coordinates
+    coordinatesFile = (char *)malloc(100 * sizeof(char));
+    if(coordinatesFile == NULL){
+        printf("Error creating the path of coordinatesFile\n");
+        exit(1);
     }
+    sprintf(coordinatesFile,"%s/%s_coordinates.txt",path,prefix);
+    //open the file containing all coordinates
+    coordinatesFd = fopen(coordinatesFile, "r");
+    if(coordinatesFd == NULL){
+        printf("Error opening %s: ", coordinatesFile);
+        perror("");
+        exit(1);
+    }
+
+    //create the path of the file containing all times
+    timeFile = (char *)malloc(100 * sizeof(char));
+    if(timeFile == NULL){
+        printf("Error creating the path of timeFile\n");
+        exit(1);
+    }
+    sprintf(timeFile,"%s/%s_time.txt",path,prefix);
+    //open the file containing all times
+    timeFd = fopen(timeFile, "r");
+    if(timeFd == NULL){
+        printf("Error opening %s: ", timeFile);
+        perror("");
+        exit(1);
+    }
+
+    //skip first 4 bytes of the out file. They will store the number of vertex
+    lseek(outFd,4,SEEK_SET);
+
+    //start reading all nodes
+    while(fgets(buf, 1024, coordinatesFd) != NULL){
+        sscanf(buf,"%c",&type);
+
+        //check if a vertex has been found
+        if(type=='v'){
+            sscanf(buf,"%c %d %d %d", &type, &num, &vert.coord1, &vert.coord2);
+            //write the new vertex on the output file
+            if(write(outFd, &vert, sizeof(vert_t)) < sizeof(vert_t)){
+                perror("Error writing a vertex on the output file: ");
+                exit(1);
+            }
+            //update the total number of nodes
+            totVert++;
+        }
+    }
+
+    //start reading all edges
+    while(fgets(buf, 1024, timeFd) != NULL){
+        sscanf(buf,"%c",&type);
+
+        //check if an edge has been found
+        if(type=='e'){
+            sscanf(buf,"%c %d %d %hd", &type, &edge.vert1, &edge.vert2, &edge.wt);
+            //write the new edge on the output file
+            if(write(outFd, &edge, sizeof(vert_t)) < sizeof(edge_t)){
+                perror("Error writing an edge on the output file: ");
+                exit(1);
+            }
+        }
+    }
+
+    //write the total amount of nodes
+    lseek(outFd,0,SEEK_SET);
+    write(outFd,&totVert,sizeof(int));
     
-    
+    printf("\tfile: %s\t\tCOMPLETED\n",outFilePath);
+
     pthread_exit(NULL);
 }
