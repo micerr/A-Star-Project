@@ -4,7 +4,7 @@
 #define MAXC 11
 
 int main(void) {
-  int i, cont, id1, id2, wt;
+  int i, cont, id1, id2, wt, numThreads;
   char name[MAXC];
   Graph G;
 
@@ -27,7 +27,9 @@ int main(void) {
       switch(i) {
             case 1:     printf("Input file name: ");
                         scanf("%s", name);
-                        G = GRAPHload(name);
+                        printf("Insert number of threads: ");
+                        scanf("%d", &numThreads);
+                        G = GRAPHload(name, numThreads);
                         break;
             case 2:     printf("Insert first node = ");
                         scanf("%d", &id1);
@@ -57,6 +59,7 @@ int main(void) {
           }
         }
     }
+    if(G == NULL) return 0;
     GRAPHfree(G);
     return 0;
 }

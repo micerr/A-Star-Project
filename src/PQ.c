@@ -50,7 +50,7 @@ void PQinsert (PQ pq, int *mindist, int node){
   while (i>=1 && (mindist[pq->A[PARENT(i)]] > mindist[node])) {
     pq->A[i] = pq->A[PARENT(i)];
     pq->qp[pq->A[i]] = i;
-    i = (i-1)/2;
+    i = PARENT(i);
   }
   pq->A[i] = node;
   pq->qp[node] = i;
