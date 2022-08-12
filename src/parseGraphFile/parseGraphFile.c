@@ -82,6 +82,8 @@ int main(int argc, char *argv[]){
         //free memory
         free(dirEntryName);
         free(dirEntryPath);
+
+        return 0;
     }
 
 
@@ -117,6 +119,12 @@ void *parseDistanceWeight(void *arg){
     edge_t edge;
     int outFd, num, totVert=0;
     FILE *coordinatesFd, *distanceFd;
+    FILE *outASCII;
+
+    //used to center all the coordinates
+    long sum1 = 0, sum2 = 0;
+    int mean1, mean2;       //truncates mean values
+
     char *name, *path;
     par_t *par = (par_t *)arg;
     name = par->name;
@@ -133,6 +141,10 @@ void *parseDistanceWeight(void *arg){
         perror("");
         exit(1);
     }
+    
+    char *outFilePathASCII = (char *)malloc(100 * sizeof(char));
+    sprintf(outFilePathASCII,"%s/%s-distanceWeight.txt", path, name);
+    outASCII = fopen(outFilePathASCII,"w+");
 
     //retrieve the prefix of all input files
     sscanf(name,"%d-%s", &num, prefix);
@@ -168,7 +180,7 @@ void *parseDistanceWeight(void *arg){
     }
 
     //skip first 4 bytes of the out file. They will store the number of vertex
-    lseek(outFd,4,SEEK_SET);
+    lseek(outFd, 4, SEEK_SET);
 
     //start reading all nodes
     while(fgets(buf, 1024, coordinatesFd) != NULL){
@@ -182,8 +194,14 @@ void *parseDistanceWeight(void *arg){
                 perror("Error writing a vertex on the output file: ");
                 exit(1);
             }
+
             //update the total number of nodes
             totVert++;
+
+            //update the sums
+            sum1 += vert.coord1;
+            sum2 += vert.coord2;
+            
         }
     }
 
@@ -205,7 +223,34 @@ void *parseDistanceWeight(void *arg){
     //write the total amount of nodes
     lseek(outFd,0,SEEK_SET);
     write(outFd,&totVert,sizeof(int));
-    
+
+    fprintf(outASCII, "%d\n", totVert);
+
+    //compute the mean values
+    mean1 = sum1 / totVert;
+    mean2 = sum2 / totVert;
+
+    printf("mean1: %d\n", mean1);
+    printf("mean2: %d\n", mean2);
+
+    //skip first 4 bytes of the binary file
+    lseek(outFd, 4, SEEK_SET);
+
+    for(int i=0; i<totVert; i++){
+        //read the coordinates
+        read(outFd, &vert, sizeof(vert_t));
+        vert.coord1 -= mean1;
+        vert.coord2 -= mean2;
+
+        //take back the file pointer
+        lseek(outFd, -sizeof(vert_t), SEEK_CUR);
+
+        //write the centered coordinates
+        write(outFd, &vert, sizeof(vert_t));
+
+        fprintf(outASCII,"%d %d\n", vert.coord1, vert.coord2);
+    }
+
     printf("\tfile: %s\t\tCOMPLETED\n",outFilePath);
 
     pthread_exit(NULL);
@@ -219,6 +264,12 @@ void *parseTimeWeight(void *arg){
     edge_t edge;
     int outFd, num, totVert=0;
     FILE *coordinatesFd, *timeFd;
+    FILE *outASCII;
+
+    //used to center all the coordinates
+    long sum1 = 0, sum2 = 0;
+    int mean1, mean2;       //truncates mean values
+
     char *name, *path;
     par_t *par = (par_t *)arg;
     name = par->name;
@@ -235,6 +286,10 @@ void *parseTimeWeight(void *arg){
         perror("");
         exit(1);
     }
+    
+    char *outFilePathASCII = (char *)malloc(100 * sizeof(char));
+    sprintf(outFilePathASCII,"%s/%s-timeWeight.txt", path, name);
+    outASCII = fopen(outFilePathASCII,"w+");
 
     //retrieve the prefix of all input files
     sscanf(name,"%d-%s", &num, prefix);
@@ -286,6 +341,10 @@ void *parseTimeWeight(void *arg){
             }
             //update the total number of nodes
             totVert++;
+
+            //update the sums
+            sum1 += vert.coord1;
+            sum2 += vert.coord2;
         }
     }
 
@@ -307,7 +366,32 @@ void *parseTimeWeight(void *arg){
     //write the total amount of nodes
     lseek(outFd,0,SEEK_SET);
     write(outFd,&totVert,sizeof(int));
-    
+
+    fprintf(outASCII, "%d\n", totVert);
+
+    //compute the mean values
+    mean1 = sum1 / totVert;
+    mean2 = sum2 / totVert;
+
+    //skip first 4 bytes of the binary file
+    lseek(outFd, 4, SEEK_SET);
+
+    for(int i=0; i<totVert; i++){
+        //read the coordinates
+        read(outFd, &vert, sizeof(vert_t));
+        vert.coord1 -= mean1;
+        vert.coord2 -= mean2;
+
+        //take back the file pointer
+        lseek(outFd, -sizeof(vert_t), SEEK_CUR);
+
+        //write the centered coordinates
+        write(outFd, &vert, sizeof(vert_t));
+
+        fprintf(outASCII,"%d %d\n", vert.coord1, vert.coord2);
+    }
+
+
     printf("\tfile: %s\t\tCOMPLETED\n",outFilePath);
 
     pthread_exit(NULL);
