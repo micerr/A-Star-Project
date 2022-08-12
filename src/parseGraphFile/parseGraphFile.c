@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <pthread.h>
+#include <math.h>
 
 typedef struct {
     char *name;
@@ -123,7 +124,9 @@ void *parseDistanceWeight(void *arg){
 
     //used to center all the coordinates
     long sum1 = 0, sum2 = 0;
+    long sumSquare1 = 0, sumSquare2 = 0;
     int mean1, mean2;       //truncates mean values
+    long var1, var2;         
 
     char *name, *path;
     par_t *par = (par_t *)arg;
@@ -201,6 +204,9 @@ void *parseDistanceWeight(void *arg){
             //update the sums
             sum1 += vert.coord1;
             sum2 += vert.coord2;
+
+            sumSquare1 += vert.coord1*vert.coord1;
+            sumSquare2 += vert.coord2*vert.coord2;
             
         }
     }
@@ -230,8 +236,12 @@ void *parseDistanceWeight(void *arg){
     mean1 = sum1 / totVert;
     mean2 = sum2 / totVert;
 
-    printf("mean1: %d\n", mean1);
-    printf("mean2: %d\n", mean2);
+    //compute the variance
+    var1 = (long) sqrtl((long double) ((sumSquare1 / totVert) - mean1*mean1));
+    var2 = (long) sqrtl((long double) ((sumSquare2 / totVert) - mean2*mean2));
+
+    printf("mean1: %d\tmean2: %d\n", mean1, mean2);
+    printf("var1: %ld\tvar2: %ld\n", var1, var2);
 
     //skip first 4 bytes of the binary file
     lseek(outFd, 4, SEEK_SET);
@@ -239,8 +249,10 @@ void *parseDistanceWeight(void *arg){
     for(int i=0; i<totVert; i++){
         //read the coordinates
         read(outFd, &vert, sizeof(vert_t));
-        vert.coord1 -= mean1;
-        vert.coord2 -= mean2;
+        vert.coord1 = (vert.coord1-mean1)/var1;
+        vert.coord2 = (vert.coord2-mean2)/var2;
+        // vert.coord1 -= mean1;
+        // vert.coord2 -= mean2;
 
         //take back the file pointer
         lseek(outFd, -sizeof(vert_t), SEEK_CUR);
@@ -268,7 +280,9 @@ void *parseTimeWeight(void *arg){
 
     //used to center all the coordinates
     long sum1 = 0, sum2 = 0;
+    long sumSquare1 = 0, sumSquare2 = 0;
     int mean1, mean2;       //truncates mean values
+    long var1, var2; 
 
     char *name, *path;
     par_t *par = (par_t *)arg;
@@ -345,6 +359,10 @@ void *parseTimeWeight(void *arg){
             //update the sums
             sum1 += vert.coord1;
             sum2 += vert.coord2;
+
+            sumSquare1 += vert.coord1*vert.coord1;
+            sumSquare2 += vert.coord2*vert.coord2;
+          
         }
     }
 
@@ -373,14 +391,18 @@ void *parseTimeWeight(void *arg){
     mean1 = sum1 / totVert;
     mean2 = sum2 / totVert;
 
+    //compute the variance
+    var1 = (long) sqrtl((long double) ((sumSquare1 / totVert) - mean1*mean1));
+    var2 = (long) sqrtl((long double) ((sumSquare2 / totVert) - mean2*mean2));
+
     //skip first 4 bytes of the binary file
     lseek(outFd, 4, SEEK_SET);
 
     for(int i=0; i<totVert; i++){
         //read the coordinates
         read(outFd, &vert, sizeof(vert_t));
-        vert.coord1 -= mean1;
-        vert.coord2 -= mean2;
+        vert.coord1 = (vert.coord1-mean1)/var1;
+        vert.coord2 = (vert.coord2-mean2)/var2;
 
         //take back the file pointer
         lseek(outFd, -sizeof(vert_t), SEEK_CUR);
