@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <sys/time.h>
 
 #include "Graph.h"
 #include "PQ.h"
@@ -43,8 +44,9 @@ static void insertE(Graph G, Edge e);
 static void removeE(Graph G, Edge e);
 static int readCoords(int fd, short int *coord1, short int *coord2, int node);
 static int readEdge(int fd, int *n1, int *n2, short int *wt);
-
 static void *loadThread(void *);
+
+struct timeval begin, end;
 
 static Edge EDGEcreate(int v, int w, int wt) {
   Edge e;
@@ -128,7 +130,7 @@ static int readEdge(int fd, int *n1, int *n2, short int *wt){
 */
 char *finput;
 pthread_mutex_t *meLoadV, *meLoadE;
-int posV=0, posE=0, edges;
+int posV=0, posE=0, edges, n=0;
 
 static void *loadThread(void *vpars){
   int ret = 0, fd, curr, id1, id2;
@@ -142,6 +144,15 @@ static void *loadThread(void *vpars){
     ret = 1;
     pthread_exit(&ret);
   }
+  
+  #ifdef TIME
+    pthread_mutex_lock(meLoadV);
+      if(n==0){
+        gettimeofday(&begin, 0);
+      }
+      n++;
+    pthread_mutex_unlock(meLoadV);
+  #endif
 
   if(pars->id % 2 == 0){
     // reader of nodes coordinates
@@ -199,6 +210,22 @@ static void *loadThread(void *vpars){
         GRAPHinsertE(G, id1, id2, wt);
     }
   }
+  
+  #ifdef TIME
+    pthread_mutex_lock(meLoadV);
+      n--;
+      if(n==0){
+        gettimeofday(&end, 0);
+        long int seconds = end.tv_sec - begin.tv_sec;
+        long int microseconds = end.tv_usec - begin.tv_usec;
+        double elapsed = seconds + microseconds*1e-6;
+
+        printf("Time for reading parallel: %.3f seconds.\n", elapsed);
+      }
+    pthread_mutex_unlock(meLoadV);
+    
+  #endif 
+
 
   close(fd);
   pthread_exit(&ret);
@@ -209,7 +236,7 @@ static void *loadThread(void *vpars){
     
   The standard is the following:
    | 4 byte | 4 byte |  => n. nodes, n. edges
-   | 2 byte | 2 byte | => cord1, cord2 node i-esimo
+   | 4 byte | 4 byte | => cord1, cord2 node i-esimo
    ... x num nodes
    | 4 byte | 4 byte | 2 byte | => v1, v2, w
    ... x num edges
@@ -286,12 +313,14 @@ Graph GRAPHload(char *fin, int numThreads) {
     return G;
   }
 
-  // TODO parallelize everything 
-
   // Reading coordinates of each node
   #ifdef DEBUG
     printf("Nodes coordinates:\n");
   #endif
+  #ifdef TIME
+    gettimeofday(&begin, 0);
+  #endif
+
   for(int i=0; i<V; i++) {
     if(readCoords(fd, &coord1, &coord2, i)){
         sprintf(err, "reading coords of node %d", i);
@@ -318,6 +347,14 @@ Graph GRAPHload(char *fin, int numThreads) {
     if (id1 >= 0 && id2 >=0)
       GRAPHinsertE(G, id1, id2, wt);
   }
+  #ifdef TIME
+    gettimeofday(&end, 0);
+    long int seconds = end.tv_sec - begin.tv_sec;
+    long int microseconds = end.tv_usec - begin.tv_usec;
+    double elapsed = seconds + microseconds*1e-6;
+
+    printf("Time for reading sequential: %.3f seconds.\n", elapsed);
+  #endif
 
   close(fd);
 
