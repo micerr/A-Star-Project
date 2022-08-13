@@ -246,6 +246,32 @@ void *parseDistanceWeight(void *arg){
 
     printf("\tfile: %s\t\tCOMPLETED\n",outFilePath);
 
+    //close all files
+    if(close(outFd) < 0){
+        perror("(Dist) Error closing outFd: ");
+        exit(1);
+    }
+
+    if(fclose(coordinatesFd) == EOF){
+        perror("(Dist) Error closing coordinatesFd: ");
+        exit(1);
+    }
+
+    if(fclose(distanceFd) == EOF){
+        perror("(Dist) Error closing distanceFd: ");
+        exit(1);
+    }
+
+    if(fclose(outASCII) == EOF){
+        perror("(Dist) Error closing outASCII: ");
+        exit(1);
+    }
+
+    //freeing memory used for strings
+    free(outFilePath);
+    free(coordinatesFile);
+    free(distanceFile);
+
     pthread_exit(NULL);
 }
 
@@ -388,5 +414,31 @@ void *parseTimeWeight(void *arg){
 
     printf("\tfile: %s\t\tCOMPLETED\n",outFilePath);
 
+    //close all files
+    if(close(outFd) < 0){
+        perror("(Dist) Error closing outFd: ");
+        exit(1);
+    }
+
+    if(fclose(coordinatesFd) == EOF){
+        perror("(Dist) Error closing coordinatesFd: ");
+        exit(1);
+    }
+
+    if(fclose(timeFd) == EOF){
+        perror("(Dist) Error closing distanceFd: ");
+        exit(1);
+    }
+
+    if(fclose(outASCII) == EOF){
+        perror("(Dist) Error closing outASCII: ");
+        exit(1);
+    }
+
+    //freeing memory used for strings
+    free(outFilePath);
+    free(coordinatesFile);
+    free(timeFile);
+    
     pthread_exit(NULL);
 }
