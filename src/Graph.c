@@ -146,9 +146,6 @@ static void *loadThread(void *vpars){
       // get the position
       pthread_mutex_lock(meLoadV);
       curr = posV;
-      #ifdef DEBUG
-        printf("%d: curr V=%d\n", pars->id, curr);
-      #endif
       posV++;
       pthread_mutex_unlock(meLoadV);
       // move the pointer into file
@@ -166,6 +163,9 @@ static void *loadThread(void *vpars){
         ret=1;
         pthread_exit(&ret);
       }
+      #ifdef DEBUG
+        printf("%d: curr=%d coords=%d %d\n", pars->id, curr, v.coord1, v.coord2);
+      #endif
       STinsert(G->coords, v.coord1, v.coord2, curr);
     }
   }else{    
@@ -179,7 +179,7 @@ static void *loadThread(void *vpars){
       posE++;
       pthread_mutex_unlock(meLoadE);
       // move the pointer into file
-      if(lseek(fd, 1*sizeof(int) + G->V*2*sizeof(vert_t) + curr*(sizeof(edge_t)), SEEK_SET) == -1 ){
+      if(lseek(fd, sizeof(int) + G->V*sizeof(vert_t) + curr*(sizeof(edge_t)), SEEK_SET) == -1 ){
         perror("edges lseek");
         close(fd);
         ret = 1;
@@ -189,6 +189,9 @@ static void *loadThread(void *vpars){
       if(read(fd, &e, sizeof(edge_t)) != sizeof(edge_t)){
         break;
       }
+      #ifdef DEBUG
+        printf("%d %d %d\n", e.vert1, e.vert2, e.wt);
+      #endif
       if (e.vert1 >= 0 && e.vert2 >=0)
         GRAPHinsertE(G, e.vert1, e.vert2, e.wt);
     }
