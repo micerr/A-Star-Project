@@ -101,13 +101,13 @@ void GRAPHfree(Graph G) {
 }
 
 typedef struct{
-    int coord1;
-    int coord2;
+  int coord1;
+  int coord2;
 } vert_t;
 
 typedef struct __attribute__((__packed__)) edge_s{
-    int vert1, vert2;
-    short wt;
+  int vert1, vert2;
+  short int wt;
 } edge_t;
 
 /*
@@ -152,7 +152,7 @@ static void *loadThread(void *vpars){
       posV++;
       pthread_mutex_unlock(meLoadV);
       // move the pointer into file
-      if(lseek(fd, 2*sizeof(int)+curr*2*sizeof(short int), SEEK_SET) == -1){
+      if(lseek(fd, 1*sizeof(int)+curr*sizeof(vert_t), SEEK_SET) == -1){
         perror("nodes lseek");
         close(fd);
         ret = 1;
@@ -179,7 +179,7 @@ static void *loadThread(void *vpars){
       posE++;
       pthread_mutex_unlock(meLoadE);
       // move the pointer into file
-      if(lseek(fd, 2*sizeof(int) + G->V*2*sizeof(int) + curr*(2*sizeof(int)+sizeof(short int)), SEEK_SET) == -1 ){
+      if(lseek(fd, 1*sizeof(int) + G->V*2*sizeof(vert_t) + curr*(sizeof(edge_t)), SEEK_SET) == -1 ){
         perror("edges lseek");
         close(fd);
         ret = 1;
@@ -311,6 +311,9 @@ Graph GRAPHload(char *fin, int numThreads) {
         close(fd);
         return NULL;
       }
+    #ifdef DEBUG
+      printf("%d: %d %d\n", i, v.coord1, v.coord2);
+    #endif
     STinsert(G->coords, v.coord1, v.coord2, i);
   }
 
@@ -319,7 +322,10 @@ Graph GRAPHload(char *fin, int numThreads) {
   #ifdef DEBUG
     printf("Edges:\n");
   #endif
-  while(read(fd, &e, sizeof(edge_t)) != sizeof(edge_t)){
+  while(read(fd, &e, sizeof(edge_t)) == sizeof(edge_t)){
+    #ifdef DEBUG
+      printf("%d %d %d\n", e.vert1, e.vert2, e.wt);
+    #endif
     if (e.vert1 >= 0 && e.vert2 >=0)
       GRAPHinsertE(G, e.vert1, e.vert2, e.wt);
   }
@@ -368,7 +374,7 @@ void GRAPHstore(Graph G, char *fin) {
   #ifdef DEBUG
     printf("Edges:\n");
     for(int i=0; i<G->E; i++){
-      printf("%d %d %hd\n", a[i].v, a[i].w, a[i].wt);
+      printf("%d %d %d\n", a[i].v, a[i].w, a[i].wt);
     }
   #endif
 
@@ -469,13 +475,16 @@ void GRAPHspD(Graph G, int id) {
     }
   }
 
-  // printf("\n Shortest path tree\n");
-  // for (v = 0; v < G->V; v++)
-  //   printf("parent of %s is %s \n", STsearchByIndex(G->tab, v), STsearchByIndex(G->tab, st[v]));
+  printf("\n Shortest path tree\n");
+  for (v = 0; v < G->V; v++){
+    if(st[v] != -1)
+      printf("parent of %d is %d \n", v, st[v]);
+  }
+    
 
-  // printf("\n Minimum distances from node %s\n", STsearchByIndex(G->tab, id));
+  // printf("\n Minimum distances from node %d\n", id);
   // for (v = 0; v < G->V; v++)
-  //   printf("mindist[%s] = %d \n", STsearchByIndex(G->tab, v), mindist[v]);
+  //   printf("mindist[%d] = %d \n", v, mindist[v]);
 
   PQfree(pq);
 }
