@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "PQ.h"
-#include "Item.h"
+#include "./utility/Item.h"
 
 struct pqueue { Item *A; int *qp; int heapsize; };
 
@@ -104,7 +104,7 @@ int PQsearch(PQ pq, int node_index, int *priority){
   }
 }
 
-int PQextractMin(PQ pq) {
+Item PQextractMin(PQ pq) {
   Item item;
   Swap (pq, 0,pq->heapsize-1);
   item = pq->A[pq->heapsize-1];

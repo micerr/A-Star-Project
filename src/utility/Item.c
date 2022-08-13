@@ -13,14 +13,14 @@ struct item {
 };
 
 
-Item ITEMinit(int node_index, int priority){
+Item* ITEMinit(int node_index, int priority){
   Item *item = (Item*) malloc(sizeof(*item));
 
   if(item == NULL){
     exit(1);
   }
 
-  item->index = index;
+  item->index = node_index;
   item->priority = priority;
 
   return item;

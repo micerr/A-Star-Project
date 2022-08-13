@@ -2,6 +2,7 @@
 #define GRAPH_H
 
 #include "ST.h"
+#include "./utility/Item.h"
 
 typedef struct edge {
     int v;

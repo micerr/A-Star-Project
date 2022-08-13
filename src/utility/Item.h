@@ -3,6 +3,6 @@
 
 typedef struct item Item;
 
-Item ITEMinit(int node_index, int priority);
+Item* ITEMinit(int node_index, int priority);
 
 #endif

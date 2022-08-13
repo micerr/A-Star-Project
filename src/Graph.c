@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include "Graph.h"
 #include "PQ.h"
+#include "./utility/Item.h"
 
 #define maxWT INT_MAX
 #define MAXC 10
@@ -289,30 +290,54 @@ void GRAPHspD(Graph G, int id) {
   int v;
   ptr_node t;
   PQ pq = PQinit(G->V);
-  int *st, *mindist;
-  st = malloc(G->V*sizeof(int));
-  mindist = malloc(G->V*sizeof(int));
-  if ((st == NULL) || (mindist == NULL))
-    return;
-
-  for (v = 0; v < G->V; v++){
-    st[v] = -1;
-    mindist[v] = maxWT;
-    PQinsert(pq, mindist, v);
+  //int *st, *mindist;
+  int *path;
+  path = malloc(G->V * sizeof(int));
+  //st = malloc(G->V*sizeof(int));
+  //mindist = malloc(G->V*sizeof(int));
+  // if ((st == NULL) || (mindist == NULL))
+  //   return;
+  if(path == NULL){
+    exit(1);
   }
 
-  mindist[id] = 0;
-  st[id] = id;
-  PQchange(pq, mindist, id);
+  for (v = 0; v < G->V; v++){
+    //st[v] = -1;
+    //mindist[v] = maxWT;
+    path[v] = -1;
+    PQinsert(pq, v, maxWT);
+  }
 
-  while (!PQempty(pq)) {
-    if (mindist[v = PQextractMin(pq, mindist)] != maxWT) {
-      for (t=G->ladj[v]; t!=G->z ; t=t->next)
-        if (mindist[v] + t->wt < mindist[t->v]) {
-          mindist[t->v] = mindist[v] + t->wt;
-          PQchange(pq, mindist, t->v);
-          st[t->v] = v;
+  PQchange(pq, 0, id);
+  //mindist[id] = 0;
+  //st[id] = id;
+  //PQchange(pq, mindist, id);
+
+  // while (!PQempty(pq)) {
+  //   if (mindist[v = PQextractMin(pq, mindist)] != maxWT) {
+  //     for (t=G->ladj[v]; t!=G->z ; t=t->next)
+  //       if (mindist[v] + t->wt < mindist[t->v]) {
+  //         mindist[t->v] = mindist[v] + t->wt;
+  //         PQchange(pq, mindist, t->v);
+  //         st[t->v] = v;
+  //       }
+  //   }
+  // }
+
+  int *neighbour_priority;
+
+  while (!PQempty(pq)){
+    Item min_item = PQextractMin(pq);
+
+    if(min_item.priority != maxWT){
+      for(t=G->ladj[min_item.index]; t!=G->z; t=t->next){
+        PQsearch(pq, t->v, priority);
+
+        if(min_item.priority + t->wt < (*neighbour_priority)){
+          PQchange(pq, t->v, min_item.priority + t->wt);
+          path[t->v] = v;
         }
+      }
     }
   }
 
