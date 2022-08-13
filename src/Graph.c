@@ -42,8 +42,6 @@ static Edge EDGEcreate(int v, int w, int wt);
 static ptr_node NEW(int v, int wt, ptr_node next);
 static void insertE(Graph G, Edge e);
 static void removeE(Graph G, Edge e);
-static int readCoords(int fd, short int *coord1, short int *coord2, int node);
-static int readEdge(int fd, int *n1, int *n2, short int *wt);
 static void *loadThread(void *);
 
 struct timeval begin, end;
@@ -102,28 +100,15 @@ void GRAPHfree(Graph G) {
   free(G);
 }
 
-static int readCoords(int fd, short int *coord1, short int *coord2, int node){
-  if(read(fd, coord1, sizeof(short int)) != sizeof(short int)
-  || read(fd, coord2, sizeof(short int)) != sizeof(short int)){
-    return 1;
-  }
-  #ifdef DEBUG
-    printf("%d: %hd %hd\n", node, *coord1, *coord2);
-  #endif
-  return 0;
-}
+typedef struct{
+    int coord1;
+    int coord2;
+} vert_t;
 
-static int readEdge(int fd, int *n1, int *n2, short int *wt){
-  if(read(fd, n1, sizeof(int)) != sizeof(int)
-    || read(fd, n2, sizeof(int)) != sizeof(int)
-    || read(fd, wt, sizeof(short int)) != sizeof(short int)){
-    return 1;
-  }
-  #ifdef DEBUG
-    printf("%d %d %hd\n", *n1, *n2, *wt);
-  #endif
-  return 0;
-}
+typedef struct __attribute__((__packed__)) edge_s{
+    int vert1, vert2;
+    short wt;
+} edge_t;
 
 /*
   Global variables:
@@ -133,8 +118,9 @@ pthread_mutex_t *meLoadV, *meLoadE;
 int posV=0, posE=0, edges, n=0;
 
 static void *loadThread(void *vpars){
-  int ret = 0, fd, curr, id1, id2;
-  short int coord1, coord2, wt;
+  int ret = 0, fd, curr;
+  edge_t e;
+  vert_t v;
   pthread_par *pars = (pthread_par *) vpars;
   Graph G = pars->G;
   
@@ -173,17 +159,17 @@ static void *loadThread(void *vpars){
         pthread_exit(&ret);
       }
       // read coordinates
-      if(readCoords(fd, &coord1, &coord2, curr)){
+      if(read(fd, &v, sizeof(vert_t)) != sizeof(vert_t)){
         sprintf(err, "reading coords of node %d", curr);
         perror(err);
         close(fd);
         ret=1;
         pthread_exit(&ret);
       }
-      STinsert(G->coords, coord1, coord2, curr);
+      STinsert(G->coords, v.coord1, v.coord2, curr);
     }
   }else{    
-    while(posE < edges){
+    while(1){
       // get the position
       pthread_mutex_lock(meLoadE);
       curr = posE;
@@ -193,21 +179,18 @@ static void *loadThread(void *vpars){
       posE++;
       pthread_mutex_unlock(meLoadE);
       // move the pointer into file
-      if(lseek(fd, 2*sizeof(int) + G->V*2*sizeof(short int) + curr*(2*sizeof(int)+sizeof(short int)), SEEK_SET) == -1 ){
+      if(lseek(fd, 2*sizeof(int) + G->V*2*sizeof(int) + curr*(2*sizeof(int)+sizeof(short int)), SEEK_SET) == -1 ){
         perror("edges lseek");
         close(fd);
         ret = 1;
         pthread_exit(&ret);
       }
       // read edges
-      if(readEdge(fd, &id1, &id2, &wt)){
-        perror("reading edges of the graph");
-        close(fd);
-        ret=1;
-        pthread_exit(&ret);
+      if(read(fd, &e, sizeof(edge_t)) != sizeof(edge_t)){
+        break;
       }
-      if (id1 >= 0 && id2 >=0)
-        GRAPHinsertE(G, id1, id2, wt);
+      if (e.vert1 >= 0 && e.vert2 >=0)
+        GRAPHinsertE(G, e.vert1, e.vert2, e.wt);
     }
   }
   
@@ -235,7 +218,7 @@ static void *loadThread(void *vpars){
   Load the graph from a binary file
     
   The standard is the following:
-   | 4 byte | 4 byte |  => n. nodes, n. edges
+   | 4 byte |  => n. nodes
    | 4 byte | 4 byte | => cord1, cord2 node i-esimo
    ... x num nodes
    | 4 byte | 4 byte | 2 byte | => v1, v2, w
@@ -245,9 +228,10 @@ static void *loadThread(void *vpars){
    
 */
 Graph GRAPHload(char *fin, int numThreads) {
-  int V, E, id1, id2, i;
-  short int coord1, coord2, wt;
+  int V, i;
   Graph G;
+  edge_t e;
+  vert_t v;
 
   int fd = open(fin, O_RDONLY);
   if(fd < 0){
@@ -255,14 +239,13 @@ Graph GRAPHload(char *fin, int numThreads) {
     return NULL;
   }
 
-  if(read(fd, &V, sizeof(int)) != sizeof(int)
-    || read(fd, &E, sizeof(int)) != sizeof(int)){
+  if(read(fd, &V, sizeof(int)) != sizeof(int)){
     perror("read num nodes or num edges");
     close(fd);
     return NULL;
   }
   #ifdef DEBUG
-    printf("#Nodes: %d, #Edges: %d\n", V, E);
+    printf("#Nodes: %d\n", V);
   #endif
 
   G = GRAPHinit(V);
@@ -274,9 +257,8 @@ Graph GRAPHload(char *fin, int numThreads) {
   if(numThreads > 1){
     close(fd);
     finput = fin;
-    edges = E;
 
-    pthread_par *paramiters = malloc(numThreads*sizeof(pthread_par));
+    pthread_par *parameters = malloc(numThreads*sizeof(pthread_par));
     meLoadV = malloc(sizeof(pthread_mutex_t));
     meLoadE = malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(meLoadV, NULL);
@@ -286,16 +268,16 @@ Graph GRAPHload(char *fin, int numThreads) {
       #ifdef DEBUG
         printf("Starting thread: %d\n", i);
       #endif
-      paramiters[i].id = i;
-      paramiters[i].G = G;
-      pthread_create(&(paramiters[i].tid), NULL, loadThread, (void *)&(paramiters[i]));
+      parameters[i].id = i;
+      parameters[i].G = G;
+      pthread_create(&(parameters[i].tid), NULL, loadThread, (void *)&(parameters[i]));
     }
 
     int ret = 0;
     int *pRet = &ret;
     int err = 0;
     for(i=0; i<numThreads; i++){
-      pthread_join(paramiters[i].tid,(void **) &pRet);
+      pthread_join(parameters[i].tid,(void **) &pRet);
       if(*pRet == 1)
         err = 1;
     }
@@ -304,7 +286,7 @@ Graph GRAPHload(char *fin, int numThreads) {
     pthread_mutex_destroy(meLoadV);
     free(meLoadE);
     free(meLoadV);
-    free(paramiters);
+    free(parameters);
 
     if(err){
       GRAPHfree(G);
@@ -322,14 +304,14 @@ Graph GRAPHload(char *fin, int numThreads) {
   #endif
 
   for(int i=0; i<V; i++) {
-    if(readCoords(fd, &coord1, &coord2, i)){
+    if(read(fd, &v, sizeof(vert_t)) != sizeof(vert_t)){
         sprintf(err, "reading coords of node %d", i);
         perror(err);
         GRAPHfree(G);
         close(fd);
         return NULL;
       }
-    STinsert(G->coords, coord1, coord2, i);
+    STinsert(G->coords, v.coord1, v.coord2, i);
   }
 
 
@@ -337,15 +319,9 @@ Graph GRAPHload(char *fin, int numThreads) {
   #ifdef DEBUG
     printf("Edges:\n");
   #endif
-  for(int i=0; i<E; i++){
-    if(readEdge(fd, &id1, &id2, &wt)){
-      perror("reading edges of the graph");
-      GRAPHfree(G);
-      close(fd);
-      return NULL;
-    }
-    if (id1 >= 0 && id2 >=0)
-      GRAPHinsertE(G, id1, id2, wt);
+  while(read(fd, &e, sizeof(edge_t)) != sizeof(edge_t)){
+    if (e.vert1 >= 0 && e.vert2 >=0)
+      GRAPHinsertE(G, e.vert1, e.vert2, e.wt);
   }
   #ifdef TIME
     gettimeofday(&end, 0);
@@ -358,16 +334,11 @@ Graph GRAPHload(char *fin, int numThreads) {
 
   close(fd);
 
-  if(G->E != E){
-    printf("Something goes wrong during loading\n");
-    return NULL;
-  }
-
   printf("\nLoaded graph with %d nodes and %d edges\n", G->V, G->E);
   return G;
 }
 
-void  GRAPHedges(Graph G, Edge *a) {
+void GRAPHedges(Graph G, Edge *a) {
   int v, E = 0;
   ptr_node t;
   for (v=0; v < G->V; v++)
@@ -381,8 +352,8 @@ void GRAPHstore(Graph G, char *fin) {
 
   /*
    * The standard is the following:
-   *  | 4 byte | 4 byte |  => n. nodes, n. edges
-   *  | 2 byte | 2 byte | => cord1, cord2 node i-esimo
+   *  | 4 byte |  => n. nodes
+   *  | 4 byte | 4 byte | => cord1, cord2 node i-esimo
    *  ... x num nodes
    *  | 4 byte | 4 byte | 2 byte | => v1, v2, w
    *  ... x num edges
