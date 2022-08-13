@@ -89,7 +89,7 @@ static void Heapify(PQ pq, int *priority, int i) {
     smallest = r;
   if (smallest != i) {
     Swap(pq, i,smallest);
-	Heapify(pq, priority, smallest);
+	  Heapify(pq, priority, smallest);
   }
   return;
 }

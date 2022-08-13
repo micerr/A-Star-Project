@@ -2,26 +2,14 @@
     "tasks": [
         {
             "type": "cppbuild",
-<<<<<<< HEAD
-            "label": "C/C++: gcc-9 build active file",
-            "command": "/usr/bin/gcc-9",
+            "label": "C/C++: gcc-11 build active file",
+            "command": "/usr/bin/gcc-11",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
                 "${file}",
                 "-o",
                 "${fileDirname}/${fileBasenameNoExtension}"
-=======
-            "label": "C/C++: gcc build active file",
-            "command": "/usr/bin/gcc",
-            "args": [
-                "-fdiagnostics-color=always",
-                "-g",
-                "*.c",
-                "-o",
-                "${workspaceFolder}/bin/aStarDbg.exe",
-                "-DDEBUG"
->>>>>>> fcde76add64e8cd25f7f78e167726f2bd9cdd541
             ],
             "options": {
                 "cwd": "${fileDirname}"

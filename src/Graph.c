@@ -485,9 +485,10 @@ void GRAPHspD(Graph G, int id) {
   }
     
 
-  // printf("\n Minimum distances from node %d\n", id);
-  // for (v = 0; v < G->V; v++)
-  //   printf("mindist[%d] = %d \n", v, mindist[v]);
+  printf("\n Minimum distances from node %d\n", id);
+  for (v = 0; v < G->V; v++)
+    if(mindist[v] != maxWT)
+      printf("mindist[%d] = %d \n", v, mindist[v]);
 
   PQfree(pq);
 }
