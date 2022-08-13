@@ -26,9 +26,8 @@ static int PARENT(int i) {
 
 
 PQ PQinit(int maxN) {
-  int i;
-  PQ pq = malloc(sizeof(*pq));
-  pq->A = malloc(maxN*sizeof(*item));
+  PQ pq = malloc(sizeof(PQ*));
+  pq->A = malloc(maxN * sizeof(Item*));
   pq->heapsize = 0;
 
   return pq;
@@ -50,12 +49,12 @@ void PQinsert (PQ pq, int node_index, int priority){
   int i;
   i = pq->heapsize++;
 
-  while (i>=1 && ((pq->A[PARENT(i)])->priority > item->priority)) {
+  while (i>=1 && ((pq->A[PARENT(i)]).priority > item->priority)) {
     pq->A[i] = pq->A[PARENT(i)];
     i = PARENT(i);
   }
 
-  pq->A[i] = item;
+  pq->A[i] = *item;
 
   free(item);
   return;
@@ -75,11 +74,11 @@ static void Heapify(PQ pq, int i) {
   int l, r, largest;
   l = LEFT(i);
   r = RIGHT(i);
-  if ( (l < pq->heapsize) && ( (pq->A[l])->priority < (pq->A[i])->priority) )
+  if ( (l < pq->heapsize) && ( (pq->A[l]).priority < (pq->A[i]).priority) )
     largest = l;
   else
     largest = i;
-  if ( (r < pq->heapsize) && ( (pq->A[r])->priority < (pq->A[i])->priority) )
+  if ( (r < pq->heapsize) && ( (pq->A[r]).priority < (pq->A[i]).priority) )
     largest = r;
   if (largest != i) {
     Swap(pq, i,largest);
@@ -93,15 +92,17 @@ and the priority value inside the priority pointer
 */
 int PQsearch(PQ pq, int node_index, int *priority){
   for(int i=0; i<pq->heapsize; i++){
-    if(node_index == (pq->A[i])->index){
+    if(node_index == (pq->A[i]).index){
       if(priority == NULL){
         return i;
       }
 
-      *priority = (pq->A[i])->priority;
+      *priority = (pq->A[i]).priority;
       return i;
     }
   }
+
+  return -1;
 }
 
 Item PQextractMin(PQ pq) {
@@ -114,11 +115,12 @@ Item PQextractMin(PQ pq) {
   return item;
 }
 
+//Probably not working
 void PQchange (PQ pq, int node_index, int priority) {
   int item_index = PQsearch(pq, node_index, NULL);
   Item item = pq->A[item_index];
 
-  while( (item_index>=1) && ((pq->A[PARENT(item_index)])->priority > item->priority)) {
+  while( (item_index>=1) && ((pq->A[PARENT(item_index)]).priority > item.priority)) {
     pq->A[item_index] = pq->A[PARENT(item_index)];
 	  item_index = PARENT(item_index);
   }

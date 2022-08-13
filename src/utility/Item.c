@@ -7,10 +7,6 @@
 #include <unistd.h>
 #include "Item.h"
 
-struct item {
-  int index;
-  int priority;
-};
 
 
 Item* ITEMinit(int node_index, int priority){

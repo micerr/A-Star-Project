@@ -309,6 +309,14 @@ void GRAPHspD(Graph G, int id) {
   }
 
   PQchange(pq, 0, id);
+
+  int *prio = (int*) malloc(sizeof(int));
+
+  for(int i=0; i<G->V; i++){
+    int ind = PQsearch(pq, i, prio);
+    printf("Node: %d, Priority: %d\n", ind, *prio);
+  }
+  printf("\n\n\n");
   //mindist[id] = 0;
   //st[id] = id;
   //PQchange(pq, mindist, id);
@@ -324,14 +332,14 @@ void GRAPHspD(Graph G, int id) {
   //   }
   // }
 
-  int *neighbour_priority;
+  int *neighbour_priority = (int*) malloc(sizeof(int));
 
   while (!PQempty(pq)){
     Item min_item = PQextractMin(pq);
 
     if(min_item.priority != maxWT){
       for(t=G->ladj[min_item.index]; t!=G->z; t=t->next){
-        PQsearch(pq, t->v, priority);
+        PQsearch(pq, t->v, neighbour_priority);
 
         if(min_item.priority + t->wt < (*neighbour_priority)){
           PQchange(pq, t->v, min_item.priority + t->wt);
@@ -344,6 +352,10 @@ void GRAPHspD(Graph G, int id) {
   // printf("\n Shortest path tree\n");
   // for (v = 0; v < G->V; v++)
   //   printf("parent of %s is %s \n", STsearchByIndex(G->tab, v), STsearchByIndex(G->tab, st[v]));
+  printf("Dijkstra Path:\n");
+  for(v = 0; v < G->V; v++){
+    printf("%d -> ", path[v]);
+  }
 
   // printf("\n Minimum distances from node %s\n", STsearchByIndex(G->tab, id));
   // for (v = 0; v < G->V; v++)
@@ -361,34 +373,34 @@ void GRAPHspD(Graph G, int id) {
 
 //openSet is enlarged gradually (inside PQinsert)
 
-void GRAPHSequentialAStar(Graph G, int start){
-  int v;
-  ptr_node t;
-  PQ openSet = PQinit(1);
-  int *path;
+// void GRAPHSequentialAStar(Graph G, int start){
+//   int v;
+//   ptr_node t;
+//   PQ openSet = PQinit(1);
+//   int *path;
 
-  path = (int*) malloc(sizeof(int));
+//   path = (int*) malloc(sizeof(int));
 
   
 
 
-  if (path == NULL){
-    return;
-  }
+//   if (path == NULL){
+//     return;
+//   }
 
-  path = -1;
-  fScore = maxWT;
-  //PQinsert(pq, fScore, v);
+//   path = -1;
+//   fScore = maxWT;
+//   //PQinsert(pq, fScore, v);
   
 
-  // for (v = 0; v < G->V; v++){
-  //   path[v] = -1;
-  //   fScore[v] = maxWT;
-  //   PQinsert(pq, fScore, v);
-  // }
+//   // for (v = 0; v < G->V; v++){
+//   //   path[v] = -1;
+//   //   fScore[v] = maxWT;
+//   //   PQinsert(pq, fScore, v);
+//   // }
 
-  fScore[start] = 0;
-  path[start] = start;
+//   fScore[start] = 0;
+//   path[start] = start;
 
 
-}
+// }
