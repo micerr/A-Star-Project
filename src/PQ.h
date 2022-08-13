@@ -2,6 +2,7 @@
 #define PQ_H_DEFINED
 
 typedef struct pqueue *PQ;
+typedef struct item Item;
 
 PQ      PQinit(int maxN);
 void    PQfree(PQ pq);

@@ -26,6 +26,8 @@ BitArray BITARRAYinit(int size){
     }
 
     ba->size = size;
+
+    return ba;
 }
 
 void BITARRAYtoggleBit(BitArray ba, int index){
