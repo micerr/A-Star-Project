@@ -1,16 +1,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "PQ.h"
+#include "Item.h"
 
 struct pqueue { Item *A; int *qp; int heapsize; };
 
-struct item {
-  int index;
-  int fScore;
-};
 
 static void Swap(PQ pq, int n1, int n2);
-static void Heapify(PQ pq, int *priority, int i);
+static void Heapify(PQ pq, int i);
 static int LEFT(int i);
 static int RIGHT(int i);
 static int PARENT(int i);
@@ -27,32 +24,17 @@ static int PARENT(int i) {
   return (i-1)/2;
 }
 
-Item ITEMinit(int index, int fScore){
-  Item *item = (Item*) malloc(sizeof(*item));
-
-  if(item == NULL){
-    exit(1);
-  }
-
-  item->index = index;
-  item->fScore = fScore;
-
-  return item;
-}
 
 PQ PQinit(int maxN) {
   int i;
   PQ pq = malloc(sizeof(*pq));
   pq->A = malloc(maxN*sizeof(*item));
-  pq->qp = malloc(maxN*sizeof(int));
-  for (i=0; i < maxN; i++)
-    pq->qp[i] = -1;
   pq->heapsize = 0;
+
   return pq;
 }
 
 void PQfree(PQ pq) {
-  free(pq->qp);
   free(pq->A);
   free(pq);
 }
@@ -61,110 +43,91 @@ int PQempty(PQ pq) {
   return pq->heapsize == 0;
 }
 
-// Inside the while the position of two nodes in the heap is exchanged
-// This happens because the node we want to insert has a lower priority value
-// wrt his parent. In addition to the exchange of the nodes, also the qp
-// vector has to be updated (qp contains the index of a node inside the heap)
-void PQinsert (PQ pq, int index, int priority){
-  Item *item = ITEMinit(index, priority);
+
+void PQinsert (PQ pq, int node_index, int priority){
+  Item *item = ITEMinit(node_index, priority);
 
   int i;
   i = pq->heapsize++;
-  pq->qp[item->index] = i;
 
-  while (i>=1 && ((pq->A[PARENT(i)])->fScore > item->fScore)) {
+  while (i>=1 && ((pq->A[PARENT(i)])->priority > item->priority)) {
     pq->A[i] = pq->A[PARENT(i)];
-    pq->qp[pq->A[i]] = i;
-    i = (i-1)/2;
+    i = PARENT(i);
   }
+
   pq->A[i] = item;
-  pq->qp[item->index] = i;
 
   free(item);
   return;
 }
 
 static void Swap(PQ pq, int n1, int n2){
-  int temp;
-  int ind1 = -1, ind2 = -1;
-  int fScore1, fScore2;
+  Item temp;
 
-  while(int i=0; i<pq->heapsize; i++){
-    if((pq->A[i])->index == n1){
-      ind1 = i;
-    }
-
-    if((pq->A[i])->index == n2){
-      ind2 = i;
-    }
-
-    if((ind1 != -1) && (ind2 != -1)){
-      break;
-    }
-  }
-
-  if((ind1 == -1) || (ind2 == -1)){
-    printf("Index not found\n");
-    exit(1);
-  }
-
-  temp = pq->A[ind1];
-  pq->A[ind1] = pq->A[ind2];
-  pq->A[ind2] = temp;
-
-
-  
-  n1 = pq->A[n1];
-  n2 = pq->A[n2];
-  temp = pq->qp[n1];
-  pq->qp[n1] = pq->qp[n2];
-  pq->qp[n2] = temp;
+  temp  = pq->A[n1];
+  pq->A[n1] = pq->A[n2];
+  pq->A[n2] = temp;
 
   return;
 }
 
-static void Heapify(PQ pq, int *priority, int i) {
-  int l, r, smallest;
+static void Heapify(PQ pq, int i) {
+  int l, r, largest;
   l = LEFT(i);
   r = RIGHT(i);
-  if (l < pq->heapsize && (priority[pq->A[l]] < priority[pq->A[i]]))
-    smallest = l;
+  if ( (l < pq->heapsize) && ( (pq->A[l])->priority < (pq->A[i])->priority) )
+    largest = l;
   else
-    smallest = i;
-  if (r < pq->heapsize && (priority[pq->A[r]] < priority[pq->A[smallest]]))
-    smallest = r;
-  if (smallest != i) {
-    Swap(pq, i,smallest);
-	Heapify(pq, priority, smallest);
+    largest = i;
+  if ( (r < pq->heapsize) && ( (pq->A[r])->priority < (pq->A[i])->priority) )
+    largest = r;
+  if (largest != i) {
+    Swap(pq, i,largest);
+	Heapify(pq, largest);
   }
-  return;
 }
 
-int PQextractMin(PQ pq, int *priority) {
-  int k;
-  Swap (pq, 0, pq->heapsize-1);
-  k = pq->A[pq->heapsize-1];
+/*
+Searches for a specific node inside the Item array and returns it's index 
+and the priority value inside the priority pointer
+*/
+int PQsearch(PQ pq, int node_index, int *priority){
+  for(int i=0; i<pq->heapsize; i++){
+    if(node_index == (pq->A[i])->index){
+      if(priority == NULL){
+        return i;
+      }
+
+      *priority = (pq->A[i])->priority;
+      return i;
+    }
+  }
+}
+
+int PQextractMin(PQ pq) {
+  Item item;
+  Swap (pq, 0,pq->heapsize-1);
+  item = pq->A[pq->heapsize-1];
   pq->heapsize--;
-  Heapify(pq, priority, 0);
-  return k;
+  Heapify(pq, 0);
+
+  return item;
 }
 
-void PQchange (PQ pq, int *priority, Item k) {
-  int pos = pq->qp[k];
-  Item temp = pq->A[pos];
+void PQchange (PQ pq, int node_index, int priority) {
+  int item_index = PQsearch(pq, node_index, NULL);
+  Item item = pq->A[item_index];
 
-  while (pos>=1 && (priority[pq->A[PARENT(pos)]] > priority[pq->A[pos]])) {
-    pq->A[pos] = pq->A[PARENT(pos)];
-    pq->qp[pq->A[pos]] = pos;
-    pos = (pos-1)/2;
+  while( (item_index>=1) && ((pq->A[PARENT(item_index)])->priority > item->priority)) {
+    pq->A[item_index] = pq->A[PARENT(item_index)];
+	  item_index = PARENT(item_index);
   }
-  pq->A[pos] = temp;
-  pq->qp[temp] = pos;
 
-  Heapify(pq, priority, pos);
+  pq->A[item_index] = item;
+  Heapify(pq, item_index);
+
   return;
 }
 
-//PQsearch
 
 
