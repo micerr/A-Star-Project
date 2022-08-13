@@ -327,25 +327,33 @@ void GRAPHspD(Graph G, int id) {
   PQfree(pq);
 }
 
+// Data structures:
+// openSet -> Priority queue containing an heap made of Items (Item has index of node and priority (fScore))
+// closedSet -> BitArray: 1 if node expanded, 0 otherwise
+// path -> the path of the graph (built step by step)
+// fScores are embedded within an Item 
+// gScores are obtained starting from the fScores and subtracting the value of the heuristic
+
+//openSet is enlarged gradually (inside PQinsert)
 
 void GRAPHSequentialAStar(Graph G, int start){
   int v;
   ptr_node t;
-  // PQ needs to be modified in order to be size-extensible
-  PQ openSet = PQinit(G->V);
-  int *path, *fScore;
-  // initial size of path and fScore? either all nodes or less (will need realloc)
-  path = (int*) malloc(sizeof(int));
-  fScore = (int*) malloc(sizeof(int));
-  // gScore as a vector?
+  PQ openSet = PQinit(1);
+  int *path;
 
-  if ((path == NULL) || (fScore == NULL)){
+  path = (int*) malloc(sizeof(int));
+
+  
+
+
+  if (path == NULL){
     return;
   }
 
   path = -1;
   fScore = maxWT;
-  PQinsert(pq, fScore, v);
+  //PQinsert(pq, fScore, v);
   
 
   // for (v = 0; v < G->V; v++){
