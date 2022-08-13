@@ -15,7 +15,6 @@ int main(void) {
     printf("1.Load graph from file\n");
     printf("2.Edge insertion\n");
     printf("3.Edge removal\n");
-    printf("4.Store graph to file\n");
     printf("5.Shortest path with Dijkstra's algorithm\n");
     printf("6.Free graph and exit\n");
     printf("Enter your choice : ");
@@ -29,6 +28,8 @@ int main(void) {
                         scanf("%s", name);
                         printf("Insert number of threads: ");
                         scanf("%d", &numThreads);
+                        if(G != NULL)
+                          GRAPHfree(G);
                         G = GRAPHload(name, numThreads);
                         break;
             case 2:     printf("Insert first node = ");
@@ -44,10 +45,6 @@ int main(void) {
                         printf("Insert second node = ");
                         scanf("%d", &id2);
                         GRAPHremoveE(G, id1, id2);
-                        break;
-            case 4:     printf("Output file name: ");
-                        scanf("%s", name);
-                        GRAPHstore(G, name);
                         break;
             case 5:     printf("Insert start node = ");
                         scanf("%d", &id1);

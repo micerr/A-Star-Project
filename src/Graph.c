@@ -115,7 +115,7 @@ typedef struct __attribute__((__packed__)) edge_s{
 */
 char *finput;
 pthread_mutex_t *meLoadV, *meLoadE;
-int posV=0, posE=0, edges, n=0;
+int posV=0, posE=0, n=0;
 
 static void *loadThread(void *vpars){
   int ret = 0, fd, curr;
@@ -260,6 +260,7 @@ Graph GRAPHload(char *fin, int numThreads) {
   if(numThreads > 1){
     close(fd);
     finput = fin;
+    n=0; posE=0; posV=0;
 
     pthread_par *parameters = malloc(numThreads*sizeof(pthread_par));
     meLoadV = malloc(sizeof(pthread_mutex_t));
@@ -320,7 +321,6 @@ Graph GRAPHload(char *fin, int numThreads) {
     STinsert(G->coords, v.coord1, v.coord2, i);
   }
 
-
   // Reading edges of the graph
   #ifdef DEBUG
     printf("Edges:\n");
@@ -353,68 +353,6 @@ void GRAPHedges(Graph G, Edge *a) {
   for (v=0; v < G->V; v++)
     for (t=G->ladj[v]; t != G->z; t = t->next)
       a[E++] = EDGEcreate(v, t->v, t->wt);
-}
-
-void GRAPHstore(Graph G, char *fin) {
-  Edge *a;
-  Coord coords;
-
-  /*
-   * The standard is the following:
-   *  | 4 byte |  => n. nodes
-   *  | 4 byte | 4 byte | => cord1, cord2 node i-esimo
-   *  ... x num nodes
-   *  | 4 byte | 4 byte | 2 byte | => v1, v2, w
-   *  ... x num edges
-   */
-
-  int fd = open(fin, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-
-  a = malloc(G->E * sizeof(Edge));
-  if (a == NULL)
-    return;
-  GRAPHedges(G, a);
-  #ifdef DEBUG
-    printf("Edges:\n");
-    for(int i=0; i<G->E; i++){
-      printf("%d %d %d\n", a[i].v, a[i].w, a[i].wt);
-    }
-  #endif
-
-  // TODO parallelize the process
-
-  // writing num nodes and num edges
-  if(write(fd, &G->V, sizeof(int)) != sizeof(int)
-    || write(fd, &G->E, sizeof(int)) != sizeof(int)){
-    perror("writing num nodes and num edges into file");
-    close(fd);
-    return;
-  }
-  // writing nodes coordinates
-  for(int i=0; i<G->V; i++){
-    coords = STsearchByIndex(G->coords, i);
-    if(write(fd, &coords->c1, sizeof(short int)) != sizeof(short int)
-      || write(fd, &coords->c2, sizeof(short int)) != sizeof(short int)){
-      sprintf(err, "writing coords of node %d", i);
-      perror(err);
-      close(fd);
-      return;
-    }
-  }
-  // writing edges
-  for(int i=0; i<G->E; i++){
-    if(write(fd, &a[i].v, sizeof(int)) != sizeof(int)
-      || write(fd, &a[i].w, sizeof(int)) != sizeof(int)
-      || write(fd, &a[i].wt, sizeof(short int)) != sizeof(short int)){
-      perror("writing edges into file");
-      close(fd);
-      return;
-    }
-  }
-
-  printf("Stored graph in bin file: %s", fin);
-
-  close(fd);
 }
 
 void GRAPHinsertE(Graph G, int id1, int id2, int wt) {

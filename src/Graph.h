@@ -14,7 +14,7 @@ typedef struct graph *Graph;
 Graph GRAPHinit(int V);
 void  GRAPHfree(Graph G);
 Graph GRAPHload(char *fin, int numThreads);
-void  GRAPHstore(Graph G, char *fin);
+//void  GRAPHstore(Graph G, char *fin);
 //int   GRAPHgetIndex(Graph G, char *label);
 void  GRAPHinsertE(Graph G, int id1, int id2, int wt);
 void  GRAPHremoveE(Graph G, int id1, int id2);
