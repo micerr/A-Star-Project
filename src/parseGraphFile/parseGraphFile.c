@@ -20,7 +20,7 @@ typedef struct{
     int coord2;
 } vert_t;
 
-typedef struct{
+typedef struct __attribute__((__packed__)) edge_s{
     int vert1, vert2;
     short wt;
 } edge_t;
@@ -83,11 +83,7 @@ int main(int argc, char *argv[]){
         //free memory
         free(dirEntryName);
         free(dirEntryPath);
-
-        return 0;
     }
-
-
 
     return 0;
 }
@@ -124,9 +120,7 @@ void *parseDistanceWeight(void *arg){
 
     //used to center all the coordinates
     long sum1 = 0, sum2 = 0;
-    long sumSquare1 = 0, sumSquare2 = 0;
     int mean1, mean2;       //truncates mean values
-    long var1, var2;         
 
     char *name, *path;
     par_t *par = (par_t *)arg;
@@ -204,23 +198,19 @@ void *parseDistanceWeight(void *arg){
             //update the sums
             sum1 += vert.coord1;
             sum2 += vert.coord2;
-
-            sumSquare1 += vert.coord1*vert.coord1;
-            sumSquare2 += vert.coord2*vert.coord2;
-            
         }
     }
 
     //start reading all edges
     while(fgets(buf, 1024, distanceFd) != NULL){
         sscanf(buf,"%c",&type);
-
+        
         //check if an edge has been found
-        if(type=='e'){
+        if(type=='a'){
             sscanf(buf,"%c %d %d %hd", &type, &edge.vert1, &edge.vert2, &edge.wt);
             //write the new edge on the output file
-            if(write(outFd, &edge, sizeof(vert_t)) < sizeof(edge_t)){
-                perror("Error writing an edge on the output file: ");
+            if(write(outFd, &edge, sizeof(edge_t)) < sizeof(edge_t)){
+                perror("(Dist) Error writing an edge on the output file: ");
                 exit(1);
             }
         }
@@ -236,23 +226,14 @@ void *parseDistanceWeight(void *arg){
     mean1 = sum1 / totVert;
     mean2 = sum2 / totVert;
 
-    //compute the variance
-    var1 = (long) sqrtl((long double) ((sumSquare1 / totVert) - mean1*mean1));
-    var2 = (long) sqrtl((long double) ((sumSquare2 / totVert) - mean2*mean2));
-
-    printf("mean1: %d\tmean2: %d\n", mean1, mean2);
-    printf("var1: %ld\tvar2: %ld\n", var1, var2);
-
     //skip first 4 bytes of the binary file
     lseek(outFd, 4, SEEK_SET);
 
     for(int i=0; i<totVert; i++){
         //read the coordinates
         read(outFd, &vert, sizeof(vert_t));
-        vert.coord1 = (vert.coord1-mean1)/var1;
-        vert.coord2 = (vert.coord2-mean2)/var2;
-        // vert.coord1 -= mean1;
-        // vert.coord2 -= mean2;
+        vert.coord1 -= mean1;
+        vert.coord2 -= mean2;
 
         //take back the file pointer
         lseek(outFd, -sizeof(vert_t), SEEK_CUR);
@@ -280,9 +261,7 @@ void *parseTimeWeight(void *arg){
 
     //used to center all the coordinates
     long sum1 = 0, sum2 = 0;
-    long sumSquare1 = 0, sumSquare2 = 0;
     int mean1, mean2;       //truncates mean values
-    long var1, var2; 
 
     char *name, *path;
     par_t *par = (par_t *)arg;
@@ -359,9 +338,6 @@ void *parseTimeWeight(void *arg){
             //update the sums
             sum1 += vert.coord1;
             sum2 += vert.coord2;
-
-            sumSquare1 += vert.coord1*vert.coord1;
-            sumSquare2 += vert.coord2*vert.coord2;
           
         }
     }
@@ -371,11 +347,11 @@ void *parseTimeWeight(void *arg){
         sscanf(buf,"%c",&type);
 
         //check if an edge has been found
-        if(type=='e'){
+        if(type=='a'){
             sscanf(buf,"%c %d %d %hd", &type, &edge.vert1, &edge.vert2, &edge.wt);
             //write the new edge on the output file
-            if(write(outFd, &edge, sizeof(vert_t)) < sizeof(edge_t)){
-                perror("Error writing an edge on the output file: ");
+            if(write(outFd, &edge, sizeof(edge_t)) < sizeof(edge_t)){
+                perror("(Time) Error writing an edge on the output file: ");
                 exit(1);
             }
         }
@@ -391,18 +367,14 @@ void *parseTimeWeight(void *arg){
     mean1 = sum1 / totVert;
     mean2 = sum2 / totVert;
 
-    //compute the variance
-    var1 = (long) sqrtl((long double) ((sumSquare1 / totVert) - mean1*mean1));
-    var2 = (long) sqrtl((long double) ((sumSquare2 / totVert) - mean2*mean2));
-
     //skip first 4 bytes of the binary file
     lseek(outFd, 4, SEEK_SET);
 
     for(int i=0; i<totVert; i++){
         //read the coordinates
         read(outFd, &vert, sizeof(vert_t));
-        vert.coord1 = (vert.coord1-mean1)/var1;
-        vert.coord2 = (vert.coord2-mean2)/var2;
+        vert.coord1 = (vert.coord1-mean1);
+        vert.coord2 = (vert.coord2-mean2);
 
         //take back the file pointer
         lseek(outFd, -sizeof(vert_t), SEEK_CUR);
