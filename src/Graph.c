@@ -28,9 +28,9 @@ struct graph {
   int V;
   int E;
   ptr_node *ladj;
+  pthread_mutex_t *meAdj;
   ST coords;
   ptr_node z;
-  pthread_mutex_t *meAdj;
 };
 
 typedef struct{

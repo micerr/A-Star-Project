@@ -1,9 +1,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
+
 #include "ST.h"
 
-struct symboltable {Coord *coord; int maxN; int N;};
+struct symboltable {
+  Coord *coord;
+  int maxN;
+  int N;
+  pthread_mutex_t *me;
+};
 
 ST STinit(int maxN) {
   ST st;
@@ -20,6 +27,9 @@ ST STinit(int maxN) {
   }
   st->maxN = maxN;
   st->N = 0;
+
+  st->me = malloc(sizeof(pthread_mutex_t));
+  pthread_mutex_init(st->me, NULL);
   return st;
 }
 
@@ -27,14 +37,23 @@ void STfree(ST st) {
   if (st==NULL)
     return;
   free(st->coord);
+
+  pthread_mutex_destroy(st->me);
+  free(st->me);
+
   free(st);
 }
 
 int STsize(ST st) {
-  return st->N;
+  int n;
+  pthread_mutex_lock(st->me);
+    n = st->N;
+  pthread_mutex_unlock(st->me);
+  return n;
 }
 
 void STinsert(ST st, short int coord1, short int coord2, int i) {
+  pthread_mutex_lock(st->me);
   if (i >= st->maxN) {
     st->coord = realloc(st->coord, (2*st->maxN)*sizeof(Coord));
     if (st->coord == NULL)
@@ -47,6 +66,7 @@ void STinsert(ST st, short int coord1, short int coord2, int i) {
   c->c1 = coord1; c->c2 = coord2;
   st->coord[i] = c;
   st->N++;
+  pthread_mutex_unlock(st->me);
 }
 
 int STsearch(ST st, short int coord1, short int coord2) {
