@@ -30,6 +30,7 @@ struct graph {
   ptr_node *ladj;
   ST coords;
   ptr_node z;
+  pthread_mutex_t *meAdj;
 };
 
 typedef struct{
@@ -83,6 +84,9 @@ Graph GRAPHinit(int V) {
   G->coords = STinit(V);
   if (G->coords == NULL)
     return NULL;
+  
+  G->meAdj = malloc(sizeof(pthread_mutex_t));
+  pthread_mutex_init(G->meAdj, NULL);
   return G;
 }
 
@@ -97,6 +101,10 @@ void GRAPHfree(Graph G) {
   STfree(G->coords);
   free(G->ladj);
   free(G->z);
+
+  pthread_mutex_destroy(G->meAdj);
+  free(G->meAdj);
+
   free(G);
 }
 
@@ -115,10 +123,10 @@ typedef struct __attribute__((__packed__)) edge_s{
 */
 char *finput;
 pthread_mutex_t *meLoadV, *meLoadE;
-int posV=0, posE=0, n=0;
+int posV=0, posE=0, n=0, nTh;
 
 static void *loadThread(void *vpars){
-  int ret = 0, fd, curr;
+  int ret = 0, fd, curr, nr;
   edge_t e;
   vert_t v;
   pthread_par *pars = (pthread_par *) vpars;
@@ -186,21 +194,31 @@ static void *loadThread(void *vpars){
         pthread_exit(&ret);
       }
       // read edges
-      if(read(fd, &e, sizeof(edge_t)) != sizeof(edge_t)){
-        break;
+      if((nr = read(fd, &e, sizeof(edge_t))) != sizeof(edge_t)){
+        if(nr == 0){
+          #ifdef DEBUG
+            perror("EOF");
+          #endif
+          break;
+        }
+        // Error
+        perror("reading edges");
+        close(fd);
+        ret=1;
+        pthread_exit(&ret);
       }
       #ifdef DEBUG
         printf("%d %d %d\n", e.vert1, e.vert2, e.wt);
       #endif
       if (e.vert1 >= 0 && e.vert2 >=0)
-        GRAPHinsertE(G, e.vert1, e.vert2, e.wt);
+        GRAPHinsertE(G, e.vert1-1, e.vert2-1, e.wt); // nodes into file starts from 1
     }
   }
   
   #ifdef TIME
     pthread_mutex_lock(meLoadV);
-      n--;
-      if(n==0){
+      nTh--;
+      if(nTh==0){
         gettimeofday(&end, 0);
         long int seconds = end.tv_sec - begin.tv_sec;
         long int microseconds = end.tv_usec - begin.tv_usec;
@@ -231,7 +249,7 @@ static void *loadThread(void *vpars){
    
 */
 Graph GRAPHload(char *fin, int numThreads) {
-  int V, i;
+  int V, i, nr;
   Graph G;
   edge_t e;
   vert_t v;
@@ -260,6 +278,7 @@ Graph GRAPHload(char *fin, int numThreads) {
   if(numThreads > 1){
     close(fd);
     finput = fin;
+    nTh = numThreads;
     n=0; posE=0; posV=0;
 
     pthread_par *parameters = malloc(numThreads*sizeof(pthread_par));
@@ -285,6 +304,12 @@ Graph GRAPHload(char *fin, int numThreads) {
       if(*pRet == 1)
         err = 1;
     }
+    
+    #ifdef DEBUG
+      printf("posE= %d", posE);
+    #endif
+
+    printf("\nLoaded graph with %d nodes and %d edges\n", G->V, G->E);
 
     pthread_mutex_destroy(meLoadE);
     pthread_mutex_destroy(meLoadV);
@@ -325,12 +350,20 @@ Graph GRAPHload(char *fin, int numThreads) {
   #ifdef DEBUG
     printf("Edges:\n");
   #endif
-  while(read(fd, &e, sizeof(edge_t)) == sizeof(edge_t)){
+  while(1){
+    if((nr = read(fd, &e, sizeof(edge_t))) != sizeof(edge_t)){
+      if(nr == 0) break; // EOF
+      // Error
+      perror("reading edges");
+      GRAPHfree(G);
+      close(fd);
+      return NULL;
+    }
     #ifdef DEBUG
       printf("%d %d %d\n", e.vert1, e.vert2, e.wt);
     #endif
     if (e.vert1 >= 0 && e.vert2 >=0)
-      GRAPHinsertE(G, e.vert1, e.vert2, e.wt);
+      GRAPHinsertE(G, e.vert1-1, e.vert2-1, e.wt); // nodes into file starts from 1
   }
   #ifdef TIME
     gettimeofday(&end, 0);
@@ -350,9 +383,12 @@ Graph GRAPHload(char *fin, int numThreads) {
 void GRAPHedges(Graph G, Edge *a) {
   int v, E = 0;
   ptr_node t;
-  for (v=0; v < G->V; v++)
-    for (t=G->ladj[v]; t != G->z; t = t->next)
-      a[E++] = EDGEcreate(v, t->v, t->wt);
+  for (v=0; v < G->V; v++){
+    pthread_mutex_lock(G->meAdj);
+      for (t=G->ladj[v]; t != G->z; t = t->next)
+        a[E++] = EDGEcreate(v, t->v, t->wt);
+    pthread_mutex_unlock(G->meAdj);
+  }
 }
 
 void GRAPHinsertE(Graph G, int id1, int id2, int wt) {
@@ -366,23 +402,27 @@ void GRAPHremoveE(Graph G, int id1, int id2) {
 static void  insertE(Graph G, Edge e) {
   int v = e.v, w = e.w, wt = e.wt;
 
-  G->ladj[v] = NEW(w, wt, G->ladj[v]);
-  G->E++;
+  pthread_mutex_lock(G->meAdj);
+    G->ladj[v] = NEW(w, wt, G->ladj[v]);
+    G->E++;
+  pthread_mutex_unlock(G->meAdj);
 }
 
 static void  removeE(Graph G, Edge e) {
   int v = e.v, w = e.w;
   ptr_node x;
-  if (G->ladj[v]->v == w) {
-    G->ladj[v] = G->ladj[v]->next;
-    G->E--;
-  }
-  else
-    for (x = G->ladj[v]; x != G->z; x = x->next)
-      if (x->next->v == w) {
-        x->next = x->next->next;
-        G->E--;
-  }
+  pthread_mutex_lock(G->meAdj);
+    if (G->ladj[v]->v == w) {
+      G->ladj[v] = G->ladj[v]->next;
+      G->E--;
+    }
+    else
+      for (x = G->ladj[v]; x != G->z; x = x->next)
+        if (x->next->v == w) {
+          x->next = x->next->next;
+          G->E--;
+    }
+  pthread_mutex_unlock(G->meAdj);
 }
 
 void GRAPHspD(Graph G, int id) {
@@ -430,3 +470,4 @@ void GRAPHspD(Graph G, int id) {
 
   PQfree(pq);
 }
+

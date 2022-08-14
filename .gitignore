@@ -1,5 +1,7 @@
 /src/parseGraphFile/inputFiles/
 /src/parseGraphFile/files.zip
+/src/parseGraphFile/files/
 /src/parseGraphFile/inputFiles.zip
 /bin/
 /.vscode/
+/examples/
