@@ -3,10 +3,16 @@
 
 #include "ST.h"
 
-typedef struct edge {
-    int v;
-    int w;
-    int wt;
+//struct representing a vertex
+typedef struct{
+  int coord1;
+  int coord2;
+} Vert;
+
+//struct representing an edge
+typedef struct __attribute__((__packed__)) edge_s{
+  int vert1, vert2;
+  short int wt;
 } Edge;
 
 typedef struct graph *Graph;

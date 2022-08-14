@@ -18,78 +18,137 @@ extern int errno;
 char err[64];
 
 typedef struct node *ptr_node;
-struct node {
-  int v;
-  int wt;
-  ptr_node next;
+struct node {     //element of the adjacent list
+  int v;          //edge's destination vertex
+  int wt;         //weight of the edges
+  ptr_node next;  //pointer to the next node
 };
 
-struct graph {
-  int V;
-  int E;
-  ptr_node *ladj;
-  pthread_mutex_t *meAdj;
-  ST coords;
-  ptr_node z;
+struct graph { 
+  int V;    //number of vertex
+  int E;    //number of edges
+  ptr_node *ladj;           //array of adjacent lists
+  pthread_mutex_t *meAdj;   //mutex to access adjacent lists
+  ST coords;    //symbol table to retrieve information about vertices
+  ptr_node z;   //sentinel node. Used to indicate the end of a list
 };
 
-typedef struct{
+typedef struct{   //contains all parameters a thread needs
   pthread_t tid;
   short int id;
   Graph G;
 } pthread_par;
 
+/*
+  Global variables:
+*/
+char *finput;
+pthread_mutex_t *meLoadV, *meLoadE;
+int posV=0, posE=0, n=0, nTh;
+struct timeval begin, end;
+
+/*
+    Prototypes of static functions
+*/
 static Edge EDGEcreate(int v, int w, int wt);
 static ptr_node NEW(int v, int wt, ptr_node next);
 static void insertE(Graph G, Edge e);
 static void removeE(Graph G, Edge e);
 static void *loadThread(void *);
 
-struct timeval begin, end;
+/*
+  This function encloses all elements describing an edge 
+  (passed as parameters) in the struct representing the 
+  Edge.
 
+  Parameters: index representing source and destination
+  vertices and the weight of the edge.
+  
+  Return value: the structure representing the edge.
+*/
 static Edge EDGEcreate(int v, int w, int wt) {
   Edge e;
-  e.v = v;
-  e.w = w;
+  e.vert1 = v;
+  e.vert2 = w;
   e.wt = wt;
   return e;
 }
 
+/*
+  This function creates a new node to be inserted within the
+  adjacency list of a vertex. The newly created node will be
+  inserted at the head of the list and will point, as its
+  successor, the node that was the head of the list.
+
+  Parameters: index of the destination node, weight of the
+  edge and pointer to the node that was the head and now is the
+  successor of the newly created node.
+
+  Return value: pointer to the new node.
+*/
 static ptr_node NEW(int v, int wt, ptr_node next) {
+  //allocate the space for the node and check for success
   ptr_node x = malloc(sizeof *x);
   if (x == NULL)
     return NULL;
-  x->v = v;
-  x->wt = wt;
-  x->next = next;
+  
+  x->v = v;         //index of the adjacent vertex
+  x->wt = wt;       //weight of the edge
+  x->next = next;   //set the successor
   return x;
 }
 
+/*
+  This function creates the structure representing the graph
+  and that contains all the information used to describe it.
+
+  Parameter: number of vertices
+
+  Return value: the structure representing the grapf in case of
+  success, NULL in case an errore occurred.
+*/
 Graph GRAPHinit(int V) {
   int v;
+
+  //allocate the structure for the graph
   Graph G = malloc(sizeof *G);
   if (G == NULL)
     return NULL;
 
-  G->V = V;
-  G->E = 0;
+  G->V = V;   //save the number of vertices
+  G->E = 0;   //set the number edges
+
+  //create the sentinel node 
   G->z = NEW(-1, 0, NULL);
   if (G->z == NULL)
     return NULL;
+  
+  //allocate the vector of the adjacency lists
   G->ladj = malloc(G->V*sizeof(ptr_node));
   if (G->ladj == NULL)
     return NULL;
+
+  //set the sentinel node as termination of all adjacency lists
   for (v = 0; v < G->V; v++)
     G->ladj[v] = G->z;
+  
+  //init the Symbol Table
   G->coords = STinit(V);
   if (G->coords == NULL)
     return NULL;
   
+  //create anc initialize the mutex to access all lists
   G->meAdj = malloc(sizeof(pthread_mutex_t));
   pthread_mutex_init(G->meAdj, NULL);
   return G;
 }
 
+/*
+  This function frees the space used to store all structures
+  used to represent the graph.
+
+  Parameter: graph to be freed
+*/
 void GRAPHfree(Graph G) {
   int v;
   ptr_node t, next;
@@ -108,27 +167,14 @@ void GRAPHfree(Graph G) {
   free(G);
 }
 
-typedef struct{
-  int coord1;
-  int coord2;
-} vert_t;
-
-typedef struct __attribute__((__packed__)) edge_s{
-  int vert1, vert2;
-  short int wt;
-} edge_t;
-
 /*
-  Global variables:
+  This is the function executed from each thread in order to
+  load a graph from a binary file in a parallel fashion.
 */
-char *finput;
-pthread_mutex_t *meLoadV, *meLoadE;
-int posV=0, posE=0, n=0, nTh;
-
 static void *loadThread(void *vpars){
   int ret = 0, fd, curr, nr;
-  edge_t e;
-  vert_t v;
+  Edge e;
+  Vert v;
   pthread_par *pars = (pthread_par *) vpars;
   Graph G = pars->G;
   
@@ -157,14 +203,14 @@ static void *loadThread(void *vpars){
       posV++;
       pthread_mutex_unlock(meLoadV);
       // move the pointer into file
-      if(lseek(fd, 1*sizeof(int)+curr*sizeof(vert_t), SEEK_SET) == -1){
+      if(lseek(fd, 1*sizeof(int)+curr*sizeof(Vert), SEEK_SET) == -1){
         perror("nodes lseek");
         close(fd);
         ret = 1;
         pthread_exit(&ret);
       }
       // read coordinates
-      if(read(fd, &v, sizeof(vert_t)) != sizeof(vert_t)){
+      if(read(fd, &v, sizeof(Vert)) != sizeof(Vert)){
         sprintf(err, "reading coords of node %d", curr);
         perror(err);
         close(fd);
@@ -187,14 +233,14 @@ static void *loadThread(void *vpars){
       posE++;
       pthread_mutex_unlock(meLoadE);
       // move the pointer into file
-      if(lseek(fd, sizeof(int) + G->V*sizeof(vert_t) + curr*(sizeof(edge_t)), SEEK_SET) == -1 ){
+      if(lseek(fd, sizeof(int) + G->V*sizeof(Vert) + curr*(sizeof(Edge)), SEEK_SET) == -1 ){
         perror("edges lseek");
         close(fd);
         ret = 1;
         pthread_exit(&ret);
       }
       // read edges
-      if((nr = read(fd, &e, sizeof(edge_t))) != sizeof(edge_t)){
+      if((nr = read(fd, &e, sizeof(Edge))) != sizeof(Edge)){
         if(nr == 0){
           #ifdef DEBUG
             perror("EOF");
@@ -246,22 +292,28 @@ static void *loadThread(void *vpars){
    ... x num edges
 
   Threads > 1, will load the graph in parallel fashion.
-   
+
+  Parameters: path of the bunary file containing the graph,
+  number of threads to be launched.
+
+  Return value: the newly loaded graph.   
 */
 Graph GRAPHload(char *fin, int numThreads) {
   int V, i, nr;
   Graph G;
-  edge_t e;
-  vert_t v;
+  Edge e;
+  Vert v;
 
+  //open the binary input file
   int fd = open(fin, O_RDONLY);
   if(fd < 0){
     perror("open graph bin file");
     return NULL;
   }
 
+  //read the number of vertices
   if(read(fd, &V, sizeof(int)) != sizeof(int)){
-    perror("read num nodes or num edges");
+    perror("read num vertices: ");
     close(fd);
     return NULL;
   }
@@ -269,12 +321,14 @@ Graph GRAPHload(char *fin, int numThreads) {
     printf("#Nodes: %d\n", V);
   #endif
 
+  //init the structure that will contain the graph
   G = GRAPHinit(V);
   if (G == NULL){
     close(fd);
     return NULL;
   }
 
+  //  ##### PARALLEL LOAD #####
   if(numThreads > 1){
     close(fd);
     finput = fin;
@@ -324,6 +378,7 @@ Graph GRAPHload(char *fin, int numThreads) {
     return G;
   }
 
+  //  ##### SEQUENTIAL LOAD #####
   // Reading coordinates of each node
   #ifdef DEBUG
     printf("Nodes coordinates:\n");
@@ -332,8 +387,10 @@ Graph GRAPHload(char *fin, int numThreads) {
     gettimeofday(&begin, 0);
   #endif
 
+  //read all vertices and their coordinates 
   for(int i=0; i<V; i++) {
-    if(read(fd, &v, sizeof(vert_t)) != sizeof(vert_t)){
+    //read coordinates of the vertex
+    if(read(fd, &v, sizeof(Vert)) != sizeof(Vert)){
         sprintf(err, "reading coords of node %d", i);
         perror(err);
         GRAPHfree(G);
@@ -350,8 +407,10 @@ Graph GRAPHload(char *fin, int numThreads) {
   #ifdef DEBUG
     printf("Edges:\n");
   #endif
+
+  //read all edges. Keep reading until EOF
   while(1){
-    if((nr = read(fd, &e, sizeof(edge_t))) != sizeof(edge_t)){
+    if((nr = read(fd, &e, sizeof(Edge))) != sizeof(Edge)){
       if(nr == 0) break; // EOF
       // Error
       perror("reading edges");
@@ -362,6 +421,11 @@ Graph GRAPHload(char *fin, int numThreads) {
     #ifdef DEBUG
       printf("%d %d %d\n", e.vert1, e.vert2, e.wt);
     #endif
+
+    //insert the edge.
+    //By calling GRAPHinsertE a new node in the adjacency list of vert1
+    //will be inserted.
+
     if (e.vert1 >= 0 && e.vert2 >=0)
       GRAPHinsertE(G, e.vert1-1, e.vert2-1, e.wt); // nodes into file starts from 1
   }
@@ -380,6 +444,10 @@ Graph GRAPHload(char *fin, int numThreads) {
   return G;
 }
 
+
+/*
+    ???
+*/
 void GRAPHedges(Graph G, Edge *a) {
   int v, E = 0;
   ptr_node t;
@@ -391,16 +459,42 @@ void GRAPHedges(Graph G, Edge *a) {
   }
 }
 
+/*
+  This function encloses all information about an edge (by calling
+  EDGEcreate) and insert it into the graph by calling insertE.
+
+  Parameters: graph in wich to insert the edge, source and destination
+  vertices of the edge, weight of the edge.
+*/
 void GRAPHinsertE(Graph G, int id1, int id2, int wt) {
   insertE(G, EDGEcreate(id1, id2, wt));
 }
 
+/*
+  This function encloses all information about an edge (by calling
+  EDGEcreate) and remove it forme the graph by calling removeE.
+
+  Parameters: graph from wich to remove the edge, source and destination
+  vertices of the edge (the weight of the edge is not relevant).
+*/
 void GRAPHremoveE(Graph G, int id1, int id2) {
   removeE(G, EDGEcreate(id1, id2, 0));
 }
 
+/*
+  This in function is the one that effectivelly insert a new node in the
+  adjacency list of the edge's source vertex by calling function NEW.
+  The pointer to the node actually at the head is passed to NEW, and
+  the pointer to the new node (returned by NEW function) is collected
+  such that the head pointer of the list can be properly updated.
+
+  Insertion must be done in mutual exclusion because multiple threads may
+  try to add a node to the same adjacency list.
+
+  Parameters: graph and edge to be inserted.
+*/
 static void  insertE(Graph G, Edge e) {
-  int v = e.v, w = e.w, wt = e.wt;
+  int v = e.vert1, w = e.vert2, wt = e.wt;
 
   pthread_mutex_lock(G->meAdj);
     G->ladj[v] = NEW(w, wt, G->ladj[v]);
@@ -408,15 +502,29 @@ static void  insertE(Graph G, Edge e) {
   pthread_mutex_unlock(G->meAdj);
 }
 
+/*
+  Remove an edge from the graph, so a node from the adjacency list.
+  If the node to be removed is pointed by head pointer, operation is
+  completed with unit cost; otherwise it searches the correct node to 
+  be removed first and then remove it.
+
+  Removal must be done in mutual exclusion because multiple threads may
+  try to delete a node from the same adjacency list.
+
+  Parameters: graph and edge to be removed.
+*/
 static void  removeE(Graph G, Edge e) {
-  int v = e.v, w = e.w;
+  int v = e.vert1, w = e.vert2;
   ptr_node x;
+
   pthread_mutex_lock(G->meAdj);
+  //check if the node to be removed is the first one
     if (G->ladj[v]->v == w) {
       G->ladj[v] = G->ladj[v]->next;
       G->E--;
     }
     else
+    //it's not the first node. Search the correct one and get the pointer
       for (x = G->ladj[v]; x != G->z; x = x->next)
         if (x->next->v == w) {
           x->next = x->next->next;
@@ -425,30 +533,49 @@ static void  removeE(Graph G, Edge e) {
   pthread_mutex_unlock(G->meAdj);
 }
 
+/*
+  This function is in charge of creating the tree containing all 
+  minimum-weight paths from one specified source node to all reachable nodes.
+  This goal is achieved using the Dijkstra algorithm.
+
+  Parameters: grpah and start node.
+*/
 void GRAPHspD(Graph G, int id) {
   int v;
   ptr_node t;
-  PQ pq = PQinit(G->V);
+  PQ pq;
   int *st, *mindist;
+
+  //create a priority queue (dimension equal to the number of vertices)
+  pq = PQinit(G->V);
+
+  //allocate the vector containing for each vertex its father.
   st = malloc(G->V*sizeof(int));
+
+  //allocate the vector containing for each vertex the total
+  //weight of the path leading to it.
   mindist = malloc(G->V*sizeof(int));
   if ((st == NULL) || (mindist == NULL))
     return;
 
+  //insert all nodes in the priority queue with total weight equal to infinity
   for (v = 0; v < G->V; v++){
     st[v] = -1;
     mindist[v] = maxWT;
     PQinsert(pq, mindist, v);
   }
 
-  mindist[id] = 0;
-  st[id] = id;
-  PQchange(pq, mindist, id);
+  mindist[id] = 0;    //update the cost to reach the starting node (it is 0)
+  st[id] = id;        //update the father of the starting node (it is itself)
+  PQchange(pq, mindist, id);  //update the priority consequently
 
+  //loop untill there are vertices within the PQ
   while (!PQempty(pq)) {
-    if (mindist[v = PQextractMin(pq, mindist)] != maxWT) {
+    if (mindist[v = PQextractMin(pq, mindist)] != maxWT) {  //extract the vertex with the lowest cost from PQ.
+                                                            //Check if it has been already discovered.
+      //iterate over all adjacent vertices
       for (t=G->ladj[v]; t!=G->z ; t=t->next)
-        if (mindist[v] + t->wt < mindist[t->v]) {
+        if (mindist[v] + t->wt < mindist[t->v]) {   //if a vertex has lower weight, update its priority
           mindist[t->v] = mindist[v] + t->wt;
           PQchange(pq, mindist, t->v);
           st[t->v] = v;
@@ -462,7 +589,6 @@ void GRAPHspD(Graph G, int id) {
       printf("parent of %d is %d \n", v, st[v]);
   }
     
-
   printf("\n Minimum distances from node %d\n", id);
   for (v = 0; v < G->V; v++)
     if(mindist[v] != maxWT)
