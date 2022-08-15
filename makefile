@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-I. -Wall
+CFLAGS=-I. -Wall -lpthread -lm
 SDIR = src
 SRCS = $(SDIR)/main.c $(SDIR)/Graph.c $(SDIR)/PQ.c $(SDIR)/ST.c $(SDIR)/utility/Item.c $(SDIR)/utility/BitArray.c 
 DEF = -DDEBUG

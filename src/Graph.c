@@ -562,7 +562,11 @@ void GRAPHspD(Graph G, int id) {
     //mindist[v] = maxWT;
     path[v] = -1;
     PQinsert(pq, v, maxWT);
+    printf("Inserted node %d priority %d\n", v, maxWT);
   }
+
+
+
   printf("\n\n\n");
   //mindist[id] = 0;
   //st[id] = id;
@@ -579,23 +583,24 @@ void GRAPHspD(Graph G, int id) {
   //   }
   // }
 
-  int *neighbour_priority = (int*) malloc(sizeof(int));
 
-  while (!PQempty(pq)){
-    Item min_item = PQextractMin(pq);
 
-    if(min_item.priority != maxWT){
-      printf("Found item with min edge\n");
-      for(t=G->ladj[min_item.index]; t!=G->z; t=t->next){
-        PQsearch(pq, t->v, neighbour_priority);
+  // while (!PQempty(pq)){
+  //   Item min_item = PQextractMin(pq);
 
-  PQchange(pq, 0, id);
+  //   if(min_item.priority != maxWT){
+  //     printf("Found item with min edge\n");
+  //     for(t=G->ladj[min_item.index]; t!=G->z; t=t->next){
+  //       PQsearch(pq, t->v, neighbour_priority);
+  //     }
+
+  PQchange(pq, id, 0);
 
   int *prio = (int*) malloc(sizeof(int));
 
   for(int i=0; i<G->V; i++){
     int ind = PQsearch(pq, i, prio);
-    printf("Node: %d, Priority: %d\n", ind, *prio);
+    printf("i=%d  indexPQ=%d  prio=%d\n", i, ind, *prio);
   }
   printf("\n\n\n");
   //mindist[id] = 0;
@@ -617,16 +622,23 @@ void GRAPHspD(Graph G, int id) {
 
   while (!PQempty(pq)){
     Item min_item = PQextractMin(pq);
+    printf("Min extracted is (index): %d\n", min_item.index);
 
     if(min_item.priority != maxWT){
       printf("Found item with min edge\n");
       for(t=G->ladj[min_item.index]; t!=G->z; t=t->next){
         PQsearch(pq, t->v, neighbour_priority);
 
+        printf("Node: %d, Neighbour: %d, New priority: %d, Neighbour priority: %d\n", min_item.index, t->v, min_item.priority + t->wt, *neighbour_priority);
+
         if(min_item.priority + t->wt < (*neighbour_priority)){
+          printf("Node %d entered, ", t->v);
           PQchange(pq, t->v, min_item.priority + t->wt);
-          //printf("New node in path, index: %d", v)
-          path[t->v] = v;
+          //printf("New node in path, index: %d", v);
+          path[t->v] = min_item.index;
+
+          PQsearch(pq, t->v, neighbour_priority);
+          printf(" Chosen priority: %d\n", *neighbour_priority);
         }
       }
     }
@@ -635,9 +647,10 @@ void GRAPHspD(Graph G, int id) {
   // printf("\n Shortest path tree\n");
   // for (v = 0; v < G->V; v++)
   //   printf("parent of %s is %s \n", STsearchByIndex(G->tab, v), STsearchByIndex(G->tab, st[v]));
+
   printf("Dijkstra Path:\n");
   for(v = 0; v < G->V; v++){
-    printf("%d -> ", path[v]);
+    printf("Parent %d = %d\n", v, path[v]);
   }
 
   // printf("\n Minimum distances from node %s\n", STsearchByIndex(G->tab, id));
