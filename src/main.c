@@ -4,7 +4,7 @@
 #define MAXC 11
 
 int main(void) {
-  int i, cont, id1, id2, wt;
+  int i, cont, id1, id2, wt, numThreads;
   char name[MAXC];
   Graph G;
 
@@ -15,7 +15,6 @@ int main(void) {
     printf("1.Load graph from file\n");
     printf("2.Edge insertion\n");
     printf("3.Edge removal\n");
-    printf("4.Store graph to file\n");
     printf("5.Shortest path with Dijkstra's algorithm\n");
     printf("6.Free graph and exit\n");
     printf("Enter your choice : ");
@@ -27,7 +26,11 @@ int main(void) {
       switch(i) {
             case 1:     printf("Input file name: ");
                         scanf("%s", name);
-                        G = GRAPHload(name);
+                        printf("Insert number of threads: ");
+                        scanf("%d", &numThreads);
+                        if(G != NULL)
+                          GRAPHfree(G);
+                        G = GRAPHload(name, numThreads);
                         break;
             case 2:     printf("Insert first node = ");
                         scanf("%d", &id1);
@@ -43,10 +46,6 @@ int main(void) {
                         scanf("%d", &id2);
                         GRAPHremoveE(G, id1, id2);
                         break;
-            case 4:     printf("Output file name: ");
-                        scanf("%s", name);
-                        GRAPHstore(G, name);
-                        break;
             case 5:     printf("Insert start node = ");
                         scanf("%d", &id1);
                         GRAPHspD(G, id1);
@@ -57,6 +56,7 @@ int main(void) {
           }
         }
     }
+    if(G == NULL) return 0;
     GRAPHfree(G);
     return 0;
 }

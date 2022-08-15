@@ -1,3 +1,4 @@
-Check with the code of Saro if the load and store work correctly
-Parallelize loading and storing of a graph
 Do sequential A*
+Parallel Load with flock, compare the 2 solutions
+Separate the function to load the graph in a sequential fashion from the parallel one
+Add more comments for each function

@@ -8,4 +8,7 @@ bin/aStar.exe: $(SRCS)
 	$(CC) -o $@ $^ $(CFLAGS)
 
 debug: $(SRCS)
-	$(CC) -o bin/aStar.exe $^ $(CFLAGS) $(DEF)
+	$(CC) -o bin/aStar.exe $^ $(CFLAGS) -DDEBUG
+
+time: $(SRCS)
+	$(CC) -o bin/aStar.exe $^ $(CFLAGS) -DTIME
