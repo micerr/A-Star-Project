@@ -446,7 +446,7 @@ Graph GRAPHload(char *fin, int numThreads) {
 
 
 /*
-    ???
+  Return into *a an array of the edges
 */
 void GRAPHedges(Graph G, Edge *a) {
   int v, E = 0;
