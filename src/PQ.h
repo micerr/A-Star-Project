@@ -13,5 +13,6 @@ void    PQinsert(PQ pq, int index, int priority);
 Item     PQextractMin(PQ pq);
 void    PQchange (PQ pq, int node_index, int priority);
 int     PQsearch(PQ pq, int node_index, int *priority);
+void    PQdisplayHeap(PQ pq);
 
 #endif

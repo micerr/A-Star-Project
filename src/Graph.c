@@ -545,21 +545,16 @@ void GRAPHspD(Graph G, int id) {
   int v;
   ptr_node t;
   PQ pq = PQinit(G->V);
-  //int *st, *mindist;
+
   int *path;
   path = malloc(G->V * sizeof(int));
-  //st = malloc(G->V*sizeof(int));
-  //mindist = malloc(G->V*sizeof(int));
-  // if ((st == NULL) || (mindist == NULL))
-  //   return;
+
   if(path == NULL){
     exit(1);
   }
 
   //insert all nodes in the priority queue with total weight equal to infinity
   for (v = 0; v < G->V; v++){
-    //st[v] = -1;
-    //mindist[v] = maxWT;
     path[v] = -1;
     PQinsert(pq, v, maxWT);
     printf("Inserted node %d priority %d\n", v, maxWT);
@@ -568,31 +563,6 @@ void GRAPHspD(Graph G, int id) {
 
 
   printf("\n\n\n");
-  //mindist[id] = 0;
-  //st[id] = id;
-  //PQchange(pq, mindist, id);
-
-  // while (!PQempty(pq)) {
-  //   if (mindist[v = PQextractMin(pq, mindist)] != maxWT) {
-  //     for (t=G->ladj[v]; t!=G->z ; t=t->next)
-  //       if (mindist[v] + t->wt < mindist[t->v]) {
-  //         mindist[t->v] = mindist[v] + t->wt;
-  //         PQchange(pq, mindist, t->v);
-  //         st[t->v] = v;
-  //       }
-  //   }
-  // }
-
-
-
-  // while (!PQempty(pq)){
-  //   Item min_item = PQextractMin(pq);
-
-  //   if(min_item.priority != maxWT){
-  //     printf("Found item with min edge\n");
-  //     for(t=G->ladj[min_item.index]; t!=G->z; t=t->next){
-  //       PQsearch(pq, t->v, neighbour_priority);
-  //     }
 
   PQchange(pq, id, 0);
 
@@ -603,20 +573,7 @@ void GRAPHspD(Graph G, int id) {
     printf("i=%d  indexPQ=%d  prio=%d\n", i, ind, *prio);
   }
   printf("\n\n\n");
-  //mindist[id] = 0;
-  //st[id] = id;
-  //PQchange(pq, mindist, id);
 
-  // while (!PQempty(pq)) {
-  //   if (mindist[v = PQextractMin(pq, mindist)] != maxWT) {
-  //     for (t=G->ladj[v]; t!=G->z ; t=t->next)
-  //       if (mindist[v] + t->wt < mindist[t->v]) {
-  //         mindist[t->v] = mindist[v] + t->wt;
-  //         PQchange(pq, mindist, t->v);
-  //         st[t->v] = v;
-  //       }
-  //   }
-  // }
 
   int *neighbour_priority = (int*) malloc(sizeof(int));
 
@@ -624,10 +581,12 @@ void GRAPHspD(Graph G, int id) {
     //DEBUG ONLY
     int* prio = (int*) malloc(sizeof(int));
 
-    for(int j=0; j<G->V; j++){
-      int ind = PQsearch(pq, j, prio);
-      printf("Node index: %d, Item list index: %d, Priority: %d\n", j, ind, *prio);
-    }
+    // for(int j=0; j<G->V; j++){
+    //   int ind = PQsearch(pq, j, prio);
+    //   printf("Node index: %d, Item list index: %d, Priority: %d\n", j, ind, *prio);
+    // }
+
+    PQdisplayHeap(pq);
   //
     //At some point it extracts the wrong one (node 2 w priority 2 instead of node 0 w priority 1)
     //Tested with start node=3

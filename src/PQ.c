@@ -71,19 +71,20 @@ static void Swap(PQ pq, int n1, int n2){
 }
 
 static void Heapify(PQ pq, int i) {
-  int l, r, largest;
+  int l, r, smallest;
   l = LEFT(i);
   r = RIGHT(i);
   if ( (l < pq->heapsize) && ( (pq->A[l]).priority < (pq->A[i]).priority) )
-    largest = l;
+    smallest = l;
   else
-    largest = i;
+    smallest = i;
   if ( (r < pq->heapsize) && ( (pq->A[r]).priority < (pq->A[i]).priority) )
-    largest = r;
-  if (largest != i) {
-    Swap(pq, i,largest);
-	Heapify(pq, largest);
+    smallest = r;
+  if (smallest != i) {
+    Swap(pq, i,smallest);
+	  Heapify(pq, smallest);
   }
+  //If the root is smaller than the two children it will stop even if some nodes underneath dont respect heap condition
 }
 
 /*
@@ -112,6 +113,10 @@ Item PQextractMin(PQ pq) {
   pq->heapsize--;
   Heapify(pq, 0);
 
+  printf("\n*****AUXILIARY******\n");
+  PQdisplayHeap(pq);
+  printf("\n**************\n");
+
   return item;
 }
 
@@ -130,6 +135,14 @@ void PQchange (PQ pq, int node_index, int priority) {
 
   pq->A[item_index] = item;
   Heapify(pq, item_index);
+
+  return;
+}
+
+void PQdisplayHeap(PQ pq){
+  for(int i=0; i<pq->heapsize; i++){
+    printf("i = %d, priority = %d\n", (pq->A[i]).index, (pq->A[i]).priority);
+  }
 
   return;
 }
