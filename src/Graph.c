@@ -338,11 +338,13 @@ void GRAPHspD(Graph G, int id) {
     Item min_item = PQextractMin(pq);
 
     if(min_item.priority != maxWT){
+      printf("Found item with min edge\n");
       for(t=G->ladj[min_item.index]; t!=G->z; t=t->next){
         PQsearch(pq, t->v, neighbour_priority);
 
         if(min_item.priority + t->wt < (*neighbour_priority)){
           PQchange(pq, t->v, min_item.priority + t->wt);
+          //printf("New node in path, index: %d", v)
           path[t->v] = v;
         }
       }

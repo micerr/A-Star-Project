@@ -117,8 +117,11 @@ Item PQextractMin(PQ pq) {
 
 //Probably not working
 void PQchange (PQ pq, int node_index, int priority) {
+  // printf("Searching for %d with priority %d\n", node_index, priority);
+
   int item_index = PQsearch(pq, node_index, NULL);
   Item item = pq->A[item_index];
+  item.priority = priority;
 
   while( (item_index>=1) && ((pq->A[PARENT(item_index)]).priority > item.priority)) {
     pq->A[item_index] = pq->A[PARENT(item_index)];
