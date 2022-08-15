@@ -621,8 +621,21 @@ void GRAPHspD(Graph G, int id) {
   int *neighbour_priority = (int*) malloc(sizeof(int));
 
   while (!PQempty(pq)){
+    //DEBUG ONLY
+    int* prio = (int*) malloc(sizeof(int));
+
+    for(int j=0; j<G->V; j++){
+      int ind = PQsearch(pq, j, prio);
+      printf("Node index: %d, Item list index: %d, Priority: %d\n", j, ind, *prio);
+    }
+  //
+    //At some point it extracts the wrong one (node 2 w priority 2 instead of node 0 w priority 1)
+    //Tested with start node=3
     Item min_item = PQextractMin(pq);
     printf("Min extracted is (index): %d\n", min_item.index);
+    
+  
+
 
     if(min_item.priority != maxWT){
       printf("Found item with min edge\n");
@@ -659,6 +672,8 @@ void GRAPHspD(Graph G, int id) {
 
   PQfree(pq);
 }
+
+
 
 // Data structures:
 // openSet -> Priority queue containing an heap made of Items (Item has index of node and priority (fScore))
