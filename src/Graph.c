@@ -578,16 +578,12 @@ void GRAPHspD(Graph G, int id) {
   int *neighbour_priority = (int*) malloc(sizeof(int));
 
   while (!PQempty(pq)){
-    //DEBUG ONLY
-    int* prio = (int*) malloc(sizeof(int));
 
     // for(int j=0; j<G->V; j++){
     //   int ind = PQsearch(pq, j, prio);
     //   printf("Node index: %d, Item list index: %d, Priority: %d\n", j, ind, *prio);
     // }
 
-    PQdisplayHeap(pq);
-  //
     //At some point it extracts the wrong one (node 2 w priority 2 instead of node 0 w priority 1)
     //Tested with start node=3
     Item min_item = PQextractMin(pq);
@@ -599,19 +595,20 @@ void GRAPHspD(Graph G, int id) {
     if(min_item.priority != maxWT){
       printf("Found item with min edge\n");
       for(t=G->ladj[min_item.index]; t!=G->z; t=t->next){
-        PQsearch(pq, t->v, neighbour_priority);
-
+        if(PQsearch(pq, t->v, neighbour_priority) < 0){
+          printf("Node: %d already is closed", t->v);
+          continue;
+        }
         printf("Node: %d, Neighbour: %d, New priority: %d, Neighbour priority: %d\n", min_item.index, t->v, min_item.priority + t->wt, *neighbour_priority);
 
         if(min_item.priority + t->wt < (*neighbour_priority)){
-          printf("Node %d entered, ", t->v);
+          printf("Node %d entered\n", t->v);
           PQchange(pq, t->v, min_item.priority + t->wt);
           //printf("New node in path, index: %d", v);
           path[t->v] = min_item.index;
-
-          PQsearch(pq, t->v, neighbour_priority);
-          printf(" Chosen priority: %d\n", *neighbour_priority);
         }
+
+        PQdisplayHeap(pq);
       }
     }
   }

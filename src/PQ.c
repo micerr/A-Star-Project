@@ -3,7 +3,10 @@
 #include "PQ.h"
 #include "./utility/Item.h"
 
-struct pqueue { Item *A; int *qp; int heapsize; };
+struct pqueue { 
+  Item *A;
+  int heapsize;
+};
 
 
 static void Swap(PQ pq, int n1, int n2);
@@ -78,7 +81,7 @@ static void Heapify(PQ pq, int i) {
     smallest = l;
   else
     smallest = i;
-  if ( (r < pq->heapsize) && ( (pq->A[r]).priority < (pq->A[i]).priority) )
+  if ( (r < pq->heapsize) && ( (pq->A[r]).priority < (pq->A[smallest]).priority) )
     smallest = r;
   if (smallest != i) {
     Swap(pq, i,smallest);
@@ -108,7 +111,7 @@ int PQsearch(PQ pq, int node_index, int *priority){
 
 Item PQextractMin(PQ pq) {
   Item item;
-  Swap (pq, 0,pq->heapsize-1);
+  Swap (pq, 0, pq->heapsize-1);
   item = pq->A[pq->heapsize-1];
   pq->heapsize--;
   Heapify(pq, 0);
