@@ -20,7 +20,8 @@ typedef struct graph *Graph;
 
 Graph GRAPHinit(int V);
 void  GRAPHfree(Graph G);
-Graph GRAPHload(char *fin, int numThreads);
+Graph GRAPHSequentialLoad(char *fin);
+Graph GRAPHParallelLoad(char *fin, int numThreads);
 void  GRAPHinsertE(Graph G, int id1, int id2, int wt);
 void  GRAPHremoveE(Graph G, int id1, int id2);
 void  GRAPHedges(Graph G, Edge *a);

@@ -19,17 +19,17 @@ extern int errno;
 char err[64];
 
 typedef struct node *ptr_node;
-struct node {     //element of the adjacent list
+struct node {     //element of the adjacency list
   int v;          //edge's destination vertex
-  int wt;         //weight of the edges
+  int wt;         //weight of the edge
   ptr_node next;  //pointer to the next node
 };
 
 struct graph { 
-  int V;    //number of vertex
+  int V;    //number of vertices
   int E;    //number of edges
-  ptr_node *ladj;           //array of adjacent lists
-  pthread_mutex_t *meAdj;   //mutex to access adjacent lists
+  ptr_node *ladj;           //array of adjacency lists
+  pthread_mutex_t *meAdj;   //mutex to access adjacency lists
   ST coords;    //symbol table to retrieve information about vertices
   ptr_node z;   //sentinel node. Used to indicate the end of a list
 };
@@ -299,8 +299,9 @@ static void *loadThread(void *vpars){
 
   Return value: the newly loaded graph.   
 */
-Graph GRAPHload(char *fin, int numThreads) {
-  int V, i, nr;
+
+Graph GRAPHSequentialLoad(char *fin) {
+  int V, nr;
   Graph G;
   Edge e;
   Vert v;
@@ -327,56 +328,6 @@ Graph GRAPHload(char *fin, int numThreads) {
   if (G == NULL){
     close(fd);
     return NULL;
-  }
-
-  //  ##### PARALLEL LOAD #####
-  if(numThreads > 1){
-    close(fd);
-    finput = fin;
-    nTh = numThreads;
-    n=0; posE=0; posV=0;
-
-    pthread_par *parameters = malloc(numThreads*sizeof(pthread_par));
-    meLoadV = malloc(sizeof(pthread_mutex_t));
-    meLoadE = malloc(sizeof(pthread_mutex_t));
-    pthread_mutex_init(meLoadV, NULL);
-    pthread_mutex_init(meLoadE, NULL);
-
-    for(i=0; i<numThreads; i++){
-      #ifdef DEBUG
-        printf("Starting thread: %d\n", i);
-      #endif
-      parameters[i].id = i;
-      parameters[i].G = G;
-      pthread_create(&(parameters[i].tid), NULL, loadThread, (void *)&(parameters[i]));
-    }
-
-    int ret = 0;
-    int *pRet = &ret;
-    int err = 0;
-    for(i=0; i<numThreads; i++){
-      pthread_join(parameters[i].tid,(void **) &pRet);
-      if(*pRet == 1)
-        err = 1;
-    }
-    
-    #ifdef DEBUG
-      printf("posE= %d", posE);
-    #endif
-
-    printf("\nLoaded graph with %d nodes and %d edges\n", G->V, G->E);
-
-    pthread_mutex_destroy(meLoadE);
-    pthread_mutex_destroy(meLoadV);
-    free(meLoadE);
-    free(meLoadV);
-    free(parameters);
-
-    if(err){
-      GRAPHfree(G);
-      return NULL;
-    }
-    return G;
   }
 
   //  ##### SEQUENTIAL LOAD #####
@@ -445,6 +396,85 @@ Graph GRAPHload(char *fin, int numThreads) {
   return G;
 }
 
+//  ##### PARALLEL LOAD #####
+Graph GRAPHParallelLoad(char *fin, int numThreads){
+  // int V, i, nr;
+  int V, i;
+  Graph G;
+  // Edge e;
+  // Vert v;
+
+  //open the binary input file
+  int fd = open(fin, O_RDONLY);
+  if(fd < 0){
+    perror("open graph bin file");
+    return NULL;
+  }
+
+  //read the number of vertices
+  if(read(fd, &V, sizeof(int)) != sizeof(int)){
+    perror("read num vertices: ");
+    close(fd);
+    return NULL;
+  }
+  #ifdef DEBUG
+    printf("#Nodes: %d\n", V);
+  #endif
+
+  //init the structure that will contain the graph
+  G = GRAPHinit(V);
+  if (G == NULL){
+    close(fd);
+    return NULL;
+  }
+
+  close(fd);
+  finput = fin;
+  nTh = numThreads;
+  n=0; posE=0; posV=0;
+
+  pthread_par *parameters = malloc(numThreads*sizeof(pthread_par));
+  meLoadV = malloc(sizeof(pthread_mutex_t));
+  meLoadE = malloc(sizeof(pthread_mutex_t));
+  pthread_mutex_init(meLoadV, NULL);
+  pthread_mutex_init(meLoadE, NULL);
+
+  for(i=0; i<numThreads; i++){
+    #ifdef DEBUG
+      printf("Starting thread: %d\n", i);
+    #endif
+    parameters[i].id = i;
+    parameters[i].G = G;
+    pthread_create(&(parameters[i].tid), NULL, loadThread, (void *)&(parameters[i]));
+  }
+
+  int ret = 0;
+  int *pRet = &ret;
+  int err = 0;
+  for(i=0; i<numThreads; i++){
+    pthread_join(parameters[i].tid,(void **) &pRet);
+    if(*pRet == 1)
+      err = 1;
+  }
+    
+  #ifdef DEBUG
+    printf("posE= %d", posE);
+  #endif
+
+  printf("\nLoaded graph with %d nodes and %d edges\n", G->V, G->E);
+
+  pthread_mutex_destroy(meLoadE);
+  pthread_mutex_destroy(meLoadV);
+  free(meLoadE);
+  free(meLoadV);
+  free(parameters);
+
+  if(err){
+    GRAPHfree(G);
+    return NULL;
+  }
+  return G;
+}
 
 /*
     ???
