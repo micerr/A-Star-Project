@@ -575,10 +575,12 @@ void GRAPHspD(Graph G, int id) {
   int v;
   ptr_node t;
   PQ pq = PQinit(G->V);
-  // int *prio = (int*) malloc(sizeof(int));
+  int *prio = (int*) malloc(sizeof(int));
   int *neighbour_priority = (int*) malloc(sizeof(int));
   int *path;
   int *mindist;
+
+  int extracted = 0;
 
   path = malloc(G->V * sizeof(int));
   if(path == NULL){
@@ -611,7 +613,6 @@ void GRAPHspD(Graph G, int id) {
   path[id] = id;
   PQchange(pq, id, 0);
   while (!PQempty(pq)){
-
     // for(int j=0; j<G->V; j++){
     //   int ind = PQsearch(pq, j, prio);
     //   printf("Node index: %d, Item list index: %d, Priority: %d\n", j, ind, *prio);
@@ -620,6 +621,7 @@ void GRAPHspD(Graph G, int id) {
     //At some point it extracts the wrong one (node 2 w priority 2 instead of node 0 w priority 1)
     //Tested with start node=3
     Item min_item = PQextractMin(pq);
+    //printf("Extracted %d nodes\n", ++extracted);
   #if DEBUG
     printf("Min extracted is (index): %d\n", min_item.index);
   #endif
