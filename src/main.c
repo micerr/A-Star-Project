@@ -12,9 +12,10 @@ int main(void) {
   while(cont) {
     printf("\nOperations on weighted directed graphs\n");
     printf("===============\n");
-    printf("1.Load graph from file\n");
-    printf("2.Edge insertion\n");
-    printf("3.Edge removal\n");
+    printf("1.Load graph from file (sequential)\n");
+    printf("2.Load graph from file (parallel)\n");
+    printf("3.Edge insertion\n");
+    printf("4.Edge removal\n");
     printf("5.Shortest path with Dijkstra's algorithm\n");
     printf("6.Free graph and exit\n");
     printf("Enter your choice : ");
@@ -24,15 +25,30 @@ int main(void) {
     }
     else {
       switch(i) {
-            case 1:     printf("Input file name: ");
+            case 1:     //take path of the input file
+                        printf("\nInput file name: ");
                         scanf("%s", name);
-                        printf("Insert number of threads: ");
-                        scanf("%d", &numThreads);
+                        //if another graph already exists, free it before
                         if(G != NULL)
                           GRAPHfree(G);
-                        G = GRAPHload(name, numThreads);
+                        //call function to sequentially load the graph
+                        G = GRAPHSequentialLoad(name);
                         break;
-            case 2:     printf("Insert first node = ");
+                
+            case 2:     //take path of the input file
+                        printf("\nInput file name: ");
+                        scanf("%s", name);
+                        //take number of thread to launch
+                        printf("Insert number of threads: ");
+                        scanf("%d", &numThreads);
+                        //if another graph already exists, free it before
+                        if(G != NULL)
+                          GRAPHfree(G);
+                        //call the function to load the graph in a parallel fashion
+                        G = GRAPHParallelLoad(name, numThreads);
+                        break;
+
+            case 3:     printf("\nInsert first node = ");
                         scanf("%d", &id1);
                         printf("Insert second node = ");
                         scanf("%d", &id2);
@@ -40,19 +56,22 @@ int main(void) {
                         scanf("%d", &wt);
                         GRAPHinsertE(G, id1, id2, wt);
                         break;
-            case 3:     printf("Insert first node = ");
+
+            case 4:     printf("\nInsert first node = ");
                         scanf("%d", &id1);
                         printf("Insert second node = ");
                         scanf("%d", &id2);
                         GRAPHremoveE(G, id1, id2);
                         break;
-            case 5:     printf("Insert start node = ");
+
+            case 5:     printf("\nInsert start node = ");
                         scanf("%d", &id1);
                         GRAPHspD(G, id1);
                         break;
+
             case 6:     cont = 0;
                         break;
-            default:    printf("Invalid option\n");
+            default:    printf("\nInvalid option\n");
           }
         }
     }
