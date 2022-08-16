@@ -116,9 +116,11 @@ Item PQextractMin(PQ pq) {
   pq->heapsize--;
   Heapify(pq, 0);
 
+  #if DEBUG
   printf("\n*****AUXILIARY******\n");
   PQdisplayHeap(pq);
   printf("\n**************\n");
+  #endif
 
   return item;
 }

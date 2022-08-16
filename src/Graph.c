@@ -575,38 +575,41 @@ void GRAPHspD(Graph G, int id) {
   int v;
   ptr_node t;
   PQ pq = PQinit(G->V);
-
+  // int *prio = (int*) malloc(sizeof(int));
+  int *neighbour_priority = (int*) malloc(sizeof(int));
   int *path;
-  path = malloc(G->V * sizeof(int));
+  int *mindist;
 
+  path = malloc(G->V * sizeof(int));
   if(path == NULL){
+    exit(1);
+  }
+
+  mindist = malloc(G->V * sizeof(int));
+  if(mindist == NULL){
     exit(1);
   }
 
   //insert all nodes in the priority queue with total weight equal to infinity
   for (v = 0; v < G->V; v++){
     path[v] = -1;
+    mindist[v] = maxWT;
     PQinsert(pq, v, maxWT);
-    printf("Inserted node %d priority %d\n", v, maxWT);
+    #if DEBUG
+      printf("Inserted node %d priority %d\n", v, maxWT);
+    #endif
   }
-
-
-
+#if DEBUG
   printf("\n\n\n");
-
-  PQchange(pq, id, 0);
-
-  int *prio = (int*) malloc(sizeof(int));
-
   for(int i=0; i<G->V; i++){
     int ind = PQsearch(pq, i, prio);
     printf("i=%d  indexPQ=%d  prio=%d\n", i, ind, *prio);
   }
   printf("\n\n\n");
+#endif
 
-
-  int *neighbour_priority = (int*) malloc(sizeof(int));
-
+  path[id] = id;
+  PQchange(pq, id, 0);
   while (!PQempty(pq)){
 
     // for(int j=0; j<G->V; j++){
@@ -617,28 +620,38 @@ void GRAPHspD(Graph G, int id) {
     //At some point it extracts the wrong one (node 2 w priority 2 instead of node 0 w priority 1)
     //Tested with start node=3
     Item min_item = PQextractMin(pq);
+  #if DEBUG
     printf("Min extracted is (index): %d\n", min_item.index);
-    
-  
-
+  #endif
 
     if(min_item.priority != maxWT){
-      printf("Found item with min edge\n");
+      #if DEBUG
+        printf("Found item with min edge\n");
+      #endif
+      mindist[min_item.index] = min_item.priority;
+
       for(t=G->ladj[min_item.index]; t!=G->z; t=t->next){
         if(PQsearch(pq, t->v, neighbour_priority) < 0){
-          printf("Node: %d already is closed", t->v);
+          #if DEBUG
+           printf("Node: %d already is closed", t->v);
+          #endif
           continue;
         }
-        printf("Node: %d, Neighbour: %d, New priority: %d, Neighbour priority: %d\n", min_item.index, t->v, min_item.priority + t->wt, *neighbour_priority);
+        #if DEBUG
+          printf("Node: %d, Neighbour: %d, New priority: %d, Neighbour priority: %d\n", min_item.index, t->v, min_item.priority + t->wt, *neighbour_priority);
+        #endif
 
         if(min_item.priority + t->wt < (*neighbour_priority)){
-          printf("Node %d entered\n", t->v);
+          #if DEBUG
+            printf("Node %d entered\n", t->v);
+          #endif
           PQchange(pq, t->v, min_item.priority + t->wt);
           //printf("New node in path, index: %d", v);
           path[t->v] = min_item.index;
         }
-
-        PQdisplayHeap(pq);
+        #if DEBUG
+          PQdisplayHeap(pq);
+        #endif
       }
     }
   }
@@ -652,9 +665,9 @@ void GRAPHspD(Graph G, int id) {
     printf("Parent %d = %d\n", v, path[v]);
   }
 
-  // printf("\n Minimum distances from node %s\n", STsearchByIndex(G->tab, id));
-  // for (v = 0; v < G->V; v++)
-  //   printf("mindist[%s] = %d \n", STsearchByIndex(G->tab, v), mindist[v]);
+  printf("\n Minimum distances from node %d\n", id);
+  for (v = 0; v < G->V; v++)
+    printf("mindist[%d] = %d \n", v, mindist[v]);
 
   PQfree(pq);
 }
