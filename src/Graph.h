@@ -25,7 +25,9 @@ Graph GRAPHParallelLoad(char *fin, int numThreads);
 void  GRAPHinsertE(Graph G, int id1, int id2, int wt);
 void  GRAPHremoveE(Graph G, int id1, int id2);
 void  GRAPHedges(Graph G, Edge *a);
-void  GRAPHspD(Graph G, int id);
+void  GRAPHspD(Graph G, int id, int end);
+
+int   GRAPHcc(Graph G);
 
 // A-star implementations
 void GRAPHSequentialAStar(Graph G, int start, int end);

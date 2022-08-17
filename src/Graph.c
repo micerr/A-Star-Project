@@ -153,6 +153,9 @@ Graph GRAPHinit(int V) {
   Parameter: graph to be freed
 */
 void GRAPHfree(Graph G) {
+  if(G == NULL){
+    return;
+  }
   int v;
   ptr_node t, next;
   for (v=0; v < G->V; v++)
@@ -168,6 +171,7 @@ void GRAPHfree(Graph G) {
   free(G->meAdj);
 
   free(G);
+  G = NULL;
 }
 
 /*
@@ -484,6 +488,10 @@ Graph GRAPHParallelLoad(char *fin, int numThreads){
   Return into *a an array of the edges
 */
 void GRAPHedges(Graph G, Edge *a) {
+  if(G == NULL){
+    printf("No graph inserted.\n");
+    return;
+  }
   int v, E = 0;
   ptr_node t;
   for (v=0; v < G->V; v++){
@@ -502,6 +510,10 @@ void GRAPHedges(Graph G, Edge *a) {
   vertices of the edge, weight of the edge.
 */
 void GRAPHinsertE(Graph G, int id1, int id2, int wt) {
+  if(G == NULL){
+    printf("No graph inserted.\n");
+    return;
+  }
   insertE(G, EDGEcreate(id1, id2, wt));
 }
 
@@ -513,6 +525,10 @@ void GRAPHinsertE(Graph G, int id1, int id2, int wt) {
   vertices of the edge (the weight of the edge is not relevant).
 */
 void GRAPHremoveE(Graph G, int id1, int id2) {
+  if(G == NULL){
+    printf("No graph inserted.\n");
+    return;
+  }
   removeE(G, EDGEcreate(id1, id2, 0));
 }
 
@@ -575,9 +591,15 @@ static void  removeE(Graph G, Edge e) {
 
   Parameters: grpah and start node.
 */
-void GRAPHspD(Graph G, int id) {
+void GRAPHspD(Graph G, int id, int end) {
+  if(G == NULL){
+    printf("No graph inserted.\n");
+    return;
+  }
+
   int v;
   ptr_node t;
+  Item min_item;
   PQ pq = PQinit(G->V);
   float prio, neighbour_priority;
   int *path;
@@ -602,29 +624,29 @@ void GRAPHspD(Graph G, int id) {
       printf("Inserted node %d priority %d\n", v, maxWT);
     #endif
   }
-#if DEBUG
-  printf("\n\n\n");
-  for(int i=0; i<G->V; i++){
-    int ind = PQsearch(pq, i, prio);
-    printf("i=%d  indexPQ=%d  prio=%d\n", i, ind, *prio);
-  }
-  printf("\n\n\n");
-#endif
+  #if DEBUG
+    printf("\n\n\n");
+    for(int i=0; i<G->V; i++){
+      int ind = PQsearch(pq, i, prio);
+      printf("i=%d  indexPQ=%d  prio=%d\n", i, ind, *prio);
+    }
+    printf("\n\n\n");
+  #endif
 
   path[id] = id;
   PQchange(pq, id, 0);
   while (!PQempty(pq)){
-    // for(int j=0; j<G->V; j++){
-    //   int ind = PQsearch(pq, j, prio);
-    //   printf("Node index: %d, Item list index: %d, Priority: %d\n", j, ind, *prio);
-    // }
 
     //At some point it extracts the wrong one (node 2 w priority 2 instead of node 0 w priority 1)
     //Tested with start node=3
-    Item min_item = PQextractMin(pq);
-  #if DEBUG
-    printf("Min extracted is (index): %d\n", min_item.index);
-  #endif
+    min_item = PQextractMin(pq);
+    #if DEBUG
+      printf("Min extracted is (index): %d\n", min_item.index);
+    #endif
+
+    if(min_item.index == end){
+      break;
+    }
 
     if(min_item.priority != maxWT){
       #if DEBUG
@@ -635,7 +657,7 @@ void GRAPHspD(Graph G, int id) {
       for(t=G->ladj[min_item.index]; t!=G->z; t=t->next){
         if(PQsearch(pq, t->v, &neighbour_priority) < 0){
           #if DEBUG
-           printf("Node: %d already is closed", t->v);
+            printf("Node: %d already is closed", t->v);
           #endif
           continue;
         }
@@ -662,15 +684,21 @@ void GRAPHspD(Graph G, int id) {
   // for (v = 0; v < G->V; v++)
   //   printf("parent of %s is %s \n", STsearchByIndex(G->tab, v), STsearchByIndex(G->tab, st[v]));
 
-  printf("Dijkstra Path:\n");
-  for(v = 0; v < G->V; v++){
-    printf("Parent %d = %d\n", v, path[v]);
+  // printf("\n Minimum distances from node %d\n", id);
+  // for (v = 0; v < G->V; v++)
+  //   printf("mindist[%d] = %d \n", v, mindist[v]);
+
+  if(path[v] == -1){
+    printf("No path from %d to %d has been found.\n", id, end);
+  }else{
+    printf("Path from %d to %d has been found with weight %.3f.\n", id, end, min_item.priority);
+    for(int v=end; v!=id; ){
+      printf("%d <- ", v);
+      v = path[v];
+    }
+    printf("%d\n",id);
   }
-
-  printf("\n Minimum distances from node %d\n", id);
-  for (v = 0; v < G->V; v++)
-    printf("mindist[%d] = %d \n", v, mindist[v]);
-
+  
   PQfree(pq);
 }
 
@@ -683,6 +711,10 @@ void GRAPHspD(Graph G, int id) {
 
 //openSet is enlarged gradually (inside PQinsert)
 void GRAPHSequentialAStar(Graph G, int start, int end){
+  if(G == NULL){
+    printf("No graph inserted.\n");
+    return;
+  }
   PQ openSet_PQ;
   int *closedSet;
   int *path, flag;
@@ -798,7 +830,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
   if(closedSet[end] < 0)
     printf("No path from %d to %d has been found.\n", start, end);
   else{
-    printf("Path from %d to %d has been found.\n", start, end);
+    printf("Path from %d to %d has been found with weight %.3f.\n", start, end, extrNode.priority);
     for(int v=end; v!=start; ){
       printf("%d <- ", v);
       v = path[v];
@@ -810,4 +842,35 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
 
 
   return;
+}
+
+static void dfsRcc(Graph G, int v, int id, int *cc) {
+  ptr_node t;
+  cc[v] = id;
+  for (t = G->ladj[v]; t != G->z; t = t->next)
+    if (cc[t->v] == -1)
+      dfsRcc(G, t->v, id, cc);
+}
+
+int GRAPHcc(Graph G) {
+  if(G == NULL){
+    printf("No graph inserted.\n");
+    return -1;
+  }
+  int v, id = 0, *cc;
+  cc = malloc(G->V * sizeof(int));
+  if (cc == NULL)
+    return -1;
+
+  for (v = 0; v < G->V; v++)
+    cc[v] = -1;
+
+  for (v = 0; v < G->V; v++)
+    if (cc[v] == -1)
+      dfsRcc(G, v, id++, cc);
+
+  printf("Connected component(s) \n");
+  for (v = 0; v < G->V; v++)
+    printf("node %d belongs to cc %d \n", v, cc[v]);
+  return id;
 }
