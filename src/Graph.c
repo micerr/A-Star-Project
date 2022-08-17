@@ -579,7 +579,7 @@ void GRAPHspD(Graph G, int id) {
   int v;
   ptr_node t;
   PQ pq = PQinit(G->V);
-  int prio, neighbour_priority;
+  float prio, neighbour_priority;
   int *path;
   int *mindist;
 
@@ -685,9 +685,9 @@ void GRAPHspD(Graph G, int id) {
 void GRAPHSequentialAStar(Graph G, int start, int end){
   PQ openSet_PQ;
   int *closedSet;
-  int *path, prio;
-  int newGscore, newFscore;
-  int neighboor_gScore, neighboor_fScore, neighboor_hScore;
+  int *path;
+  float newGscore, newFscore, prio;
+  float neighboor_gScore, neighboor_fScore, neighboor_hScore;
   Item extrNode;
   Coord dest_coord, coord, neighboor_coord;
   ptr_node t;
@@ -699,7 +699,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
     exit(1);
   }
 
-  //init the closed set (bit array)
+  //init the closed set (int array)
   closedSet = malloc(G->V * sizeof(int));
   if(closedSet == NULL){
     perror("Error trying to create closedSet: ");
@@ -721,14 +721,14 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
 
   //compute starting node's fScore. (gScore = 0)
   coord = STsearchByIndex(G->coords, start);
-  prio = 0 + Hcoord(coord, dest_coord);
+  prio = Hcoord(coord, dest_coord);
 
   //insert the starting node in the open set (priority queue)
   PQinsert(openSet_PQ, start, prio);
   path[start] = start;
 
   //until the open set is not empty
-  while(PQempty(openSet_PQ) != 0){
+  while(!PQempty(openSet_PQ)){
 
     //extract the vertex with the lowest fScore
     extrNode = PQextractMin(openSet_PQ);

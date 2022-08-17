@@ -46,7 +46,7 @@ int PQempty(PQ pq) {
 }
 
 
-void PQinsert (PQ pq, int node_index, int priority){
+void PQinsert (PQ pq, int node_index, float priority){
   Item *item = ITEMinit(node_index, priority);
 
   int i;
@@ -94,7 +94,7 @@ static void Heapify(PQ pq, int i) {
 Searches for a specific node inside the Item array and returns it's index 
 and the priority value inside the priority pointer
 */
-int PQsearch(PQ pq, int node_index, int *priority){
+int PQsearch(PQ pq, int node_index, float *priority){
   for(int i=0; i<pq->heapsize; i++){
     if(node_index == (pq->A[i]).index){
       if(priority == NULL){
@@ -126,7 +126,7 @@ Item PQextractMin(PQ pq) {
 }
 
 //Probably not working
-void PQchange (PQ pq, int node_index, int priority) {
+void PQchange (PQ pq, int node_index, float priority) {
   // printf("Searching for %d with priority %d\n", node_index, priority);
 
   int item_index = PQsearch(pq, node_index, NULL);
@@ -146,7 +146,7 @@ void PQchange (PQ pq, int node_index, int priority) {
 
 void PQdisplayHeap(PQ pq){
   for(int i=0; i<pq->heapsize; i++){
-    printf("i = %d, priority = %d\n", (pq->A[i]).index, (pq->A[i]).priority);
+    printf("i = %d, priority = %f\n", (pq->A[i]).index, (pq->A[i]).priority);
   }
 
   return;

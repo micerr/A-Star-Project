@@ -3,9 +3,9 @@
 
 typedef struct item {
     int index;
-    int priority;
+    float priority;
 } Item;
 
-Item* ITEMinit(int node_index, int priority);
+Item* ITEMinit(int node_index, float priority);
 
 #endif
