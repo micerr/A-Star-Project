@@ -1,5 +1,3 @@
-Do sequential A*
 Parallel Load with flock, compare the 2 solutions
 Solve the "stack smashing" problem when trying deallocating frome the main
 Add more comments for each function
-PQ insert, increasing with realloc

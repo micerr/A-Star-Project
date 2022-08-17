@@ -1,11 +1,13 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 #include "PQ.h"
 #include "./utility/Item.h"
 
 struct pqueue { 
   Item *A; //array of Items.
-  int heapsize; //number of elements int the priority queue
+  int heapsize; // number of elements in the priority queue
+  int maxN; // max number of elements
 };
 
 /*
@@ -70,6 +72,7 @@ PQ PQinit(int maxN) {
     return NULL;
   }
   pq->heapsize = 0;
+  pq->maxN = maxN;
 
   return pq;
 }
@@ -119,8 +122,18 @@ int PQempty(PQ pq) {
 */
 void PQinsert (PQ pq, int node_index, float priority){
   Item *item = ITEMinit(node_index, priority);
-
   int i;
+  
+  if( pq->heapsize >= pq->maxN){
+    pq->A = realloc(pq->A, (2*pq->maxN)* sizeof(Item*));
+    if(pq->A == NULL){
+      perror("Realloc");
+      free(pq->A);
+      free(pq);
+      exit(1);
+    }
+    pq->maxN = 2*pq->maxN;
+  }
 
   //set i equal to the most-right available index. Also update the heap size.
   i = pq->heapsize++;

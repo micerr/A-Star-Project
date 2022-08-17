@@ -693,7 +693,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
   ptr_node t;
 
   //init the open set (priority queue)
-  openSet_PQ = PQinit(G->V);
+  openSet_PQ = PQinit(1);
   if(openSet_PQ == NULL){
     perror("Error trying to create openSet_PQ: ");
     exit(1);
