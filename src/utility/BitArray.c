@@ -30,11 +30,12 @@ BitArray BITARRAYinit(int size){
 }
 
 void BITARRAYtoggleBit(BitArray ba, int index){
+    // "^=" is XOR binary operator
     ba->array[index / 8] ^= 1 << (index % 8);
 }
 
 char BITARRAYgetBit(BitArray ba, int index){
-    return 1 & ba->array[index / 8] >> (index % 8);
+    return (ba->array[index / 8] >> (index % 8)) & 1;
 }
 
 void BITARRAYfree(BitArray ba){
