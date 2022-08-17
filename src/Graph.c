@@ -580,8 +580,6 @@ void GRAPHspD(Graph G, int id) {
   int *path;
   int *mindist;
 
-  int extracted = 0;
-
   path = malloc(G->V * sizeof(int));
   if(path == NULL){
     exit(1);

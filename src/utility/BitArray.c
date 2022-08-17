@@ -14,13 +14,12 @@ struct bit_array {
 };
 
 BitArray BITARRAYinit(int size){
-    //sizeof(*ba)?
-    BitArray ba = malloc(size * sizeof(*ba));
+    BitArray ba = malloc(sizeof(*ba));
     if(ba == NULL){
         return NULL;
     }
 
-    ba->array = (char*) malloc(size * sizeof(char));
+    ba->array = (char*) malloc(((size/8)+1) * sizeof(char));
     if(ba->array == NULL){
         return NULL;
     }
@@ -44,31 +43,29 @@ void BITARRAYfree(BitArray ba){
 }
 
 
-
-
-// int main(){
-//     BitArray bitArr = BITARRAYinit(10);
-
-//     for(int i=0; i<10; i+=2){
-//         BITARRAYtoggleBit(bitArr, i);
-//     }
-
-
-//     for(int i=0; i<10; i++){
-//         char bit = BITARRAYgetBit(bitArr, i);
-//         printf("%d\n", bit);
-//     }
-
-//     for(int i=0; i<10; i++){
-//         BITARRAYtoggleBit(bitArr, i);
-//     }
-//     printf("--------\n");
-
-//     for(int i=0; i<10; i++){
-//         char bit = BITARRAYgetBit(bitArr, i);
-//         printf("%d\n", bit);
-//     }
-
-//     return 0;
-// }
+//int main(){
+//    BitArray bitArr = BITARRAYinit(10);
+//
+//    for(int i=0; i<10; i+=2){
+//        BITARRAYtoggleBit(bitArr, i);
+//    }
+//
+//
+//    for(int i=0; i<10; i++){
+//        char bit = BITARRAYgetBit(bitArr, i);
+//        printf("%d\n", bit);
+//    }
+//
+//    for(int i=0; i<10; i++){
+//        BITARRAYtoggleBit(bitArr, i);
+//    }
+//    printf("--------\n");
+//
+//    for(int i=0; i<10; i++){
+//        char bit = BITARRAYgetBit(bitArr, i);
+//        printf("%d\n", bit);
+//    }
+//
+//    return 0;
+//}
 
