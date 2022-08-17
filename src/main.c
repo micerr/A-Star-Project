@@ -12,12 +12,13 @@ int main(void) {
   while(cont) {
     printf("\nOperations on weighted directed graphs\n");
     printf("===============\n");
-    printf("1.Load graph from file (sequential)\n");
-    printf("2.Load graph from file (parallel)\n");
-    printf("3.Edge insertion\n");
-    printf("4.Edge removal\n");
-    printf("5.Shortest path with Dijkstra's algorithm\n");
-    printf("6.Free graph and exit\n");
+    printf("1. Load graph from file (sequential)\n");
+    printf("2. Load graph from file (parallel)\n");
+    printf("3. Edge insertion\n");
+    printf("4. Edge removal\n");
+    printf("5. Shortest path with Dijkstra's algorithm\n");
+    printf("6. Shortest path with sequential A*\n");
+    printf("7. Free graph and exit\n");
     printf("Enter your choice : ");
     if(scanf("%d",&i)<=0) {
       printf("Integers only!\n");
@@ -69,7 +70,14 @@ int main(void) {
                         GRAPHspD(G, id1);
                         break;
 
-            case 6:     cont = 0;
+            case 6:     printf("\nInsert starting node = ");
+                        scanf("%d", &id1);
+                        printf("Insert destination node = ");
+                        scanf("%d", &id2);
+                        GRAPHSequentialAStar(G, id1, id2);
+                        break;
+
+            case 7:     cont = 0;
                         break;
             default:    printf("\nInvalid option\n");
           }

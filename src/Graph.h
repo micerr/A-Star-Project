@@ -28,6 +28,5 @@ void  GRAPHedges(Graph G, Edge *a);
 void  GRAPHspD(Graph G, int id);
 
 // A-star implementations
-void GRAPHSequentialAStar(Graph G, int start);
-
+void GRAPHSequentialAStar(Graph G, int start, int end);
 #endif
