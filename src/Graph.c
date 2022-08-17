@@ -627,8 +627,8 @@ void GRAPHspD(Graph G, int id, int end) {
   #if DEBUG
     printf("\n\n\n");
     for(int i=0; i<G->V; i++){
-      int ind = PQsearch(pq, i, prio);
-      printf("i=%d  indexPQ=%d  prio=%d\n", i, ind, *prio);
+      int ind = PQsearch(pq, i, &prio);
+      printf("i=%d  indexPQ=%d  prio=%f\n", i, ind, prio);
     }
     printf("\n\n\n");
   #endif
@@ -662,7 +662,7 @@ void GRAPHspD(Graph G, int id, int end) {
           continue;
         }
         #if DEBUG
-          printf("Node: %d, Neighbour: %d, New priority: %d, Neighbour priority: %d\n", min_item.index, t->v, min_item.priority + t->wt, *neighbour_priority);
+          printf("Node: %d, Neighbour: %d, New priority: %f, Neighbour priority: %f\n", min_item.index, t->v, min_item.priority + t->wt, neighbour_priority);
         #endif
 
         if(min_item.priority + t->wt < (neighbour_priority)){
