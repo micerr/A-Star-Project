@@ -685,7 +685,7 @@ void GRAPHspD(Graph G, int id) {
 void GRAPHSequentialAStar(Graph G, int start, int end){
   PQ openSet_PQ;
   int *closedSet;
-  int *path, prio;
+  int *path, prio, flag;
   int newGscore, newFscore;
   int neighboor_gScore, neighboor_fScore, neighboor_hScore;
   Item extrNode;
@@ -774,11 +774,11 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
       }
       //if it hasn't been closed yet
       else{
-        PQsearch(openSet_PQ, t->v, &neighboor_fScore);
+        flag = PQsearch(openSet_PQ, t->v, &neighboor_fScore);
         neighboor_gScore = neighboor_fScore - neighboor_hScore;
 
         //if it doesn't belong to the open set yet, add it
-        if(PQsearch(openSet_PQ, t->v, &prio) != -1){
+        if(flag != -1){
           newFscore = newGscore + neighboor_hScore;
           PQinsert(openSet_PQ, t->v, newFscore);
           path[t->v] = extrNode.index;
