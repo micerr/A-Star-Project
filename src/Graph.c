@@ -10,7 +10,7 @@
 
 #include "Graph.h"
 #include "PQ.h"
-#include "BitArray.h"
+#include "./utility/BitArray.h"
 #include "Heuristic.h"
 #include "./utility/Item.h"
 
@@ -740,7 +740,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
     closedSet[extrNode.index] = extrNode.priority;
 
     //if the extracted node is the goal one, end the computation
-    if(extrNode.index = end)
+    if(extrNode.index == end)
       break;
 
     //consider all adjacent vertex of the extracted node
@@ -748,11 +748,6 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
       //retrieve coordinates of the adjacent vertex
       neighboor_coord = STsearchByIndex(G->coords, t->v);
       neighboor_hScore = Hcoord(neighboor_coord, dest_coord);
-      //retrieve its fScore    ???????????
-      //PQsearch()
-
-      //copmute its actual gScore
-      neighboor_gScore = neighboor_fScore - neighboor_hScore;
 
       //cost to reach the extracted node is equal to fScore less the heuristic.
       //newGscore is the sum between the cost to reach extrNode and the
@@ -761,14 +756,17 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
 
       //check if adjacent node has been already closed
       if(closedSet[t->v] > 0){
+        neighboor_fScore = closedSet[t->v];
+        neighboor_gScore = neighboor_fScore - neighboor_hScore;
+
         //if a lower gScore is found, reopen the vertex
         if(newGscore < neighboor_gScore){
           //remove it from closed set
           closedSet[t->v] = -1;
           
           //add it to the open set
-          prio = newGscore + neighboor_hScore;
-          PQinsert(openSet_PQ, t->v, prio);
+          newFscore = newGscore + neighboor_hScore;
+          PQinsert(openSet_PQ, t->v, newFscore);
           path[t->v] = extrNode.index;
         }
         else
@@ -776,6 +774,9 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
       }
       //if it hasn't been closed yet
       else{
+        PQsearch(openSet_PQ, t->v, &neighboor_fScore);
+        neighboor_gScore = neighboor_fScore - neighboor_hScore;
+
         //if it doesn't belong to the open set yet, add it
         if(PQsearch(openSet_PQ, t->v, &prio) != -1){
           newFscore = newGscore + neighboor_hScore;
@@ -787,7 +788,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
           continue;
         else{
           newFscore = newGscore + neighboor_hScore;
-          PQinsert(openSet_PQ, t->v, newFscore);
+          PQchange(openSet_PQ, t->v, newFscore);
           path[t->v] = extrNode.index;
         }
       }
