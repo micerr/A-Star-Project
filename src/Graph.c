@@ -684,7 +684,7 @@ void GRAPHspD(Graph G, int id) {
 //openSet is enlarged gradually (inside PQinsert)
 void GRAPHSequentialAStar(Graph G, int start, int end){
   PQ openSet_PQ;
-  BitArray closedSet_BA;
+  int *closedSet;
   int *path, prio;
   int newGscore, newFscore;
   int neighboor_gScore, neighboor_fScore, neighboor_hScore;
@@ -700,10 +700,13 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
   }
 
   //init the closed set (bit array)
-  closedSet_BA = BITARRAYinit(G->V);
-  if(closedSet_BA == NULL){
-    perror("Error trying to create closedSet_BA: ");
+  closedSet = malloc(G->V * sizeof(int));
+  if(closedSet == NULL){
+    perror("Error trying to create closedSet: ");
     exit(1);
+  }
+  for(int i=0; i<G->V; i++){
+    closedSet[i]=-1;
   }
 
   //allocate the path array
@@ -734,7 +737,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
     coord = STsearchByIndex(G->coords, extrNode.index);
     
     //add the extracted node to the closed set
-    BITARRAYtoggleBit(closedSet_BA, extrNode.index);
+    closedSet[extrNode.index] = extrNode.priority;
 
     //if the extracted node is the goal one, end the computation
     if(extrNode.index = end)
@@ -757,11 +760,11 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
       newGscore = (extrNode.priority - Hcoord(coord, dest_coord)) + t->wt;
 
       //check if adjacent node has been already closed
-      if(BITARRAYgetBit(closedSet_BA, t->v)){
+      if(closedSet[t->v] > 0){
         //if a lower gScore is found, reopen the vertex
         if(newGscore < neighboor_gScore){
           //remove it from closed set
-          BITARRAYtoggleBit(closedSet_BA, t->v);
+          closedSet[t->v] = -1;
           
           //add it to the open set
           prio = newGscore + neighboor_hScore;
@@ -791,7 +794,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
     }
   }
 
-  if(!BITARRAYgetBit(closedSet_BA, end))
+  if(closedSet[end] < 0)
     printf("No path from %d to %d has been found.\n", start, end);
   else{
     printf("Path from %d to %d has been found.\n", start, end);
