@@ -578,3 +578,26 @@ void GRAPHstats(Graph G){
   printf("sizeofStructNode= %ld, sizeLadj= %d B (%d MB)\n", sizeof(struct node), sizeLadj, sizeLadj>>20);
 
 }
+
+
+/*TESTING PQ PARALLEL SEARCH*/
+
+void GRAPHParallelSearchTest(){
+  PQ openSet_PQ;
+
+  openSet_PQ = PQinit(100);
+  if(openSet_PQ == NULL){
+    perror("Error trying to create openSet_PQ: ");
+    exit(1);
+  }
+
+  srand(time(NULL));
+  int rand_prio;
+
+  for(int i=0; i<100; i++){
+    rand_prio = rand() % 1000;
+    PQinsert(openSet_PQ, i, rand_prio);
+  }
+
+  PQdisplayHeap(openSet_PQ);
+}
