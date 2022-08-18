@@ -10,9 +10,10 @@
 
 #include "Graph.h"
 #include "PQ.h"
-#include "./utility/BitArray.h"
 #include "Heuristic.h"
+#include "./utility/BitArray.h"
 #include "./utility/Item.h"
+#include "./utility/Timer.h"
 
 #define maxWT INT_MAX
 #define MAXC 10
@@ -47,8 +48,8 @@ typedef struct{   //contains all parameters a thread needs
 */
 char *finput;
 pthread_mutex_t *meLoadV, *meLoadE;
-int posV=0, posE=0, n=0, nTh;
-struct timeval begin, end;
+int posV=0, posE=0;
+Timer timerLoad;
 
 /*
     Prototypes of static functions
@@ -193,12 +194,7 @@ static void *loadThread(void *vpars){
   }
   
   #ifdef TIME
-    pthread_mutex_lock(meLoadV);
-      if(n==0){
-        gettimeofday(&begin, 0);
-      }
-      n++;
-    pthread_mutex_unlock(meLoadV);
+    TIMERstart(timerLoad);
   #endif
 
   if(pars->id % 2 == 0){
@@ -269,18 +265,7 @@ static void *loadThread(void *vpars){
   }
   
   #ifdef TIME
-    pthread_mutex_lock(meLoadV);
-      nTh--;
-      if(nTh==0){
-        gettimeofday(&end, 0);
-        long int seconds = end.tv_sec - begin.tv_sec;
-        long int microseconds = end.tv_usec - begin.tv_usec;
-        double elapsed = seconds + microseconds*1e-6;
-
-        printf("Time for reading parallel: %.3f seconds.\n", elapsed);
-      }
-    pthread_mutex_unlock(meLoadV);
-    
+    TIMERstopEprint(timerLoad);
   #endif 
 
 
@@ -311,6 +296,9 @@ Graph GRAPHSequentialLoad(char *fin) {
   Graph G;
   Edge e;
   Vert v;
+  #ifdef TIME
+    Timer timer = TIMERinit(1);
+  #endif
 
   //open the binary input file
   int fd = open(fin, O_RDONLY);
@@ -342,7 +330,7 @@ Graph GRAPHSequentialLoad(char *fin) {
     printf("Nodes coordinates:\n");
   #endif
   #ifdef TIME
-    gettimeofday(&begin, 0);
+    TIMERstart(timer);
   #endif
 
   //read all vertices and their coordinates 
@@ -388,17 +376,16 @@ Graph GRAPHSequentialLoad(char *fin) {
       GRAPHinsertE(G, e.vert1-1, e.vert2-1, e.wt); // nodes into file starts from 1
   }
   #ifdef TIME
-    gettimeofday(&end, 0);
-    long int seconds = end.tv_sec - begin.tv_sec;
-    long int microseconds = end.tv_usec - begin.tv_usec;
-    double elapsed = seconds + microseconds*1e-6;
-
-    printf("Time for reading sequential: %.3f seconds.\n", elapsed);
+    TIMERstopEprint(timer);
   #endif
 
   close(fd);
 
-  printf("\nLoaded graph with %d nodes and %d edges\n", G->V, G->E);
+  #ifdef TIME
+    TIMERfree(timer);
+  #endif
+
+  printf("\nLoaded graph sequential with %d nodes and %d edges\n", G->V, G->E);
   return G;
 }
 
@@ -438,14 +425,16 @@ Graph GRAPHParallelLoad(char *fin, int numThreads){
 
   close(fd);
   finput = fin;
-  nTh = numThreads;
-  n=0; posE=0; posV=0;
+  posE=0; posV=0;
 
   pthread_par *parameters = malloc(numThreads*sizeof(pthread_par));
   meLoadV = malloc(sizeof(pthread_mutex_t));
   meLoadE = malloc(sizeof(pthread_mutex_t));
   pthread_mutex_init(meLoadV, NULL);
   pthread_mutex_init(meLoadE, NULL);
+  #ifdef TIME
+    timerLoad = TIMERinit(numThreads);
+  #endif
 
   for(i=0; i<numThreads; i++){
     #ifdef DEBUG
@@ -469,8 +458,11 @@ Graph GRAPHParallelLoad(char *fin, int numThreads){
     printf("posE= %d", posE);
   #endif
 
-  printf("\nLoaded graph with %d nodes and %d edges\n", G->V, G->E);
+  printf("\nLoaded graph parallel with %d nodes and %d edges\n", G->V, G->E);
 
+  #ifdef TIME
+    TIMERfree(timerLoad);
+  #endif  
   pthread_mutex_destroy(meLoadE);
   pthread_mutex_destroy(meLoadV);
   free(meLoadE);
@@ -597,80 +589,66 @@ void GRAPHspD(Graph G, int id, int end) {
     return;
   }
 
-  int v;
+  int v, hop=0;
   ptr_node t;
   Item min_item;
   PQ pq = PQinit(G->V);
-  float prio, neighbour_priority;
+  float neighbour_priority;
   int *path;
-  int *mindist;
+  #ifdef TIME
+    Timer timer = TIMERinit(1);
+  #endif
 
   path = malloc(G->V * sizeof(int));
   if(path == NULL){
     exit(1);
   }
 
-  mindist = malloc(G->V * sizeof(int));
-  if(mindist == NULL){
-    exit(1);
-  }
-
   //insert all nodes in the priority queue with total weight equal to infinity
   for (v = 0; v < G->V; v++){
     path[v] = -1;
-    mindist[v] = maxWT;
     PQinsert(pq, v, maxWT);
     #if DEBUG
       printf("Inserted node %d priority %d\n", v, maxWT);
     #endif
   }
   #if DEBUG
-    printf("\n\n\n");
-    for(int i=0; i<G->V; i++){
-      int ind = PQsearch(pq, i, prio);
-      printf("i=%d  indexPQ=%d  prio=%d\n", i, ind, *prio);
-    }
-    printf("\n\n\n");
+    PQdisplayHeap(pq);
+  #endif
+
+  #ifdef TIME
+    TIMERstart(timer);
   #endif
 
   path[id] = id;
   PQchange(pq, id, 0);
   while (!PQempty(pq)){
-
-    //At some point it extracts the wrong one (node 2 w priority 2 instead of node 0 w priority 1)
-    //Tested with start node=3
     min_item = PQextractMin(pq);
     #if DEBUG
       printf("Min extracted is (index): %d\n", min_item.index);
     #endif
 
     if(min_item.index == end){
+      // we reached the end node
       break;
     }
 
+    // if the node is discovered
     if(min_item.priority != maxWT){
-      #if DEBUG
-        printf("Found item with min edge\n");
-      #endif
-      mindist[min_item.index] = min_item.priority;
+      // mindist[min_item.index] = min_item.priority;
 
       for(t=G->ladj[min_item.index]; t!=G->z; t=t->next){
         if(PQsearch(pq, t->v, &neighbour_priority) < 0){
-          #if DEBUG
-            printf("Node: %d already is closed", t->v);
-          #endif
+          // The node is already closed
           continue;
         }
         #if DEBUG
-          printf("Node: %d, Neighbour: %d, New priority: %d, Neighbour priority: %d\n", min_item.index, t->v, min_item.priority + t->wt, *neighbour_priority);
+          printf("Node: %d, Neighbour: %d, New priority: %.3f, Neighbour priority: %.3f\n", min_item.index, t->v, min_item.priority + t->wt, neighbour_priority);
         #endif
 
         if(min_item.priority + t->wt < (neighbour_priority)){
-          #if DEBUG
-            printf("Node %d entered\n", t->v);
-          #endif
+          // we have found a better path
           PQchange(pq, t->v, min_item.priority + t->wt);
-          //printf("New node in path, index: %d", v);
           path[t->v] = min_item.index;
         }
         #if DEBUG
@@ -680,31 +658,34 @@ void GRAPHspD(Graph G, int id, int end) {
     }
   }
 
-  // printf("\n Shortest path tree\n");
-  // for (v = 0; v < G->V; v++)
-  //   printf("parent of %s is %s \n", STsearchByIndex(G->tab, v), STsearchByIndex(G->tab, st[v]));
+  #ifdef TIME
+    TIMERstopEprint(timer);
+  #endif
 
-  // printf("\n Minimum distances from node %d\n", id);
-  // for (v = 0; v < G->V; v++)
-  //   printf("mindist[%d] = %d \n", v, mindist[v]);
-
+  // Print the found path
   if(path[v] == -1){
     printf("No path from %d to %d has been found.\n", id, end);
   }else{
-    printf("Path from %d to %d has been found with weight %.3f.\n", id, end, min_item.priority);
+    printf("Path from %d to %d has been found with cost %.3f.\n", id, end, min_item.priority);
     for(int v=end; v!=id; ){
       printf("%d <- ", v);
       v = path[v];
+      hop++;
     }
-    printf("%d\n",id);
+    printf("%d\nHops: %d",id, hop);
   }
   
+  #ifdef TIME
+    TIMERfree(timer);
+  #endif
+
+  free(path);
   PQfree(pq);
 }
 
 // Data structures:
 // openSet -> Priority queue containing an heap made of Items (Item has index of node and priority (fScore))
-// closedSet -> BitArray: 1 if node expanded, 0 otherwise
+// closedSet -> Array of int, each cell is the fScore of a node.
 // path -> the path of the graph (built step by step)
 // fScores are embedded within an Item 
 // gScores are obtained starting from the fScores and subtracting the value of the heuristic
@@ -715,14 +696,18 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
     printf("No graph inserted.\n");
     return;
   }
+
   PQ openSet_PQ;
   int *closedSet;
-  int *path, flag;
+  int *path, flag, hop=0;
   float newGscore, newFscore, prio;
   float neighboor_gScore, neighboor_fScore, neighboor_hScore;
   Item extrNode;
   Coord dest_coord, coord, neighboor_coord;
   ptr_node t;
+  #ifdef TIME
+    Timer timer = TIMERinit(1);
+  #endif
 
   //init the open set (priority queue)
   openSet_PQ = PQinit(1);
@@ -747,6 +732,10 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
     perror("Error trying to allocate path array: ");
     exit(1);
   }
+
+  #ifdef TIME
+    TIMERstart(timer);
+  #endif
   
   //retrieve coordinates of the target vertex
   dest_coord = STsearchByIndex(G->coords, end);
@@ -827,50 +816,29 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
     }
   }
 
+  #ifdef TIME
+    TIMERstopEprint(timer);
+  #endif
+
   if(closedSet[end] < 0)
     printf("No path from %d to %d has been found.\n", start, end);
   else{
-    printf("Path from %d to %d has been found with weight %.3f.\n", start, end, extrNode.priority);
+    printf("Path from %d to %d has been found with cost %.3f.\n", start, end, extrNode.priority);
     for(int v=end; v!=start; ){
       printf("%d <- ", v);
       v = path[v];
+      hop++;
     }
-    printf("%d\n",start);
+    printf("%d\nHops: %d\n", start, hop);
   }
 
-  //print path cost ...
 
+  #ifdef TIME
+    TIMERfree(timer);
+  #endif
+  free(path);
+  free(closedSet);
+  PQfree(openSet_PQ);
 
   return;
-}
-
-static void dfsRcc(Graph G, int v, int id, int *cc) {
-  ptr_node t;
-  cc[v] = id;
-  for (t = G->ladj[v]; t != G->z; t = t->next)
-    if (cc[t->v] == -1)
-      dfsRcc(G, t->v, id, cc);
-}
-
-int GRAPHcc(Graph G) {
-  if(G == NULL){
-    printf("No graph inserted.\n");
-    return -1;
-  }
-  int v, id = 0, *cc;
-  cc = malloc(G->V * sizeof(int));
-  if (cc == NULL)
-    return -1;
-
-  for (v = 0; v < G->V; v++)
-    cc[v] = -1;
-
-  for (v = 0; v < G->V; v++)
-    if (cc[v] == -1)
-      dfsRcc(G, v, id++, cc);
-
-  printf("Connected component(s) \n");
-  for (v = 0; v < G->V; v++)
-    printf("node %d belongs to cc %d \n", v, cc[v]);
-  return id;
 }
