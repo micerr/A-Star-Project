@@ -188,7 +188,6 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
   //compute starting node's fScore. (gScore = 0)
   coord = STsearchByIndex(G->coords, start);
   prio = Hcoord(coord, dest_coord);
-  printf("h: %f\n", prio);
 
   //insert the starting node in the open set (priority queue)
   PQinsert(openSet_PQ, start, prio);
