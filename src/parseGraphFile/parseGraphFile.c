@@ -223,8 +223,11 @@ void *parseDistanceWeight(void *arg){
     fprintf(outASCII, "%d\n", totVert);
 
     //compute the mean values
-    mean1 = sum1 / totVert;
-    mean2 = sum2 / totVert;
+    // mean1 = sum1 / totVert;
+    // mean2 = sum2 / totVert;
+
+    mean1 = 0;
+    mean2 = 0;
 
     //skip first 4 bytes of the binary file
     lseek(outFd, 4, SEEK_SET);
@@ -234,6 +237,8 @@ void *parseDistanceWeight(void *arg){
         read(outFd, &vert, sizeof(vert_t));
         vert.coord1 -= mean1;
         vert.coord2 -= mean2;
+        if(i==0)
+            printf("coord1: %d coord2: %d\n", vert.coord1, vert.coord2);
 
         //take back the file pointer
         lseek(outFd, -sizeof(vert_t), SEEK_CUR);
@@ -390,8 +395,11 @@ void *parseTimeWeight(void *arg){
     fprintf(outASCII, "%d\n", totVert);
 
     //compute the mean values
-    mean1 = sum1 / totVert;
-    mean2 = sum2 / totVert;
+    // mean1 = sum1 / totVert;
+    // mean2 = sum2 / totVert;
+
+    mean1 = 0;
+    mean2 = 0;
 
     //skip first 4 bytes of the binary file
     lseek(outFd, 4, SEEK_SET);

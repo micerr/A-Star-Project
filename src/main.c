@@ -17,10 +17,15 @@ int main(void) {
     printf("2. Load graph from file (parallel)\n");
     printf("3. Edge insertion\n");
     printf("4. Edge removal\n");
-    printf("5. Check Admissibility\n");
-    printf("6. Shortest path with Dijkstra's algorithm\n");
-    printf("7. Shortest path with sequential A*\n");
-    printf("8. Free graph and exit\n");
+    printf("5. Get coordinates of a vertex\n");
+    printf("6. Compute distance\n");
+    printf("7. Get weight of an edge\n");
+    printf("8. Check Admissibility\n");
+    printf("---\n");
+    printf("9. Shortest path with Dijkstra's algorithm\n");
+    printf("10. Shortest path with sequential A*\n");
+    printf("11. Free graph and exit\n");
+    printf("===============\n");
     printf("Enter your choice : ");
     if(scanf("%d",&i)<=0) {
       printf("Integers only!\n");
@@ -66,29 +71,48 @@ int main(void) {
                         scanf("%d", &id2);
                         GRAPHremoveE(G, id1, id2);
                         break;
+                    
+            case 5:     printf("\nInsert node's index = ");
+                        scanf("%d", &id1);
+                        GRAPHgetCoordinates(G, id1);
+                        break;
 
-            case 5:     printf("\nInsert first node = ");
+            case 6:     printf("\nInsert first node = ");
+                        scanf("%d", &id1);
+                        printf("Insert second node = ");
+                        scanf("%d", &id2);
+                        GRAPHcomputeDistance(G, id1, id2);
+                        break;
+
+            case 7:     printf("\nInsert start node = ");
+                        scanf("%d", &id1);
+                        printf("Insert destination node = ");
+                        scanf("%d", &id2);
+                        GRAPHgetEdge(G, id1, id2);
+                        break;
+
+            case 8:     printf("\nInsert first node = ");
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
                         GRAPHcheckAdmissibility(G, id1, id2);
                         break;
 
-            case 6:     printf("\nInsert start node = ");
+            case 9:     printf("\nInsert first node = ");
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
                         GRAPHspD(G, id1, id2);
                         break;
 
-            case 7:     printf("\nInsert starting node = ");
+            case 10:    printf("\nInsert starting node = ");
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
                         GRAPHSequentialAStar(G, id1, id2);
                         break;
 
-            case 8:     cont = 0;
+            case 11:    cont = 0;
                         break;
             default:    printf("\nInvalid option\n");
           }

@@ -578,3 +578,39 @@ void GRAPHstats(Graph G){
   printf("sizeofStructNode= %ld, sizeLadj= %d B (%d MB)\n", sizeof(struct node), sizeLadj, sizeLadj>>20);
 
 }
+
+void GRAPHgetCoordinates(Graph G, int v){
+  Coord coord = STsearchByIndex(G->coords, v);
+  printf("Coordinates of vertex %d: c1: %d - c2: %d\n", v, coord->lat, coord->lon);
+}
+
+void  GRAPHcomputeDistance(Graph G, int v1, int v2){
+  Coord coord1, coord2;
+  coord1 = STsearchByIndex(G->coords, v1);
+  coord2 = STsearchByIndex(G->coords, v2);
+
+  printf("Distance (heuristic): %f\n", Hcoord(coord1, coord2));
+}
+
+void  GRAPHgetEdge(Graph G, int start, int end){
+  ptr_node t;
+
+  if(start<0 || start>=G->V){
+    printf("Invalid starting node\n");
+    return;
+  }
+
+  if(end<0 || end>=G->V){
+    printf("Invalid ending node\n");
+    return;
+  }
+
+  for(t=G->ladj[start]; t!=G->z; t=t->next)
+    if(t->v == end){
+      printf("Weight of edge from %d to %d: %d\n", start, end, t->wt);
+      return;
+    }
+
+  printf("Direct edge from %d to %d does not exist\n", start, end);
+  return;
+}
