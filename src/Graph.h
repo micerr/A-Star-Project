@@ -42,5 +42,8 @@ void  GRAPHinsertE(Graph G, int id1, int id2, short int wt);
 void  GRAPHremoveE(Graph G, int id1, int id2);
 void  GRAPHedges(Graph G, Edge *a);
 void  GRAPHstats(Graph G);
+void  GRAPHgetCoordinates(Graph G, int v);
+void  GRAPHcomputeDistance(Graph G, int v1, int v2);
+void  GRAPHgetEdge(Graph G, int start, int end);
 
 #endif
