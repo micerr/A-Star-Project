@@ -22,19 +22,24 @@
 // gScores are obtained starting from the fScores and subtracting the value of the heuristic
 
 //openSet is enlarged gradually (inside PQinsert)
-void GRAPHSequentialAStar(Graph G, int start, int end){
+
+PQ openSet_PQ;
+int *closedSet, *path;
+
+typedef struct thArg_s {
+  pthread_t tid;
+  Graph G;
+  int start, end, numTH;
+} thArg_t;
+
+void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   if(G == NULL){
     printf("No graph inserted.\n");
     return;
   }
-  PQ openSet_PQ;
-  int *closedSet;
-  int *path, flag;
-  float newGscore, newFscore, prio;
-  float neighboor_gScore, neighboor_fScore, neighboor_hScore;
-  Item extrNode;
-  Coord dest_coord, coord, neighboor_coord;
-  ptr_node t;
+  float prio;
+  Coord dest_coord, coord;
+  thArg_t *thArgArray;
 
   //init the open set (priority queue)
   openSet_PQ = PQinit(1);
@@ -59,7 +64,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
     perror("Error trying to allocate path array: ");
     exit(1);
   }
-  
+
   //retrieve coordinates of the target vertex
   dest_coord = STsearchByIndex(G->coords, end);
 
@@ -71,6 +76,35 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
   PQinsert(openSet_PQ, start, prio);
   path[start] = start;
 
+  //create and launch all threads
+  thArgArray = (thArg_t *)malloc(numTH * sizeof(thArg_t));
+  if(thArgArray == NULL){
+    perror("Error trying to allocate the array of threads' arguments: ");
+    exit(1);
+  }
+
+  for(int i=0; i<numTH; i++){
+    thArgArray[i].G = G;
+    thArgArray[i].start = start;
+    thArgArray[i].end = end;
+    thArgArray[i].numTH = numTH;
+    pthread_create(thArgArray[i].tid, NULL, thFunction, (void *)&thArgArray[i]);
+  }
+
+  for(int i=0; i<numTH; i++)
+    pthread_join(thArgArray[i].tid, NULL);
+
+  //printf path and its cost...
+
+  return;
+}
+
+void thFunction(void *par){
+  thArg_t *arg = (thArg_t *)par;
+
+  Item extrNode;
+  Coord extr_coord;
+
   //until the open set is not empty
   while(!PQempty(openSet_PQ)){
 
@@ -78,7 +112,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
     extrNode = PQextractMin(openSet_PQ);
 
     //retrieve its coordinates
-    coord = STsearchByIndex(G->coords, extrNode.index);
+    extr_coord = STsearchByIndex(G->coords, extrNode.index);
     
     //add the extracted node to the closed set
     closedSet[extrNode.index] = extrNode.priority;
