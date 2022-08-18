@@ -21,22 +21,6 @@
 extern int errno;
 char err[64];
 
-typedef struct node *ptr_node;
-struct node {     //element of the adjacency list
-  int v;          //edge's destination vertex
-  int wt;         //weight of the edge
-  ptr_node next;  //pointer to the next node
-};
-
-struct graph { 
-  int V;    //number of vertices
-  int E;    //number of edges
-  ptr_node *ladj;           //array of adjacency lists
-  pthread_mutex_t *meAdj;   //mutex to access adjacency lists
-  ST coords;    //symbol table to retrieve information about vertices
-  ptr_node z;   //sentinel node. Used to indicate the end of a list
-};
-
 typedef struct{   //contains all parameters a thread needs
   pthread_t tid;
   short int id;
@@ -159,7 +143,7 @@ void GRAPHfree(Graph G) {
   }
   int v;
   ptr_node t, next;
-  for (v=0; v < G->V; v++)
+  for (v=1; v < G->V; v++)
     for (t=G->ladj[v]; t != G->z; t = next) {
       next = t->next;
       free(t);
@@ -172,7 +156,8 @@ void GRAPHfree(Graph G) {
   free(G->meAdj);
 
   free(G);
-  G = NULL;
+  // G = NULL;
+  return;
 }
 
 /*

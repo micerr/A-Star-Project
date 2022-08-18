@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "Graph.h"
+#include "AStar.h"
 #define MAXC 11
 
 int main(void) {

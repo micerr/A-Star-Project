@@ -36,6 +36,9 @@ ST STinit(int maxN) {
 void STfree(ST st) {
   if (st==NULL)
     return;
+  
+  for(int i=0; i<st->N; i++)
+    free(st->coord[i]);
   free(st->coord);
 
   pthread_mutex_destroy(st->me);

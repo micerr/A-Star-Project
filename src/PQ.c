@@ -3,12 +3,38 @@
 #include <errno.h>
 #include "PQ.h"
 #include "./utility/Item.h"
+#include "sys/types.h"
+#include <pthread.h>
+#include <unistd.h>
+
+// #define PARALLEL_SEARCH 1
 
 struct pqueue { 
   Item *A; //array of Items.
   int heapsize; // number of elements in the priority queue
   int maxN; // max number of elements
 };
+
+#ifdef PARALLEL_SEARCH
+/*This struct contains the result of the search and it is saved 
+as a pointer inside SearchSpec, only the thread with a result will write it's fields*/
+typedef struct search_res {
+  int index;
+  float priority;
+} *SearchRes;
+
+/*SearchSpec contains all the information needed by a thread to perform
+ a search of a specific node_index inside the priority queue*/
+typedef struct search_spec {
+  int n_items;
+  int start_index;
+  int *target;
+  PQ *pq;
+  pthread_mutex_t *mutex;
+  int *found;
+  SearchRes sr;
+} SearchSpec;
+#endif
 
 /*
   Prototype declaration of static functions used.
@@ -202,24 +228,113 @@ static void Heapify(PQ pq, int i) {
   //If the root is smaller than the two children it will stop even if some nodes underneath dont respect heap condition
 }
 
+
+/*
+Each thread performs the search in a portion of the array pq->A,
+if a match is found the thread sets the values in the struct SearchRes that
+contains the index of the node and it's priority
+*/
+#ifdef PARALLEL_SEARCH
+void *thread_search(void* arg){
+  SearchSpec *sp = (SearchSpec*) arg;
+
+  for(int i=0; i<sp->n_items; i++){
+    pthread_mutex_lock(sp->mutex);
+    if(*(sp->found) == 1){
+      return NULL;
+    }
+    pthread_mutex_unlock(sp->mutex);
+
+    if(((*sp->pq)->A[sp->start_index+i]).index == *sp->target){
+      pthread_mutex_lock(sp->mutex);
+      (sp->sr)->index = ((*sp->pq)->A[sp->start_index+i]).index;
+      (sp->sr)->priority = ((*sp->pq)->A[sp->start_index+i]).priority;
+      *sp->found = 1;
+      pthread_mutex_unlock(sp->mutex);
+    }
+  }
+
+  return NULL;
+}
+#endif
+
+
+
 /*
 Searches for a specific node inside the Item array and returns it's index 
 and the priority value inside the priority pointer
 */
 int PQsearch(PQ pq, int node_index, float *priority){
-  for(int i=0; i<pq->heapsize; i++){
-    if(node_index == (pq->A[i]).index){
-      if(priority == NULL){
+  #ifndef PARALLEL_SEARCH
+
+    for(int i=0; i<pq->heapsize; i++){
+      if(node_index == (pq->A[i]).index){
+        if(priority == NULL){
+          return i;
+        }
+
+        *priority = (pq->A[i]).priority;
         return i;
       }
-
-      *priority = (pq->A[i]).priority;
-      return i;
     }
-  }
 
-  return -1;
+    return -1;
+  
+  #endif
+
+  /*Generates as many thread as the number of processors times 2.
+    Each thread is assigned a portion of pq to search according to 
+    the total number of items (pq->heapsize)
+  */
+  #ifdef PARALLEL_SEARCH
+    long number_of_processors = sysconf(_SC_NPROCESSORS_ONLN);
+    long max_thread = number_of_processors * 2;
+    pthread_t th[max_thread];
+    pthread_mutex_t *mutex = (pthread_mutex_t*) malloc(sizeof(pthread_mutex_t));
+
+    pthread_mutex_init(mutex, NULL);
+
+    int *found = (int*) malloc(sizeof(int));
+    *found = 0;
+
+    int *target = (int*) malloc(sizeof(int));
+    *target = node_index;
+
+    SearchRes sr = (SearchRes) malloc(sizeof(sr));
+
+    int items_each = pq->heapsize / max_thread;
+    int rem = pq->heapsize % max_thread;
+
+    for(int i=0; i<max_thread; i++){
+      SearchSpec sp;
+      sp.mutex = mutex;
+      sp.found = found;
+      sp.n_items = items_each;
+      sp.start_index = i*items_each;
+      sp.target = target;
+      sp.sr = sr;
+      sp.pq = &pq;
+
+      if(i == (max_thread-1)){
+        sp.n_items += rem;
+      }
+
+      int res = pthread_create(&th[i], NULL, thread_search, (void *) &sp);
+    }
+
+    for(int i=0; i<max_thread; i++){
+      pthread_join(th[i], NULL);
+    }
+
+    //printf("Search result: index=%d, priority=%d", sr->index, sr->priority);
+
+    *priority = sr->priority;
+    return sr->index;
+
+  #endif
 }
+
+
 
 /*
   This function allows to retrieve the index of the Item with the highest

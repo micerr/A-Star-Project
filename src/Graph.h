@@ -16,6 +16,22 @@ typedef struct __attribute__((__packed__)) edge_s{
   short int wt;
 } Edge;
 
+typedef struct node *ptr_node;
+struct node {     //element of the adjacency list
+  int v;          //edge's destination vertex
+  int wt;         //weight of the edge
+  ptr_node next;  //pointer to the next node
+};
+
+struct graph { 
+  int V;    //number of vertices
+  int E;    //number of edges
+  ptr_node *ladj;           //array of adjacency lists
+  pthread_mutex_t *meAdj;   //mutex to access adjacency lists
+  ST coords;    //symbol table to retrieve information about vertices
+  ptr_node z;   //sentinel node. Used to indicate the end of a list
+};
+
 typedef struct graph *Graph;
 
 Graph GRAPHinit(int V);
