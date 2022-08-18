@@ -38,24 +38,9 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
     printf("No graph inserted.\n");
     return;
   }
-<<<<<<< HEAD
   float prio;
   Coord dest_coord, coord;
   thArg_t *thArgArray;
-=======
-
-  PQ openSet_PQ;
-  int *closedSet;
-  int *path, flag, hop=0;
-  float newGscore, newFscore, prio;
-  float neighboor_gScore, neighboor_fScore, neighboor_hScore;
-  Item extrNode;
-  Coord dest_coord, coord, neighboor_coord;
-  ptr_node t;
-  #ifdef TIME
-    Timer timer = TIMERinit(1);
-  #endif
->>>>>>> 3c14b1c7ed2506a7f16bfb254c611412faf1b1aa
 
   //init the open set (priority queue)
   openSet_PQ = PQinit(1);
@@ -81,13 +66,6 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
     exit(1);
   }
 
-<<<<<<< HEAD
-=======
-  #ifdef TIME
-    TIMERstart(timer);
-  #endif
-  
->>>>>>> 3c14b1c7ed2506a7f16bfb254c611412faf1b1aa
   //retrieve coordinates of the target vertex
   dest_coord = STsearchByIndex(G->coords, end);
 
