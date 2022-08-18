@@ -155,7 +155,7 @@ void GRAPHfree(Graph G) {
   free(G->meAdj);
 
   free(G);
-  // G = NULL;
+  G = NULL;
   return;
 }
 
