@@ -10,6 +10,7 @@ typedef struct pqueue *PQ;
 PQ      PQinit(int maxN);
 void    PQfree(PQ pq);
 int     PQempty(PQ pq);
+int     PQmaxSize(PQ pq);
 void    PQinsert(PQ pq, int index, float priority);
 Item    PQextractMin(PQ pq);
 void    PQchange (PQ pq, int node_index, float priority);

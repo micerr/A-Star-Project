@@ -55,6 +55,14 @@ int STsize(ST st) {
   return n;
 }
 
+int STmaxSize(ST st) {
+  int n;
+  pthread_mutex_lock(st->me);
+    n = st->maxN;
+  pthread_mutex_unlock(st->me);
+  return n;
+}
+
 void STinsert(ST st, short int coord1, short int coord2, int i) {
   pthread_mutex_lock(st->me);
   if (i >= st->maxN) {

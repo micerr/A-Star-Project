@@ -35,6 +35,9 @@ void TIMERfree(Timer t){
     t = NULL;
 }
 
+/*
+  Start the timer
+*/
 void TIMERstart(Timer t){
     pthread_mutex_lock(t->me);
       if(t->n1==0){
@@ -44,6 +47,12 @@ void TIMERstart(Timer t){
     pthread_mutex_unlock(t->me);
 }
 
+/*
+  Stop the timer and print the seconds
+
+  return:
+  double elapsed time
+*/
 double TIMERstopEprint(Timer t){
     double elapsed = 0.0;
     pthread_mutex_lock(t->me);
