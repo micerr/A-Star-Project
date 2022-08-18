@@ -6,6 +6,7 @@
 typedef struct pqueue *PQ;
 // typedef struct item Item;
 
+
 PQ      PQinit(int maxN);
 void    PQfree(PQ pq);
 int     PQempty(PQ pq);
