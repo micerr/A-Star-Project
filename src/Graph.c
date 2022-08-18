@@ -142,7 +142,7 @@ void GRAPHfree(Graph G) {
   }
   int v;
   ptr_node t, next;
-  for (v=0; v < G->V; v++)
+  for (v=1; v < G->V; v++)
     for (t=G->ladj[v]; t != G->z; t = next) {
       next = t->next;
       free(t);
@@ -155,7 +155,8 @@ void GRAPHfree(Graph G) {
   free(G->meAdj);
 
   free(G);
-  G = NULL;
+  // G = NULL;
+  return;
 }
 
 /*
