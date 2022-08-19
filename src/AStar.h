@@ -7,6 +7,6 @@ int GRAPHspD(Graph G, int id, int end);
 int GRAPHcheckAdmissibility(Graph G, int source, int target);
 
 // A-star implementations
-void GRAPHSequentialAStar(Graph G, int start, int end);
+void ASTARSimpleParallel(Graph G, int start, int end, int numTH);
 
 #endif

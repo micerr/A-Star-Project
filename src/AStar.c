@@ -161,37 +161,28 @@ int GRAPHcheckAdmissibility(Graph G,int source, int target){
 //openSet is enlarged gradually (inside PQinsert)
 
 PQ openSet_PQ;
-int *closedSet, *path;
+float *closedSet;
+int *path;
+float pathCost = INT_MAX;
 
 typedef struct thArg_s {
   pthread_t tid;
   Graph G;
   int start, end, numTH;
+  pthread_mutex_t *meLo, *meLi;
 } thArg_t;
+
+static void thFunction(void *par);
 
 void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   if(G == NULL){
     printf("No graph inserted.\n");
     return;
   }
-<<<<<<< HEAD
   float prio;
   Coord dest_coord, coord;
   thArg_t *thArgArray;
-=======
-
-  PQ openSet_PQ;
-  float *closedSet;
-  int *path, flag, hop=0, isNotConsistent = 0;
-  float newGscore, newFscore, prio;
-  float neighboor_gScore, neighboor_fScore, neighboor_hScore;
-  Item extrNode;
-  Coord dest_coord, coord, neighboor_coord;
-  ptr_node t;
-  #ifdef TIME
-    Timer timer = TIMERinit(1);
-  #endif
->>>>>>> b9023fdad0eba61ecc7da819b3ddd590caa52be4
+  pthread_mutex_t *meLo, *meLi;
 
   //init the open set (priority queue)
   openSet_PQ = PQinit(1);
@@ -228,6 +219,12 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   PQinsert(openSet_PQ, start, prio);
   path[start] = start;
 
+  //init locks
+  meLo = (pthread_mutex_t *)malloc(sizeof(*meLo));
+  pthread_mutex_init(meLo, NULL);
+  meLi = (pthread_mutex_t *)malloc(sizeof(*meLi));
+  pthread_mutex_init(meLi, NULL);
+
   //create and launch all threads
   thArgArray = (thArg_t *)malloc(numTH * sizeof(thArg_t));
   if(thArgArray == NULL){
@@ -240,7 +237,9 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
     thArgArray[i].start = start;
     thArgArray[i].end = end;
     thArgArray[i].numTH = numTH;
-    pthread_create(thArgArray[i].tid, NULL, thFunction, (void *)&thArgArray[i]);
+    thArgArray[i].meLo = meLo;
+    thArgArray[i].meLi = meLi;
+    pthread_create(&thArgArray[i].tid, NULL, thFunction, (void *)&thArgArray[i]);
   }
 
   for(int i=0; i<numTH; i++)
@@ -251,26 +250,39 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   return;
 }
 
-void thFunction(void *par){
+static void thFunction(void *par){
   thArg_t *arg = (thArg_t *)par;
 
+  int flag, hop=0, isNotConsistent = 0;
+  float newGscore, newFscore;
+  float neighboor_gScore, neighboor_fScore, neighboor_hScore;
   Item extrNode;
-  Coord extr_coord;
+  Graph G = arg->G;
+  Coord dest_coord, extr_coord, neighboor_coord;
+  ptr_node t;
+  #ifdef TIME
+    Timer timer = TIMERinit(1);
+  #endif
+
+  //retrieve coordinates of the target vertex
+  dest_coord = STsearchByIndex(G->coords, arg->end);
 
   //until the open set is not empty
   while(!PQempty(openSet_PQ)){
 
+    pthread_mutex_lock(arg->meLo);
     //extract the vertex with the lowest fScore
     extrNode = PQextractMin(openSet_PQ);
+
+    //add the extracted node to the closed set
+    closedSet[extrNode.index] = extrNode.priority;
+    pthread_mutex_unlock(arg->meLo);
 
     //retrieve its coordinates
     extr_coord = STsearchByIndex(G->coords, extrNode.index);
     
-    //add the extracted node to the closed set
-    closedSet[extrNode.index] = extrNode.priority;
-
     //if the extracted node is the goal one, end the computation
-    if(extrNode.index == end)
+    if(extrNode.index == arg->end)
       break;
 
     //consider all adjacent vertex of the extracted node
@@ -282,7 +294,7 @@ void thFunction(void *par){
       //cost to reach the extracted node is equal to fScore less the heuristic.
       //newGscore is the sum between the cost to reach extrNode and the
       //weight of the edge to reach its neighboor.
-      newGscore = (extrNode.priority - Hcoord(coord, dest_coord)) + t->wt;
+      newGscore = (extrNode.priority - Hcoord(extr_coord, dest_coord)) + t->wt;
 
       //check if adjacent node has been already closed
       if(closedSet[t->v] > 0){
@@ -340,16 +352,16 @@ void thFunction(void *par){
     printf("sizeofPath= %d B (%d MB *2), sizeofClosedSet= %d B (%d MB), sizeofOpenSet= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofClosedSet, sizeofClosedSet>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
   #endif
 
-  if(closedSet[end] < 0)
-    printf("No path from %d to %d has been found.\n", start, end);
+  if(closedSet[arg->end] < 0)
+    printf("No path from %d to %d has been found.\n", arg->start, arg->end);
   else{
-    printf("Path from %d to %d has been found with cost %.3f.\n", start, end, extrNode.priority);
-    for(int v=end; v!=start; ){
+    printf("Path from %d to %d has been found with cost %.3f.\n", arg->start, arg->end, extrNode.priority);
+    for(int v=arg->end; v!=arg->start; ){
       printf("%d <- ", v);
       v = path[v];
       hop++;
     }
-    printf("%d\nHops: %d\n", start, hop);
+    printf("%d\nHops: %d\n", arg->start, hop);
   }
 
 
