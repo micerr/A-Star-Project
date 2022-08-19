@@ -63,11 +63,7 @@ int STmaxSize(ST st) {
   return n;
 }
 
-<<<<<<< HEAD
 void  STinsert(ST st, int coord1, int coord2, int i){
-=======
-void STinsert(ST st, short int lat, short int lon, int i) {
->>>>>>> ebd5fdf55a1bd3617d418f8ad3c8b1d7617df58b
   pthread_mutex_lock(st->me);
   if (i >= st->maxN) {
     st->coord = realloc(st->coord, (2*st->maxN)*sizeof(Coord));
@@ -78,27 +74,19 @@ void STinsert(ST st, short int lat, short int lon, int i) {
 
   Coord c;
   c = malloc(sizeof(*c));
-<<<<<<< HEAD
   c->c1 = coord1; 
   c->c2 = coord2;
-=======
-  c->lat = lat; c->lon = lon;
->>>>>>> ebd5fdf55a1bd3617d418f8ad3c8b1d7617df58b
   st->coord[i] = c;
   st->N++;
   pthread_mutex_unlock(st->me);
 }
 
-<<<<<<< HEAD
 int STsearch(ST st, int coord1, int coord2) {
-=======
-int STsearch(ST st, short int lat, short int lon) {
->>>>>>> ebd5fdf55a1bd3617d418f8ad3c8b1d7617df58b
   int i;
   for(i = 0; i  < st->N; i++)
     if( st->coord[i] != NULL 
-      && st->coord[i]->lat == lat
-      && st->coord[i]->lon == lon)
+      && st->coord[i]->c1 == coord1
+      && st->coord[i]->c2 == coord2)
       return i;
   return -1;
 }

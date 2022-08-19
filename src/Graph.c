@@ -581,7 +581,7 @@ void GRAPHstats(Graph G){
 
 void GRAPHgetCoordinates(Graph G, int v){
   Coord coord = STsearchByIndex(G->coords, v);
-  printf("Coordinates of vertex %d: c1: %d - c2: %d\n", v, coord->lat, coord->lon);
+  printf("Coordinates of vertex %d: c1: %d - c2: %d\n", v, coord->c1, coord->c2);
 }
 
 void  GRAPHcomputeDistance(Graph G, int v1, int v2){

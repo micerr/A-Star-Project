@@ -14,16 +14,17 @@
     Return: in meters the distance of two points 
 */
 static double Harversine(Coord coord1, Coord coord2){
-    double dLat = (coord2->lat * M_PI / 180 - coord1->lat * M_PI /180) / 2;
-    double dLon = (coord2->lon * M_PI / 180 - coord1->lon * M_PI /180) / 2;
+    double dLat = (coord2->c1 * M_PI / 180 - coord1->c1 * M_PI /180) / 2;
+    double dLon = (coord2->c2 * M_PI / 180 - coord1->c2 * M_PI /180) / 2;
     double a = sin(dLat);
     double b = sin(dLon);
-    double c = a * a + cos(coord1->lat * M_PI / 180) * cos(coord2->lat * M_PI / 180) * b * b;
+    double c = a * a + cos(coord1->c1 * M_PI / 180) * cos(coord2->c1 * M_PI / 180) * b * b;
     double d = 2 * atan2(sqrt(c), sqrt(1-c));
     return R * d * 1000; // meters
 }
 
 double Hcoord(Coord coord1, Coord coord2){
-    return Harversine(coord1, coord2);
+    return sqrt(pow(coord1->c1 - coord2->c1,2) + pow(coord1->c2 - coord2->c2,2));
+    //return Harversine(coord1, coord2);
 }
 
