@@ -171,6 +171,7 @@ typedef struct thArg_s {
   pthread_t tid;
   Graph G;
   int start, end, numTH;
+  int id;
   pthread_mutex_t *meLc, *meLo;
   pthread_cond_t *cv;
 } thArg_t;
@@ -178,6 +179,9 @@ typedef struct thArg_s {
 static void* thFunction(void *par);
 
 void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
+
+  setbuf(stdout, NULL);
+
   if(G == NULL){
     printf("No graph inserted.\n");
     return;
@@ -248,6 +252,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   #endif
 
   for(int i=0; i<numTH; i++){
+    thArgArray[i].id = i;
     thArgArray[i].G = G;
     thArgArray[i].start = start;
     thArgArray[i].end = end;
@@ -319,17 +324,22 @@ static void* thFunction(void *par){
     pthread_mutex_lock(arg->meLo);
     
     while(PQempty(openSet_PQ)){
+      
       n++;
       if(n == arg->numTH){
+        printf("Thread %d found PQ empty but it's the last one.\n", arg->id);
         pthread_cond_broadcast(arg->cv);
         pthread_mutex_unlock(arg->meLo);
         #ifdef TIMER
           TIMERstopEprint(timer);
         #endif
         pthread_exit(NULL);
-      }      
+      }
+      printf("Thread %d found PQ empty.\n", arg->id);
       pthread_cond_wait(arg->cv, arg->meLo);
+      printf("Thread %d woke up from cv.\n", arg->id);
       if(n == arg->numTH){
+        printf("Thread %d woke up from cv but has to leave.\n", arg->id);
         pthread_mutex_unlock(arg->meLo);
         pthread_exit(NULL);
       }
@@ -337,6 +347,7 @@ static void* thFunction(void *par){
 
     //extract the vertex with the lowest fScore
     extrNode = PQextractMin(openSet_PQ);
+    printf("Thread %d extracted vertex %d.\n", arg->id, extrNode.index);
     pthread_mutex_unlock(arg->meLo);
 
     if(extrNode.priority >= pathCost)
@@ -362,6 +373,7 @@ static void* thFunction(void *par){
 
     //consider all adjacent vertex of the extracted node
     for(t=G->ladj[extrNode.index]; t!=G->z; t=t->next){
+      printf("Thread %d is analyzing edge(%d,%d)\n", arg->id, extrNode.index, t->v);
       //retrieve coordinates of the adjacent vertex
       neighboor_coord = STsearchByIndex(G->coords, t->v);
       neighboor_hScore = Hcoord(neighboor_coord, dest_coord);
@@ -397,6 +409,8 @@ static void* thFunction(void *par){
             n--;
             path[t->v] = extrNode.index;
 
+            printf("Thread %d added %d (fScore: %f).\n", arg->id, t->v, newFscore);
+
           pthread_mutex_unlock(arg->meLo);
           pthread_mutex_unlock(arg->meLc);
         }
@@ -419,6 +433,7 @@ static void* thFunction(void *par){
 
           pthread_cond_signal(arg->cv);
           n--;          path[t->v] = extrNode.index;
+          printf("Thread %d added %d (fScore: %f).\n", arg->id, t->v, newFscore);
           pthread_mutex_unlock(arg->meLo);
         }
         //if it belongs to the open set but with a lower gScore, continue
@@ -430,6 +445,7 @@ static void* thFunction(void *par){
           newFscore = newGscore + neighboor_hScore;
           PQchange(openSet_PQ, t->v, newFscore);
           path[t->v] = extrNode.index;
+          printf("Thread %d added %d (fScore: %f).\n", arg->id, t->v, newFscore);
           pthread_mutex_unlock(arg->meLo);
         }
       }
