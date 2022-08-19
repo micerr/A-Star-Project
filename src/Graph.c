@@ -412,6 +412,8 @@ Graph GRAPHParallelLoad(char *fin, int numThreads){
   finput = fin;
   posE=0; posV=0;
 
+  if(numThreads==1) numThreads=2;
+
   pthread_par *parameters = malloc(numThreads*sizeof(pthread_par));
   meLoadV = malloc(sizeof(pthread_mutex_t));
   meLoadE = malloc(sizeof(pthread_mutex_t));
