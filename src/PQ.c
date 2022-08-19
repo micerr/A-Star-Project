@@ -13,7 +13,6 @@ struct pqueue {
   Item *A; //array of Items.
   int heapsize; // number of elements in the priority queue
   int maxN; // max number of elements
-  pthread_mutex_t *PQme;
 };
 
 #ifdef PARALLEL_SEARCH
@@ -102,13 +101,6 @@ PQ PQinit(int maxN) {
   pq->heapsize = 0;
   pq->maxN = maxN;
 
-  pq->PQme = malloc(sizeof(pthread_mutex_t));
-  if(pq->PQme == NULL){
-    perror("Error trying to allocate mutex for PQ: ");
-    exit(1);
-  }
-  pthread_mutex_init(pq->PQme, NULL);
-
   return pq;
 }
 
@@ -119,8 +111,6 @@ PQ PQinit(int maxN) {
   Parameter: PQ to be freed.
 */
 void PQfree(PQ pq) {
-  pthread_mutex_destroy(pq->PQme);
-  free(pq->PQme);
 
   free(pq->A);
   free(pq);
@@ -135,11 +125,7 @@ void PQfree(PQ pq) {
   Return: the result of the comparison.
 */
 int PQempty(PQ pq) {
-  int isEmpty = -1;
-  pthread_mutex_lock(pq->PQme);
-    isEmpty = pq->heapsize == 0;
-  pthread_mutex_unlock(pq->PQme);
-  return isEmpty;
+  return pq->heapsize == 0;
 }
 
 /*
@@ -176,33 +162,29 @@ int PQmaxSize(PQ pq){
 void PQinsert (PQ pq, int node_index, float priority){
   Item *item = ITEMinit(node_index, priority);
   int i;
-  pthread_mutex_lock(pq->PQme);
 
-    if( pq->heapsize >= pq->maxN){
-      pq->A = realloc(pq->A, (2*pq->maxN)* sizeof(Item*));
-      if(pq->A == NULL){
-        perror("Realloc");
-        free(item);
-        pthread_mutex_unlock(pq->PQme);
-        PQfree(pq);
-        exit(1);
-      }
-      pq->maxN = 2*pq->maxN;
+  if( pq->heapsize >= pq->maxN){
+    pq->A = realloc(pq->A, (2*pq->maxN)* sizeof(Item*));
+    if(pq->A == NULL){
+      perror("Realloc");
+      free(item);
+      PQfree(pq);
+      exit(1);
     }
+    pq->maxN = 2*pq->maxN;
+  }
 
-    //set i equal to the most-right available index. Also update the heap size.
-    i = pq->heapsize++;
+  //set i equal to the most-right available index. Also update the heap size.
+  i = pq->heapsize++;
 
-    //find the correct position of Item by performing the set of comparison
-    while (i>=1 && ((pq->A[PARENT(i)]).priority > item->priority)) {
-      pq->A[i] = pq->A[PARENT(i)];
-      i = PARENT(i);
-    }
+  //find the correct position of Item by performing the set of comparison
+  while (i>=1 && ((pq->A[PARENT(i)]).priority > item->priority)) {
+    pq->A[i] = pq->A[PARENT(i)];
+    i = PARENT(i);
+  }
 
-    pq->A[i] = *item;
+  pq->A[i] = *item;
   
-  pthread_mutex_unlock(pq->PQme);
-
   free(item);
   return;
 }
@@ -298,7 +280,6 @@ and the priority value inside the priority pointer
 int PQsearch(PQ pq, int node_index, float *priority){
   #ifndef PARALLEL_SEARCH
     int pos = -1;
-    pthread_mutex_lock(pq->PQme);
     for(int i=0; i<pq->heapsize; i++){
       if(node_index == (pq->A[i]).index){
         if(priority != NULL){
@@ -308,7 +289,6 @@ int PQsearch(PQ pq, int node_index, float *priority){
         break;
       }
     }
-    pthread_mutex_unlock(pq->PQme);
     return pos;
   #endif
 
@@ -380,16 +360,14 @@ int PQsearch(PQ pq, int node_index, float *priority){
 Item PQextractMin(PQ pq) {
   Item item;
 
-  pthread_mutex_lock(pq->PQme);
-    //swap the root with last element of the array
-    Swap (pq, 0, pq->heapsize-1);
-    //store the Item to return
-    item = pq->A[pq->heapsize-1];
-    //decrease the heapsize
-    pq->heapsize--;
-    //restore heap properties by calling HEAPify on the root
-    Heapify(pq, 0);
-  pthread_mutex_unlock(pq->PQme);
+  //swap the root with last element of the array
+  Swap (pq, 0, pq->heapsize-1);
+  //store the Item to return
+  item = pq->A[pq->heapsize-1];
+  //decrease the heapsize
+  pq->heapsize--;
+  //restore heap properties by calling HEAPify on the root
+  Heapify(pq, 0);
 
   #ifdef DEBUG
     printf("\n*****AUXILIARY******\n");
@@ -422,18 +400,16 @@ void PQchange (PQ pq, int node_index, float priority) {
   // printf("Searching for %d with priority %d\n", node_index, priority);
 
   int item_index = PQsearch(pq, node_index, NULL);
-  pthread_mutex_lock(pq->PQme);
-    Item item = pq->A[item_index];
-    item.priority = priority;
+  Item item = pq->A[item_index];
+  item.priority = priority;
 
-    while( (item_index>=1) && ((pq->A[PARENT(item_index)]).priority > item.priority)) {
-      pq->A[item_index] = pq->A[PARENT(item_index)];
-	    item_index = PARENT(item_index);
-    }
+  while( (item_index>=1) && ((pq->A[PARENT(item_index)]).priority > item.priority)) {
+    pq->A[item_index] = pq->A[PARENT(item_index)];
+	  item_index = PARENT(item_index);
+  }
 
-    pq->A[item_index] = item;
-    Heapify(pq, item_index);
-  pthread_mutex_lock(pq->PQme);
+  pq->A[item_index] = item;
+  Heapify(pq, item_index);
 
   return;
 }

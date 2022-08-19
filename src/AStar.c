@@ -164,15 +164,18 @@ PQ openSet_PQ;
 float *closedSet;
 int *path;
 float pathCost = INT_MAX;
+int n;
+Timer timer;
 
 typedef struct thArg_s {
   pthread_t tid;
   Graph G;
   int start, end, numTH;
-  pthread_mutex_t *meLo, *meLi;
+  pthread_mutex_t *meLc, *meLo;
+  pthread_cond_t *cv;
 } thArg_t;
 
-static void thFunction(void *par);
+static void* thFunction(void *par);
 
 void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   if(G == NULL){
@@ -182,7 +185,9 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   float prio;
   Coord dest_coord, coord;
   thArg_t *thArgArray;
-  pthread_mutex_t *meLo, *meLi;
+  pthread_mutex_t *meLc, *meLo;
+  pthread_cond_t *cv;
+  int hop = 0;
 
   //init the open set (priority queue)
   openSet_PQ = PQinit(1);
@@ -220,10 +225,16 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   path[start] = start;
 
   //init locks
+  meLc = (pthread_mutex_t *)malloc(sizeof(*meLc));
+  pthread_mutex_init(meLc, NULL);
+
   meLo = (pthread_mutex_t *)malloc(sizeof(*meLo));
   pthread_mutex_init(meLo, NULL);
-  meLi = (pthread_mutex_t *)malloc(sizeof(*meLi));
-  pthread_mutex_init(meLi, NULL);
+  
+  cv = (pthread_cond_t*) malloc(sizeof(*cv));
+  pthread_cond_init(cv, NULL);
+
+  n=0;
 
   //create and launch all threads
   thArgArray = (thArg_t *)malloc(numTH * sizeof(thArg_t));
@@ -232,58 +243,122 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
     exit(1);
   }
 
+  #ifdef TIME
+    timer = TIMERinit(numTH);
+  #endif
+
   for(int i=0; i<numTH; i++){
     thArgArray[i].G = G;
     thArgArray[i].start = start;
     thArgArray[i].end = end;
     thArgArray[i].numTH = numTH;
+    thArgArray[i].meLc = meLc;
     thArgArray[i].meLo = meLo;
-    thArgArray[i].meLi = meLi;
+    thArgArray[i].cv = cv;
     pthread_create(&thArgArray[i].tid, NULL, thFunction, (void *)&thArgArray[i]);
   }
 
   for(int i=0; i<numTH; i++)
     pthread_join(thArgArray[i].tid, NULL);
 
-  //printf path and its cost...
+  //printf path and its cost
+  if(closedSet[end] < 0)
+    printf("No path from %d to %d has been found.\n", start, end);
+  else{
+    printf("Path from %d to %d has been found with cost %.3f.\n", start, end, pathCost);
+    for(int v=end; v!=start; ){
+      printf("%d <- ", v);
+      v = path[v];
+      hop++;
+    }
+    printf("%d\nHops: %d\n", start, hop);
+  }
+
+
+  #ifdef TIME
+    TIMERfree(timer);
+    int sizeofPath = sizeof(int)*G->V;
+    int sizeofClosedSet = sizeof(float)*G->V;
+    int sizeofPQ = sizeof(PQ*) + PQmaxSize(openSet_PQ)*sizeof(Item);
+    int total = sizeofPath+sizeofClosedSet+sizeofPQ;
+    printf("sizeofPath= %d B (%d MB *2), sizeofClosedSet= %d B (%d MB), sizeofOpenSet= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofClosedSet, sizeofClosedSet>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
+  #endif
+  free(path);
+  free(closedSet);
+  PQfree(openSet_PQ);
+  pthread_mutex_destroy(meLo);
+  pthread_mutex_destroy(meLc);
+  free(meLc);
+  free(meLo);
+  free(thArgArray);
 
   return;
 }
 
-static void thFunction(void *par){
+static void* thFunction(void *par){
   thArg_t *arg = (thArg_t *)par;
 
-  int flag, hop=0, isNotConsistent = 0;
+  int flag, isNotConsistent = 0;
   float newGscore, newFscore;
   float neighboor_gScore, neighboor_fScore, neighboor_hScore;
   Item extrNode;
   Graph G = arg->G;
   Coord dest_coord, extr_coord, neighboor_coord;
   ptr_node t;
-  #ifdef TIME
-    Timer timer = TIMERinit(1);
-  #endif
 
   //retrieve coordinates of the target vertex
   dest_coord = STsearchByIndex(G->coords, arg->end);
 
-  //until the open set is not empty
-  while(!PQempty(openSet_PQ)){
+  #ifdef TIME
+    TIMERstart(timer);
+  #endif  //unetil the open set is not empty
+  while(1){
 
+    // Termiante Detection
+    
     pthread_mutex_lock(arg->meLo);
+    
+    while(PQempty(openSet_PQ)){
+      n++;
+      if(n == arg->numTH){
+        pthread_cond_broadcast(arg->cv);
+        pthread_mutex_unlock(arg->meLo);
+        #ifdef TIMER
+          TIMERstopEprint(timer);
+        #endif
+        pthread_exit(NULL);
+      }      
+      pthread_cond_wait(arg->cv, arg->meLo);
+      if(n == arg->numTH){
+        pthread_mutex_unlock(arg->meLo);
+        pthread_exit(NULL);
+      }
+    }
+
     //extract the vertex with the lowest fScore
     extrNode = PQextractMin(openSet_PQ);
+    pthread_mutex_unlock(arg->meLo);
 
+    if(extrNode.priority >= pathCost)
+      continue;
+
+    pthread_mutex_lock(arg->meLc);
     //add the extracted node to the closed set
     closedSet[extrNode.index] = extrNode.priority;
-    pthread_mutex_unlock(arg->meLo);
+    pthread_mutex_unlock(arg->meLc);
 
     //retrieve its coordinates
     extr_coord = STsearchByIndex(G->coords, extrNode.index);
     
-    //if the extracted node is the goal one, end the computation
-    if(extrNode.index == arg->end)
-      break;
+    //if the extracted node is the goal one, check if it has been reached with
+    // a lower cost, and if necessary update the cost
+    if(extrNode.index == arg->end){
+      pthread_mutex_lock(arg->meLc);
+        if(closedSet[arg->end] < pathCost);
+        pathCost = closedSet[arg->end];
+      pthread_mutex_lock(arg->meLc);
+      continue;
+    }
 
     //consider all adjacent vertex of the extracted node
     for(t=G->ladj[extrNode.index]; t!=G->z; t=t->next){
@@ -297,6 +372,7 @@ static void thFunction(void *par){
       newGscore = (extrNode.priority - Hcoord(extr_coord, dest_coord)) + t->wt;
 
       //check if adjacent node has been already closed
+      pthread_mutex_lock(arg->meLc);
       if(closedSet[t->v] > 0){
         // n' belongs to CLOSED SET
         if(!isNotConsistent){
@@ -314,14 +390,25 @@ static void thFunction(void *par){
           
           //add it to the open set
           newFscore = newGscore + neighboor_hScore;
-          PQinsert(openSet_PQ, t->v, newFscore);
-          path[t->v] = extrNode.index;
+
+          pthread_mutex_lock(arg->meLo);
+            PQinsert(openSet_PQ, t->v, newFscore);
+            pthread_cond_signal(arg->cv);
+            n--;
+            path[t->v] = extrNode.index;
+
+          pthread_mutex_unlock(arg->meLo);
+          pthread_mutex_unlock(arg->meLc);
         }
-        else
+        else{
+          pthread_mutex_unlock(arg->meLc);
           continue;
+        }
       }
       //if it hasn't been closed yet
       else{
+        pthread_mutex_unlock(arg->meLc);
+        pthread_mutex_lock(arg->meLo);
         flag = PQsearch(openSet_PQ, t->v, &neighboor_fScore);
         neighboor_gScore = neighboor_fScore - neighboor_hScore;
 
@@ -329,48 +416,26 @@ static void thFunction(void *par){
         if(flag<0){
           newFscore = newGscore + neighboor_hScore;
           PQinsert(openSet_PQ, t->v, newFscore);
-          path[t->v] = extrNode.index;
+
+          pthread_cond_signal(arg->cv);
+          n--;          path[t->v] = extrNode.index;
+          pthread_mutex_unlock(arg->meLo);
         }
         //if it belongs to the open set but with a lower gScore, continue
-        else if(neighboor_gScore < newGscore)
+        else if(neighboor_gScore < newGscore){
+          pthread_mutex_unlock(arg->meLo);
           continue;
+        }
         else{
           newFscore = newGscore + neighboor_hScore;
           PQchange(openSet_PQ, t->v, newFscore);
           path[t->v] = extrNode.index;
+          pthread_mutex_unlock(arg->meLo);
         }
       }
     }
   }
 
-  #ifdef TIME
-    TIMERstopEprint(timer);
-    int sizeofPath = sizeof(int)*G->V;
-    int sizeofClosedSet = sizeof(float)*G->V;
-    int sizeofPQ = sizeof(PQ*) + PQmaxSize(openSet_PQ)*sizeof(Item);
-    int total = sizeofPath+sizeofClosedSet+sizeofPQ;
-    printf("sizeofPath= %d B (%d MB *2), sizeofClosedSet= %d B (%d MB), sizeofOpenSet= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofClosedSet, sizeofClosedSet>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
-  #endif
-
-  if(closedSet[arg->end] < 0)
-    printf("No path from %d to %d has been found.\n", arg->start, arg->end);
-  else{
-    printf("Path from %d to %d has been found with cost %.3f.\n", arg->start, arg->end, extrNode.priority);
-    for(int v=arg->end; v!=arg->start; ){
-      printf("%d <- ", v);
-      v = path[v];
-      hop++;
-    }
-    printf("%d\nHops: %d\n", arg->start, hop);
-  }
-
-
-  #ifdef TIME
-    TIMERfree(timer);
-  #endif
-  free(path);
-  free(closedSet);
-  PQfree(openSet_PQ);
-
-  return;
+  printf("PANIC!!!!!!\n");
+  exit(1);
 }
