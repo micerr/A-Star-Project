@@ -15,7 +15,6 @@
 #include "./utility/Item.h"
 #include "./utility/Timer.h"
 
-#define maxWT INT_MAX
 #define MAXC 10
 
 extern int errno;
@@ -38,8 +37,8 @@ Timer timerLoad;
 /*
     Prototypes of static functions
 */
-static Edge EDGEcreate(int v, int w, int wt);
-static ptr_node NEW(int v, int wt, ptr_node next);
+static Edge EDGEcreate(int v, int w, short int wt);
+static ptr_node NEW(int v, short int wt, ptr_node next);
 static void insertE(Graph G, Edge e);
 static void removeE(Graph G, Edge e);
 static void *loadThread(void *);
@@ -54,7 +53,7 @@ static void *loadThread(void *);
   
   Return value: the structure representing the edge.
 */
-static Edge EDGEcreate(int v, int w, int wt) {
+static Edge EDGEcreate(int v, int w, short int wt) {
   Edge e;
   e.vert1 = v;
   e.vert2 = w;
@@ -74,7 +73,7 @@ static Edge EDGEcreate(int v, int w, int wt) {
 
   Return value: pointer to the new node.
 */
-static ptr_node NEW(int v, int wt, ptr_node next) {
+static ptr_node NEW(int v, short int wt, ptr_node next) {
   //allocate the space for the node and check for success
   ptr_node x = malloc(sizeof *x);
   if (x == NULL)
@@ -156,7 +155,7 @@ void GRAPHfree(Graph G) {
   free(G->meAdj);
 
   free(G);
-  // G = NULL;
+  G = NULL;
   return;
 }
 
@@ -362,6 +361,7 @@ Graph GRAPHSequentialLoad(char *fin) {
   }
   #ifdef TIME
     TIMERstopEprint(timer);
+    GRAPHstats(G);
   #endif
 
   close(fd);
@@ -447,6 +447,7 @@ Graph GRAPHParallelLoad(char *fin, int numThreads){
 
   #ifdef TIME
     TIMERfree(timerLoad);
+    GRAPHstats(G);
   #endif  
   pthread_mutex_destroy(meLoadE);
   pthread_mutex_destroy(meLoadV);
@@ -486,7 +487,7 @@ void GRAPHedges(Graph G, Edge *a) {
   Parameters: graph in wich to insert the edge, source and destination
   vertices of the edge, weight of the edge.
 */
-void GRAPHinsertE(Graph G, int id1, int id2, int wt) {
+void GRAPHinsertE(Graph G, int id1, int id2, short int wt) {
   if(G == NULL){
     printf("No graph inserted.\n");
     return;
@@ -562,108 +563,54 @@ static void  removeE(Graph G, Edge e) {
 }
 
 /*
-  This function is in charge of creating the tree containing all 
-  minimum-weight paths from one specified source node to all reachable nodes.
-  This goal is achieved using the Dijkstra algorithm.
-
-  Parameters: grpah and start node.
+  Print the dimension of Adjacency list and Coords
 */
-void GRAPHspD(Graph G, int id, int end) {
-  if(G == NULL){
-    printf("No graph inserted.\n");
+void GRAPHstats(Graph G){
+  int nCoords, nMaxCoords, sizeCoords, sizeLadj;
+
+  nCoords = STsize(G->coords);
+  nMaxCoords = STmaxSize(G->coords);
+  sizeCoords = sizeof(struct coord) * nCoords + sizeof(Coord) * nMaxCoords;
+  // struct coord = 4B (two short int), Coord = 8B (it is a pointer)
+  printf("nMaxCoords= %d nodes, sizeCoords= %d B (%d MB)\n", nMaxCoords, sizeCoords, sizeCoords>>20 );
+
+  sizeLadj = sizeof(ptr_node) * G->V + sizeof(struct node) * G->E;
+  printf("sizeofStructNode= %ld, sizeLadj= %d B (%d MB)\n", sizeof(struct node), sizeLadj, sizeLadj>>20);
+
+}
+
+void GRAPHgetCoordinates(Graph G, int v){
+  Coord coord = STsearchByIndex(G->coords, v);
+  printf("Coordinates of vertex %d: c1: %d - c2: %d\n", v, coord->c1, coord->c2);
+}
+
+void  GRAPHcomputeDistance(Graph G, int v1, int v2){
+  Coord coord1, coord2;
+  coord1 = STsearchByIndex(G->coords, v1);
+  coord2 = STsearchByIndex(G->coords, v2);
+
+  printf("Distance (heuristic): %f\n", Hcoord(coord1, coord2));
+}
+
+void  GRAPHgetEdge(Graph G, int start, int end){
+  ptr_node t;
+
+  if(start<0 || start>=G->V){
+    printf("Invalid starting node\n");
     return;
   }
 
-  int v, hop=0;
-  ptr_node t;
-  Item min_item;
-  PQ pq = PQinit(G->V);
-  float neighbour_priority;
-  int *path;
-  #ifdef TIME
-    Timer timer = TIMERinit(1);
-  #endif
-
-  path = malloc(G->V * sizeof(int));
-  if(path == NULL){
-    exit(1);
+  if(end<0 || end>=G->V){
+    printf("Invalid ending node\n");
+    return;
   }
 
-  //insert all nodes in the priority queue with total weight equal to infinity
-  for (v = 0; v < G->V; v++){
-    path[v] = -1;
-    PQinsert(pq, v, maxWT);
-    #if DEBUG
-      printf("Inserted node %d priority %d\n", v, maxWT);
-    #endif
-  }
-  #if DEBUG
-    PQdisplayHeap(pq);
-  #endif
-
-  #ifdef TIME
-    TIMERstart(timer);
-  #endif
-
-  path[id] = id;
-  PQchange(pq, id, 0);
-  while (!PQempty(pq)){
-    min_item = PQextractMin(pq);
-    #if DEBUG
-      printf("Min extracted is (index): %d\n", min_item.index);
-    #endif
-
-    if(min_item.index == end){
-      // we reached the end node
-      break;
+  for(t=G->ladj[start]; t!=G->z; t=t->next)
+    if(t->v == end){
+      printf("Weight of edge from %d to %d: %d\n", start, end, t->wt);
+      return;
     }
 
-    // if the node is discovered
-    if(min_item.priority != maxWT){
-      // mindist[min_item.index] = min_item.priority;
-
-      for(t=G->ladj[min_item.index]; t!=G->z; t=t->next){
-        if(PQsearch(pq, t->v, &neighbour_priority) < 0){
-          // The node is already closed
-          continue;
-        }
-        #if DEBUG
-          printf("Node: %d, Neighbour: %d, New priority: %.3f, Neighbour priority: %.3f\n", min_item.index, t->v, min_item.priority + t->wt, neighbour_priority);
-        #endif
-
-        if(min_item.priority + t->wt < (neighbour_priority)){
-          // we have found a better path
-          PQchange(pq, t->v, min_item.priority + t->wt);
-          path[t->v] = min_item.index;
-        }
-        #if DEBUG
-          PQdisplayHeap(pq);
-        #endif
-      }
-    }
-  }
-
-  #ifdef TIME
-    TIMERstopEprint(timer);
-  #endif
-
-  // Print the found path
-  if(path[v] == -1){
-    printf("No path from %d to %d has been found.\n", id, end);
-  }else{
-    printf("Path from %d to %d has been found with cost %.3f.\n", id, end, min_item.priority);
-    for(int v=end; v!=id; ){
-      printf("%d <- ", v);
-      v = path[v];
-      hop++;
-    }
-    printf("%d\nHops: %d",id, hop);
-  }
-  
-  #ifdef TIME
-    TIMERfree(timer);
-  #endif
-
-  free(path);
-  PQfree(pq);
+  printf("Direct edge from %d to %d does not exist\n", start, end);
+  return;
 }

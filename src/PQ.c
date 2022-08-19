@@ -142,6 +142,17 @@ int PQempty(PQ pq) {
   return isEmpty;
 }
 
+/*
+  Return the dimension of the array of Items
+
+  Parameters: PQ
+
+  Return: the dimension of array pq->A
+*/
+int PQmaxSize(PQ pq){
+  return pq->maxN;
+}
+
 // Inside the while loop, the position of two nodes in the heap is exchanged
 // This happens because the node we want to insert has a lower priority value
 // wrt his parent. In addition to the exchange of the nodes, also the qp

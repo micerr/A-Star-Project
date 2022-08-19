@@ -55,7 +55,15 @@ int STsize(ST st) {
   return n;
 }
 
-void STinsert(ST st, short int coord1, short int coord2, int i) {
+int STmaxSize(ST st) {
+  int n;
+  pthread_mutex_lock(st->me);
+    n = st->maxN;
+  pthread_mutex_unlock(st->me);
+  return n;
+}
+
+void  STinsert(ST st, int coord1, int coord2, int i){
   pthread_mutex_lock(st->me);
   if (i >= st->maxN) {
     st->coord = realloc(st->coord, (2*st->maxN)*sizeof(Coord));
@@ -66,13 +74,14 @@ void STinsert(ST st, short int coord1, short int coord2, int i) {
 
   Coord c;
   c = malloc(sizeof(*c));
-  c->c1 = coord1; c->c2 = coord2;
+  c->c1 = coord1; 
+  c->c2 = coord2;
   st->coord[i] = c;
   st->N++;
   pthread_mutex_unlock(st->me);
 }
 
-int STsearch(ST st, short int coord1, short int coord2) {
+int STsearch(ST st, int coord1, int coord2) {
   int i;
   for(i = 0; i  < st->N; i++)
     if( st->coord[i] != NULL 

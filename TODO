@@ -2,3 +2,4 @@ Parallel Load with flock, compare the 2 solutions
 Solve the "stack smashing" problem when trying deallocating frome the main
 Add more comments for each function
 Problem with A* solution: Dijkstra and A* found different solutions
+Implementing SPA* try a good way to implemet TerminateDetection()

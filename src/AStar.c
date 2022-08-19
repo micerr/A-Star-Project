@@ -15,6 +15,142 @@
 #include "./utility/Item.h"
 #include "./utility/Timer.h"
 
+#define maxWT INT_MAX
+
+/*
+  This function is in charge of creating the tree containing all 
+  minimum-weight paths from one specified source node to all reachable nodes.
+  This goal is achieved using the Dijkstra algorithm.
+
+  Parameters: graph, start node end node.
+*/
+int GRAPHspD(Graph G, int id, int end) {
+  if(G == NULL){
+    printf("No graph inserted.\n");
+    return -1;
+  }
+
+  int v, hop=0;
+  ptr_node t;
+  Item min_item;
+  PQ pq = PQinit(G->V);
+  float neighbour_priority;
+  int *path;
+  #ifdef TIME
+    Timer timer = TIMERinit(1);
+  #endif
+
+  path = malloc(G->V * sizeof(int));
+  if(path == NULL){
+    exit(1);
+  }
+
+  //insert all nodes in the priority queue with total weight equal to infinity
+  for (v = 0; v < G->V; v++){
+    path[v] = -1;
+    PQinsert(pq, v, maxWT);
+    #if DEBUG
+      printf("Inserted node %d priority %d\n", v, maxWT);
+    #endif
+  }
+  #if DEBUG
+    PQdisplayHeap(pq);
+  #endif
+
+  #ifdef TIME
+    TIMERstart(timer);
+  #endif
+
+  path[id] = id;
+  PQchange(pq, id, 0);
+  while (!PQempty(pq)){
+    min_item = PQextractMin(pq);
+    #if DEBUG
+      printf("Min extracted is (index): %d\n", min_item.index);
+    #endif
+
+    if(min_item.index == end){
+      // we reached the end node
+      break;
+    }
+
+    // if the node is discovered
+    if(min_item.priority != maxWT){
+      // mindist[min_item.index] = min_item.priority;
+
+      for(t=G->ladj[min_item.index]; t!=G->z; t=t->next){
+        if(PQsearch(pq, t->v, &neighbour_priority) < 0){
+          // The node is already closed
+          continue;
+        }
+        #if DEBUG
+          printf("Node: %d, Neighbour: %d, New priority: %.3f, Neighbour priority: %.3f\n", min_item.index, t->v, min_item.priority + t->wt, neighbour_priority);
+        #endif
+
+        if(min_item.priority + t->wt < (neighbour_priority)){
+          // we have found a better path
+          PQchange(pq, t->v, min_item.priority + t->wt);
+          path[t->v] = min_item.index;
+        }
+        #if DEBUG
+          PQdisplayHeap(pq);
+        #endif
+      }
+    }
+  }
+
+  #ifdef TIME
+    TIMERstopEprint(timer);
+    int sizeofPath = sizeof(int)*G->V;
+    int sizeofPQ = sizeof(PQ*) + PQmaxSize(pq)*sizeof(Item);
+    int total = sizeofPath+sizeofPQ;
+    printf("sizeofPath= %d B (%d MB), sizeofPQ= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
+  #endif
+
+  // Print the found path
+  if(path[v] == -1){
+    printf("No path from %d to %d has been found.\n", id, end);
+  }else{
+    printf("Path from %d to %d has been found with cost %.3f.\n", id, end, min_item.priority);
+    for(int v=end; v!=id; ){
+      printf("%d <- ", v);
+      v = path[v];
+      hop++;
+    }
+    printf("%d\nHops: %d\n",id, hop);
+  }
+  
+  
+  #ifdef TIME
+    TIMERfree(timer);
+  #endif
+
+  free(path);
+  PQfree(pq);
+
+  return min_item.priority;
+}
+
+/*
+  Check the admissibility of a heuristc function for a given graph and (src, dest) couple
+
+  return: 0:= NOT admissible, 1:= admissible
+*/
+int GRAPHcheckAdmissibility(Graph G,int source, int target){
+  int isAmmisible = 1;
+  Coord coordTarget = STsearchByIndex(G->coords, target);
+  int C = GRAPHspD(G, source, target);
+  int h = Hcoord(STsearchByIndex(G->coords, source), coordTarget);
+  if( h > C ){
+    printf("(%d, %d) is NOT ammissible h(n)= %d, C*(n)= %d\n", source, target, h, C);
+    isAmmisible = 0;
+  }
+  if(isAmmisible){
+    printf("is ammissible\n");
+  }
+  return isAmmisible;
+}
+
 // Data structures:
 // openSet -> Priority queue containing an heap made of Items (Item has index of node and priority (fScore))
 // closedSet -> Array of int, each cell is the fScore of a node.
@@ -38,9 +174,24 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
     printf("No graph inserted.\n");
     return;
   }
+<<<<<<< HEAD
   float prio;
   Coord dest_coord, coord;
   thArg_t *thArgArray;
+=======
+
+  PQ openSet_PQ;
+  float *closedSet;
+  int *path, flag, hop=0, isNotConsistent = 0;
+  float newGscore, newFscore, prio;
+  float neighboor_gScore, neighboor_fScore, neighboor_hScore;
+  Item extrNode;
+  Coord dest_coord, coord, neighboor_coord;
+  ptr_node t;
+  #ifdef TIME
+    Timer timer = TIMERinit(1);
+  #endif
+>>>>>>> b9023fdad0eba61ecc7da819b3ddd590caa52be4
 
   //init the open set (priority queue)
   openSet_PQ = PQinit(1);
@@ -50,7 +201,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   }
 
   //init the closed set (int array)
-  closedSet = malloc(G->V * sizeof(int));
+  closedSet = malloc(G->V * sizeof(float));
   if(closedSet == NULL){
     perror("Error trying to create closedSet: ");
     exit(1);
@@ -135,6 +286,12 @@ void thFunction(void *par){
 
       //check if adjacent node has been already closed
       if(closedSet[t->v] > 0){
+        // n' belongs to CLOSED SET
+        if(!isNotConsistent){
+          printf("The heuristic function is NOT consistent\n");
+          isNotConsistent = 1;
+        }
+
         neighboor_fScore = closedSet[t->v];
         neighboor_gScore = neighboor_fScore - neighboor_hScore;
 
@@ -176,6 +333,11 @@ void thFunction(void *par){
 
   #ifdef TIME
     TIMERstopEprint(timer);
+    int sizeofPath = sizeof(int)*G->V;
+    int sizeofClosedSet = sizeof(float)*G->V;
+    int sizeofPQ = sizeof(PQ*) + PQmaxSize(openSet_PQ)*sizeof(Item);
+    int total = sizeofPath+sizeofClosedSet+sizeofPQ;
+    printf("sizeofPath= %d B (%d MB *2), sizeofClosedSet= %d B (%d MB), sizeofOpenSet= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofClosedSet, sizeofClosedSet>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
   #endif
 
   if(closedSet[end] < 0)
