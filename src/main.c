@@ -23,7 +23,7 @@ int main(void) {
     printf("8. Check Admissibility\n");
     printf("---\n");
     printf("9. Shortest path with Dijkstra's algorithm\n");
-    printf("10. Shortest path with sequential A*\n");
+    printf("10. Shortest path with concurrent A*\n");
     printf("11. Free graph and exit\n");
     printf("===============\n");
     printf("Enter your choice : ");
@@ -109,7 +109,9 @@ int main(void) {
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
-                        GRAPHSequentialAStar(G, id1, id2);
+                        printf("Insert number of threads: ");
+                        scanf("%d", &numThreads);
+                        ASTARSimpleParallel(G, id1, id2, numThreads);
                         break;
 
             case 11:    cont = 0;
