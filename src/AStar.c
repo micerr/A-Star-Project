@@ -172,6 +172,7 @@ typedef struct thArg_s {
   pthread_t tid;
   Graph G;
   int start, end, numTH;
+  int id;
   pthread_mutex_t *meLc, *meLo;
   pthread_cond_t *cv;
 } thArg_t;
@@ -184,6 +185,9 @@ sem_t sem;
 #endif 
 
 void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
+
+  setbuf(stdout, NULL);
+
   if(G == NULL){
     printf("No graph inserted.\n");
     return;
@@ -259,6 +263,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   #endif
 
   for(int i=0; i<numTH; i++){
+    thArgArray[i].id = i;
     thArgArray[i].G = G;
     thArgArray[i].start = start;
     thArgArray[i].end = end;
@@ -347,13 +352,14 @@ static void* thFunction(void *par){
     pthread_mutex_lock(arg->meLo);
     
     while(PQempty(openSet_PQ)){
+      
       n++;
       #ifdef DEBUG
         printf("nThEmpty: %d\n", n);
       #endif
       if(n == arg->numTH){
         #ifdef DEBUG
-          printf("%ld:No more nodes to expand, i'll kill everybody\n",arg->tid);
+          printf("%d:No more nodes to expand, i'll kill everybody\n",arg->id);
         #endif
         pthread_cond_broadcast(arg->cv);
         pthread_mutex_unlock(arg->meLo);
@@ -363,16 +369,16 @@ static void* thFunction(void *par){
         pthread_exit(NULL);
       }
       #ifdef DEBUG
-        printf("%ld: waiting for other nodes\n", arg->tid);
+        printf("%d: waiting for other nodes\n", arg->id);
       #endif      
       pthread_cond_wait(arg->cv, arg->meLo);
       #ifdef DEBUG
-        printf("%ld: waked up\n", arg->tid);
+        printf("%d: woke up\n", arg->id);
       #endif 
       if(n == arg->numTH){
         pthread_mutex_unlock(arg->meLo);
         #ifdef DEBUG
-          printf("%ld:Killed\n", arg->tid);
+          printf("%d:Killed\n", arg->id);
         #endif
         pthread_exit(NULL);
       }
@@ -382,12 +388,12 @@ static void* thFunction(void *par){
     extrNode = PQextractMin(openSet_PQ);
     pthread_mutex_unlock(arg->meLo);
     #ifdef DEBUG
-      printf("%ld: extracted node:%d prio:%f\n", arg->tid, extrNode.index, extrNode.priority);
+      printf("%d: extracted node:%d prio:%f\n", arg->id, extrNode.index, extrNode.priority);
     #endif
 
     if(extrNode.priority >= pathCost){
       #ifdef DEBUG
-        printf("%ld: f(n)=%f >= f(bestPath)=%f, skip it!\n", arg->tid, extrNode.priority, pathCost);
+        printf("%d: f(n)=%f >= f(bestPath)=%f, skip it!\n", arg->id, extrNode.priority, pathCost);
       #endif
       continue;
     }
@@ -406,7 +412,7 @@ static void* thFunction(void *par){
     if(extrNode.index == arg->end){
       #ifdef DEBUG
         pthread_mutex_lock(arg->meLo);
-        printf("%ld: found the target with cost: %f\n", arg->tid, extrNode.priority);
+        printf("%d: found the target with cost: %f\n", arg->id, extrNode.priority);
         for(int v=arg->end; v!=arg->start; ){
           printf("%d <- ", v);
           v = path[v];
@@ -423,6 +429,9 @@ static void* thFunction(void *par){
 
     //consider all adjacent vertex of the extracted node
     for(t=G->ladj[extrNode.index]; t!=G->z; t=t->next){
+      #ifdef DEBUG
+        printf("Thread %d is analyzing edge(%d,%d)\n", arg->id, extrNode.index, t->v);
+      #endif
       //retrieve coordinates of the adjacent vertex
       neighboor_coord = STsearchByIndex(G->coords, t->v);
       neighboor_hScore = Hcoord(neighboor_coord, dest_coord); 
@@ -432,7 +441,7 @@ static void* thFunction(void *par){
       //weight of the edge to reach its neighboor.
       newGscore = (extrNode.priority - Hcoord(extr_coord, dest_coord)) + t->wt;
       #ifdef DEBUG
-        printf("%ld: n=%d n'=%d c(n, n')=%d h(n')=%f g1=%f\n",arg->tid, extrNode.index, t->v, t->wt, neighboor_hScore, newGscore);
+        printf("%d: n=%d n'=%d c(n, n')=%d h(n')=%f g1=%f\n",arg->id, extrNode.index, t->v, t->wt, neighboor_hScore, newGscore);
       #endif
 
       //check if adjacent node has been already closed
@@ -447,7 +456,7 @@ static void* thFunction(void *par){
         neighboor_fScore = closedSet[t->v];
         neighboor_gScore = neighboor_fScore - neighboor_hScore;
         #ifdef DEBUG
-          printf("%ld: found a closed node %d f(n')=%f\n",arg->tid, t->v, neighboor_fScore);
+          printf("%d: found a closed node %d f(n')=%f\n",arg->id, t->v, neighboor_fScore);
         #endif
 
         //if a lower gScore is found, reopen the vertex
@@ -459,17 +468,16 @@ static void* thFunction(void *par){
           newFscore = newGscore + neighboor_hScore;
 
           pthread_mutex_lock(arg->meLo);
-            #ifdef DEBUG
-              printf("%ld: a new better path is found for a closed node %d old g(n')=%f, new g(n')= %f, f(n')=%f\n", arg->tid, t->v, neighboor_gScore, newGscore, newFscore);
-            #endif
             PQinsert(openSet_PQ, t->v, newFscore);
             #ifdef DEBUG
-              printf("%ld: awaking someone\n", arg->tid);
+              printf("%d: awaking someone\n", arg->id);
             #endif 
             pthread_cond_signal(arg->cv);
             if(n>0) n--; // decrease only if there is someone who is waiting
             path[t->v] = extrNode.index;
-
+            #ifdef DEBUG
+              printf("%d: a new better path is found for a closed node %d old g(n')=%f, new g(n')= %f, f(n')=%f\n", arg->id, t->v, neighboor_gScore, newGscore, newFscore);
+            #endif
           pthread_mutex_unlock(arg->meLo);
           pthread_mutex_unlock(arg->meLc);
         }
@@ -488,33 +496,33 @@ static void* thFunction(void *par){
         //if it doesn't belong to the open set yet, add it
         if(flag<0){
           newFscore = newGscore + neighboor_hScore;
-          #ifdef DEBUG
-            printf("%ld: found a new node %d f(n')=%f\n",arg->tid, t->v, newFscore);
-          #endif
           PQinsert(openSet_PQ, t->v, newFscore);
           #ifdef DEBUG
-            printf("%ld: awaking someone\n", arg->tid);
+            printf("%d: awaking someone\n", arg->id);
           #endif
           pthread_cond_signal(arg->cv);
           if(n>0) n--;  //decrease only if there is someone who is waiting     
           path[t->v] = extrNode.index;
+          #ifdef DEBUG
+            printf("%d: found a new node %d f(n')=%f\n",arg->id, t->v, newFscore);
+          #endif
           pthread_mutex_unlock(arg->meLo);
         }
         //if it belongs to the open set but with a lower gScore, continue
         else if(neighboor_gScore <= newGscore){
           #ifdef DEBUG
-            printf("%ld: g1=%f >= g(n')=%f, skip it!\n",arg->tid, newGscore, neighboor_gScore);
+            printf("%d: g1=%f >= g(n')=%f, skip it!\n",arg->id, newGscore, neighboor_gScore);
           #endif
           pthread_mutex_unlock(arg->meLo);
           continue;
         }
         else{
           newFscore = newGscore + neighboor_hScore;
-          #ifdef DEBUG
-            printf("%ld: change the f(n')=%f because old g(n')=%f > new g(n')=%f\n", arg->tid,newFscore, neighboor_gScore, newGscore );
-          #endif
           PQchange(openSet_PQ, t->v, newFscore);
           path[t->v] = extrNode.index;
+          #ifdef DEBUG
+            printf("%d: change the f(n')=%f because old g(n')=%f > new g(n')=%f\n", arg->id,newFscore, neighboor_gScore, newGscore );
+          #endif
           pthread_mutex_unlock(arg->meLo);
         }
       }
