@@ -42,5 +42,8 @@ void  GRAPHinsertE(Graph G, int id1, int id2, short int wt);
 void  GRAPHremoveE(Graph G, int id1, int id2);
 void  GRAPHedges(Graph G, Edge *a);
 void  GRAPHstats(Graph G);
+/*TO BE REMOVED*/
+void GRAPHParallelSearchTest();
+/*END*/
 
 #endif

@@ -585,7 +585,7 @@ void GRAPHstats(Graph G){
 void GRAPHParallelSearchTest(){
   PQ openSet_PQ;
 
-  openSet_PQ = PQinit(100);
+  openSet_PQ = PQinit(1000);
   if(openSet_PQ == NULL){
     perror("Error trying to create openSet_PQ: ");
     exit(1);
@@ -593,11 +593,26 @@ void GRAPHParallelSearchTest(){
 
   srand(time(NULL));
   int rand_prio;
+  Item item;
 
-  for(int i=0; i<100; i++){
+  for(int i=0; i<1000; i++){
     rand_prio = rand() % 1000;
     PQinsert(openSet_PQ, i, rand_prio);
   }
 
   PQdisplayHeap(openSet_PQ);
+
+  //item = PQextractMin(openSet_PQ);
+  //printf("\nMin is: %f", item.priority);
+
+  float *priority = (float*) malloc(sizeof(float));
+  int index = PQsearch(openSet_PQ, 230, priority);
+
+  //printf("Index of node is %d and priority is %f", index, *priority);
+  if(PQgetPriority(openSet_PQ, index) == *priority){
+    printf("Priority correct\n");
+  }
+  else{
+    printf("Error %f %f", PQgetPriority(openSet_PQ, index), *priority);
+  }
 }
