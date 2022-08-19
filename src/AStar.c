@@ -24,10 +24,10 @@
 
   Parameters: graph, start node end node.
 */
-void GRAPHspD(Graph G, int id, int end) {
+int GRAPHspD(Graph G, int id, int end) {
   if(G == NULL){
     printf("No graph inserted.\n");
-    return;
+    return -1;
   }
 
   int v, hop=0;
@@ -117,8 +117,9 @@ void GRAPHspD(Graph G, int id, int end) {
       v = path[v];
       hop++;
     }
-    printf("%d\nHops: %d",id, hop);
+    printf("%d\nHops: %d\n",id, hop);
   }
+  
   
   #ifdef TIME
     TIMERfree(timer);
@@ -126,6 +127,28 @@ void GRAPHspD(Graph G, int id, int end) {
 
   free(path);
   PQfree(pq);
+
+  return min_item.priority;
+}
+
+/*
+  Check the admissibility of a heuristc function for a given graph and (src, dest) couple
+
+  return: 0:= NOT admissible, 1:= admissible
+*/
+int GRAPHcheckAdmissibility(Graph G,int source, int target){
+  int isAmmisible = 1;
+  Coord coordTarget = STsearchByIndex(G->coords, target);
+  int C = GRAPHspD(G, source, target);
+  int h = Hcoord(STsearchByIndex(G->coords, source), coordTarget);
+  if( h > C ){
+    printf("(%d, %d) is NOT ammissible h(n)= %d, C*(n)= %d\n", source, target, h, C);
+    isAmmisible = 0;
+  }
+  if(isAmmisible){
+    printf("is ammissible\n");
+  }
+  return isAmmisible;
 }
 
 // Data structures:
@@ -143,8 +166,8 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
   }
 
   PQ openSet_PQ;
-  int *closedSet;
-  int *path, flag, hop=0;
+  float *closedSet;
+  int *path, flag, hop=0, isNotConsistent = 0;
   float newGscore, newFscore, prio;
   float neighboor_gScore, neighboor_fScore, neighboor_hScore;
   Item extrNode;
@@ -162,7 +185,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
   }
 
   //init the closed set (int array)
-  closedSet = malloc(G->V * sizeof(int));
+  closedSet = malloc(G->V * sizeof(float));
   if(closedSet == NULL){
     perror("Error trying to create closedSet: ");
     exit(1);
@@ -222,6 +245,12 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
 
       //check if adjacent node has been already closed
       if(closedSet[t->v] > 0){
+        // n' belongs to CLOSED SET
+        if(!isNotConsistent){
+          printf("The heuristic function is NOT consistent\n");
+          isNotConsistent = 1;
+        }
+
         neighboor_fScore = closedSet[t->v];
         neighboor_gScore = neighboor_fScore - neighboor_hScore;
 
@@ -264,9 +293,10 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
   #ifdef TIME
     TIMERstopEprint(timer);
     int sizeofPath = sizeof(int)*G->V;
+    int sizeofClosedSet = sizeof(float)*G->V;
     int sizeofPQ = sizeof(PQ*) + PQmaxSize(openSet_PQ)*sizeof(Item);
-    int total = sizeofPath*2+sizeofPQ;
-    printf("sizeofPath/ClosedSet= %d B (%d MB), sizeofOpenSet= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
+    int total = sizeofPath+sizeofClosedSet+sizeofPQ;
+    printf("sizeofPath= %d B (%d MB *2), sizeofClosedSet= %d B (%d MB), sizeofOpenSet= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofClosedSet, sizeofClosedSet>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
   #endif
 
   if(closedSet[end] < 0)

@@ -155,7 +155,7 @@ void GRAPHfree(Graph G) {
   free(G->meAdj);
 
   free(G);
-  // G = NULL;
+  G = NULL;
   return;
 }
 
@@ -581,7 +581,7 @@ void GRAPHstats(Graph G){
 
 void GRAPHgetCoordinates(Graph G, int v){
   Coord coord = STsearchByIndex(G->coords, v);
-  printf("Coordinates of vertex %d: c1: %d - c2: %d\n", v, coord->c1, coord->c2);
+  printf("Coordinates of vertex %d: c1: %d - c2: %d\n", v, coord->lat, coord->lon);
 }
 
 void  GRAPHcomputeDistance(Graph G, int v1, int v2){
