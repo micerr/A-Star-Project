@@ -391,6 +391,7 @@ static void* thFunction(void *par){
       printf("%d: extracted node:%d prio:%f\n", arg->id, extrNode.index, extrNode.priority);
     #endif
 
+    // bisognerebbe prima mettere il node nella closed
     if(extrNode.priority >= pathCost){
       #ifdef DEBUG
         printf("%d: f(n)=%f >= f(bestPath)=%f, skip it!\n", arg->id, extrNode.priority, pathCost);
@@ -398,9 +399,11 @@ static void* thFunction(void *par){
       continue;
     }
       
-
     pthread_mutex_lock(arg->meLc);
     //add the extracted node to the closed set
+    #ifdef DEBUG
+      printf("%d: closed node:%d\n", arg->id, extrNode.index);
+    #endif
     closedSet[extrNode.index] = extrNode.priority;
     pthread_mutex_unlock(arg->meLc);
 
@@ -421,8 +424,9 @@ static void* thFunction(void *par){
         pthread_mutex_unlock(arg->meLo);
       #endif
       pthread_mutex_lock(arg->meLo);
-        if(extrNode.priority < pathCost);
-        pathCost = extrNode.priority;
+        if(extrNode.priority < pathCost){
+          pathCost = extrNode.priority;
+        }
       pthread_mutex_unlock(arg->meLo);
       continue;
     }
@@ -440,9 +444,6 @@ static void* thFunction(void *par){
       //newGscore is the sum between the cost to reach extrNode and the
       //weight of the edge to reach its neighboor.
       newGscore = (extrNode.priority - Hcoord(extr_coord, dest_coord)) + t->wt;
-      #ifdef DEBUG
-        printf("%d: n=%d n'=%d c(n, n')=%d h(n')=%f g1=%f\n",arg->id, extrNode.index, t->v, t->wt, neighboor_hScore, newGscore);
-      #endif
 
       //check if adjacent node has been already closed
       pthread_mutex_lock(arg->meLc);
@@ -469,9 +470,6 @@ static void* thFunction(void *par){
 
           pthread_mutex_lock(arg->meLo);
             PQinsert(openSet_PQ, t->v, newFscore);
-            #ifdef DEBUG
-              printf("%d: awaking someone\n", arg->id);
-            #endif 
             pthread_cond_signal(arg->cv);
             if(n>0) n--; // decrease only if there is someone who is waiting
             path[t->v] = extrNode.index;
@@ -480,8 +478,7 @@ static void* thFunction(void *par){
             #endif
           pthread_mutex_unlock(arg->meLo);
           pthread_mutex_unlock(arg->meLc);
-        }
-        else{
+        }else{
           pthread_mutex_unlock(arg->meLc);
           continue;
         }
@@ -497,9 +494,6 @@ static void* thFunction(void *par){
         if(flag<0){
           newFscore = newGscore + neighboor_hScore;
           PQinsert(openSet_PQ, t->v, newFscore);
-          #ifdef DEBUG
-            printf("%d: awaking someone\n", arg->id);
-          #endif
           pthread_cond_signal(arg->cv);
           if(n>0) n--;  //decrease only if there is someone who is waiting     
           path[t->v] = extrNode.index;
