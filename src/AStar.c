@@ -444,30 +444,29 @@ static void* thFunction(void *par){
       //newGscore is the sum between the cost to reach extrNode and the
       //weight of the edge to reach its neighboor.
       newGscore = (extrNode.priority - Hcoord(extr_coord, dest_coord)) + t->wt;
+      newFscore = newGscore + neighboor_hScore;
 
       //check if adjacent node has been already closed
       pthread_mutex_lock(arg->meLc);
-      if(closedSet[t->v] > 0){
+      if(closedSet[t->v] >= 0){
+        neighboor_fScore = closedSet[t->v];
+
         // n' belongs to CLOSED SET
         if(!isNotConsistent){
           printf("The heuristic function is NOT consistent\n");
           isNotConsistent = 1;
         }
 
-        neighboor_fScore = closedSet[t->v];
-        neighboor_gScore = neighboor_fScore - neighboor_hScore;
         #ifdef DEBUG
           printf("%d: found a closed node %d f(n')=%f\n",arg->id, t->v, neighboor_fScore);
         #endif
 
         //if a lower gScore is found, reopen the vertex
-        if(newGscore < neighboor_gScore){
+        if(newFscore < neighboor_fScore){
           //remove it from closed set
           closedSet[t->v] = -1;
           
           //add it to the open set
-          newFscore = newGscore + neighboor_hScore;
-
           pthread_mutex_lock(arg->meLo);
             PQinsert(openSet_PQ, t->v, newFscore);
             pthread_cond_signal(arg->cv);
@@ -492,7 +491,6 @@ static void* thFunction(void *par){
 
         //if it doesn't belong to the open set yet, add it
         if(flag<0){
-          newFscore = newGscore + neighboor_hScore;
           PQinsert(openSet_PQ, t->v, newFscore);
           pthread_cond_signal(arg->cv);
           if(n>0) n--;  //decrease only if there is someone who is waiting     
@@ -503,7 +501,7 @@ static void* thFunction(void *par){
           pthread_mutex_unlock(arg->meLo);
         }
         //if it belongs to the open set but with a lower gScore, continue
-        else if(neighboor_gScore <= newGscore){
+        else if(neighboor_fScore <= newFscore){
           #ifdef DEBUG
             printf("%d: g1=%f >= g(n')=%f, skip it!\n",arg->id, newGscore, neighboor_gScore);
           #endif
@@ -511,7 +509,6 @@ static void* thFunction(void *par){
           continue;
         }
         else{
-          newFscore = newGscore + neighboor_hScore;
           PQchange(openSet_PQ, t->v, newFscore);
           path[t->v] = extrNode.index;
           #ifdef DEBUG
