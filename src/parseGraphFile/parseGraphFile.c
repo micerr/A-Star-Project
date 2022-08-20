@@ -22,7 +22,7 @@ typedef struct{
 
 typedef struct __attribute__((__packed__)) edge_s{
     int vert1, vert2;
-    short wt;
+    unsigned short wt;
 } edge_t;
 
 long maxThread;
@@ -200,6 +200,8 @@ void *parseDistanceWeight(void *arg){
             sum2 += vert.coord2;
         }
     }
+    
+    int wt;
 
     //start reading all edges
     while(fgets(buf, 1024, distanceFd) != NULL){
@@ -207,7 +209,13 @@ void *parseDistanceWeight(void *arg){
         
         //check if an edge has been found
         if(type=='a'){
-            sscanf(buf,"%c %d %d %hd", &type, &edge.vert1, &edge.vert2, &edge.wt);
+            sscanf(buf,"%c %d %d %d", &type, &edge.vert1, &edge.vert2, &wt);
+
+            if(wt >= 65535)
+                edge.wt = 65535;
+            else
+                edge.wt = wt;
+            
             //write the new edge on the output file
             if(write(outFd, &edge, sizeof(edge_t)) < sizeof(edge_t)){
                 perror("(Dist) Error writing an edge on the output file: ");
@@ -373,13 +381,21 @@ void *parseTimeWeight(void *arg){
         }
     }
 
+    int wt;
+
     //start reading all edges
     while(fgets(buf, 1024, timeFd) != NULL){
         sscanf(buf,"%c",&type);
 
         //check if an edge has been found
         if(type=='a'){
-            sscanf(buf,"%c %d %d %hd", &type, &edge.vert1, &edge.vert2, &edge.wt);
+            sscanf(buf,"%c %d %d %d", &type, &edge.vert1, &edge.vert2, &wt);
+
+            if(wt >= 65535)
+                edge.wt = 65535;
+            else
+                edge.wt = wt;
+
             //write the new edge on the output file
             if(write(outFd, &edge, sizeof(edge_t)) < sizeof(edge_t)){
                 perror("(Time) Error writing an edge on the output file: ");

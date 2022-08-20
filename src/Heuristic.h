@@ -3,6 +3,6 @@
 
 #include "ST.h"
 
-double Hcoord(Coord coord1, Coord coord2);
+int Hcoord(Coord coord1, Coord coord2);
 
 #endif
