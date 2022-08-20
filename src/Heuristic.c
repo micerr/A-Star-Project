@@ -5,6 +5,7 @@
 #include "Heuristic.h"
 
 #define R 6378.137
+#define C 1000000
 
 /*  
     The haversine formula determines the great-circle distance between two points on a sphere given their longitudes and latitudes.
@@ -14,8 +15,8 @@
     Return: in meters the distance of two points 
 */
 static double Harversine(Coord coord1, Coord coord2){
-    double dLat = (coord2->c1 * M_PI / 180 - coord1->c1 * M_PI /180) / 2;
-    double dLon = (coord2->c2 * M_PI / 180 - coord1->c2 * M_PI /180) / 2;
+    double dLat = ((double)coord2->c1/C * M_PI / 180 - (double)coord1->c1/C * M_PI /180) / 2;
+    double dLon = ((double)coord2->c2/C * M_PI / 180 - (double)coord1->c2/C * M_PI /180) / 2;
     double a = sin(dLat);
     double b = sin(dLon);
     double c = a * a + cos(coord1->c1 * M_PI / 180) * cos(coord2->c1 * M_PI / 180) * b * b;
