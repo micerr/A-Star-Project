@@ -216,7 +216,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
     extrNode = PQextractMin(openSet);
     //printf("extrNode.index: %d\n", extrNode.index);
     #if DEBUG
-      printf("Min extracted is (index): %d\n", min_item.index);
+      printf("Min extracted is (index): %d\n", extrNode.index);
     #endif
 
     //add to the closed set
