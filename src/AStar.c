@@ -17,9 +17,6 @@
 
 #define maxWT INT_MAX
 
-char spinner[] = "|/-\\";
-int spin = 0;
-
 /*
   This function is in charge of creating the tree containing all 
   minimum-weight paths from one specified source node to all reachable nodes.
@@ -101,17 +98,11 @@ int GRAPHspD(Graph G, int id, int end) {
     int sizeofPath = sizeof(int)*G->V;
     int sizeofPQ = sizeof(PQ*) + PQmaxSize(pq)*sizeof(Item);
     int total = sizeofPath+sizeofPQ;
-    int expandedNodes = 0;
     printf("sizeofPath= %d B (%d MB), sizeofPQ= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
-    for(int i=0;i<G->V;i++){
-      if(path[i]>=0)
-        expandedNodes++;
-    }
-    printf("Expanded nodes: %d\n",expandedNodes);
   #endif
 
   // Print the found path
-  if(path[end] == -1){
+  if(path[v] == -1){
     printf("No path from %d to %d has been found.\n", id, end);
   }else{
     printf("Path from %d to %d has been found with cost %.3f.\n", id, end, min_item.priority);
@@ -144,8 +135,7 @@ int GRAPHcheckAdmissibility(Graph G,int source, int target){
   int isAmmisible = 1;
   Coord coordTarget = STsearchByIndex(G->coords, target);
   int C = GRAPHspD(G, source, target);
-  if(C == -1) return -1;
-  int h = Hdijkstra(STsearchByIndex(G->coords, source), coordTarget);
+  int h = Hcoord(STsearchByIndex(G->coords, source), coordTarget);
   if( h > C ){
     printf("(%d, %d) is NOT ammissible h(n)= %d, C*(n)= %d\n", source, target, h, C);
     isAmmisible = 0;
@@ -164,7 +154,7 @@ int GRAPHcheckAdmissibility(Graph G,int source, int target){
 // gScores are obtained starting from the fScores and subtracting the value of the heuristic
 
 //openSet is enlarged gradually (inside PQinsert)
-void GRAPHSequentialAStar(Graph G, int start, int end, double (*h)(Coord, Coord)){
+void GRAPHSequentialAStar(Graph G, int start, int end){
   if(G == NULL){
     printf("No graph inserted.\n");
     return ;
@@ -214,9 +204,6 @@ void GRAPHSequentialAStar(Graph G, int start, int end, double (*h)(Coord, Coord)
 
   coord = STsearchByIndex(G->coords, start);
   dest_coord = STsearchByIndex(G->coords, end);
-=======
-  prio = h(coord, dest_coord);
->>>>>>> a8a31231de68da3f92fbd3cb3c84f473924e5e83
 
   path[start] = start;
   gScore[start] = 0;
@@ -256,15 +243,16 @@ void GRAPHSequentialAStar(Graph G, int start, int end, double (*h)(Coord, Coord)
         }
         else
           continue;
-      }
-      //if it hasn't been closed yet
-      else{
-        if(PQsearch(openSet_PQ, t->v, &neighboor_fScore) < 0){
-          //if it doesn't belong to the open set yet, add it
-          isInsert = 1;
+      }else{  //it doesn't belong to closed set
+        flag = PQsearch(openSet, t->v, NULL);
+
+        //if it doesn't belong to the open set
+        if(flag < 0){
+          PQinsert(openSet, t->v, newFscore);
+          //printf("%d is adding %d (f(n)=%d)\n", extrNode.index, t->v, newFscore);
         }
-        //if it belongs to the open set but with a lower gScore, continue
-        else if(newGscore >= neighboor_fScore - neighboor_hScore)
+        
+        else if(newGscore >= gScore[t->v])
           continue;
         else
           PQchange(openSet, t->v, newFscore);
