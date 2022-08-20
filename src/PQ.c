@@ -379,6 +379,13 @@ Item PQextractMin(PQ pq) {
 }
 
 /*
+  This function get the root Item without extracting it.
+*/
+Item PQgetMin(PQ pq){
+  return pq->A[0];
+}
+
+/*
   This function allows changing the priority of an Item. The position
   of the Item within the heap must be known and passed as parameter.
 
