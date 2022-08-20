@@ -122,13 +122,13 @@ int main(void) {
                           switch (i)
                           {
                           case 1:
-                            GRAPHSequentialAStar(G, id1, id2, Hdijkstra);
+                            GRAPHSequentialAStar(G, id1, id2);
                             break;
                           case 2:
-                            GRAPHSequentialAStar(G, id1, id2, Hcoord);
+                            GRAPHSequentialAStar(G, id1, id2);
                             break;
                           case 3:
-                            GRAPHSequentialAStar(G, id1, id2, Hhaver);
+                            GRAPHSequentialAStar(G, id1, id2);
                             break;
                           default:
                             printf("\nInvalid option\n");
@@ -140,12 +140,6 @@ int main(void) {
 
             case 11:    cont = 0;
                         break;
-            /*TO BE REMOVED*/
-            case 8:
-                        printf("Starting parallel search test\n");
-                        GRAPHParallelSearchTest();
-                        break;
-            /* END */
             default:    printf("\nInvalid option\n");
           }
         }
