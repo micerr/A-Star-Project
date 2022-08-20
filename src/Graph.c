@@ -205,7 +205,7 @@ static void *loadThread(void *vpars){
         pthread_exit(&ret);
       }
       #ifdef DEBUG
-        printf("%d: curr=%d coords=%d %d\n", pars->id, curr, v.coord1, v.coord2);
+        //printf("%d: curr=%d coords=%d %d\n", pars->id, curr, v.coord1, v.coord2);
       #endif
       STinsert(G->coords, v.coord1, v.coord2, curr);
     }
@@ -215,7 +215,7 @@ static void *loadThread(void *vpars){
       pthread_mutex_lock(meLoadE);
       curr = posE;
       #ifdef DEBUG
-        printf("%d: curr E=%d\n", pars->id, curr);
+        //printf("%d: curr E=%d\n", pars->id, curr);
       #endif
       posE++;
       pthread_mutex_unlock(meLoadE);
@@ -241,7 +241,7 @@ static void *loadThread(void *vpars){
         pthread_exit(&ret);
       }
       #ifdef DEBUG
-        printf("%d %d %d\n", e.vert1, e.vert2, e.wt);
+        //printf("%d %d %d\n", e.vert1, e.vert2, e.wt);
       #endif
       if (e.vert1 >= 0 && e.vert2 >=0)
         GRAPHinsertE(G, e.vert1-1, e.vert2-1, e.wt); // nodes into file starts from 1
@@ -328,7 +328,7 @@ Graph GRAPHSequentialLoad(char *fin) {
         return NULL;
       }
     #ifdef DEBUG
-      printf("%d: %d %d\n", i, v.coord1, v.coord2);
+      //printf("%d: %d %d\n", i, v.coord1, v.coord2);
     #endif
     STinsert(G->coords, v.coord1, v.coord2, i);
   }
@@ -349,7 +349,7 @@ Graph GRAPHSequentialLoad(char *fin) {
       return NULL;
     }
     #ifdef DEBUG
-      printf("%d %d %d\n", e.vert1, e.vert2, e.wt);
+      //printf("%d %d %d\n", e.vert1, e.vert2, e.wt);
     #endif
 
     //insert the edge.

@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#define PARALLEL_SEARCH 1
+
 
 struct pqueue { 
   Item *A; //array of Items.
