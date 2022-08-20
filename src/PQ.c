@@ -248,30 +248,24 @@ contains the index of the node and it's priority
 #ifdef PARALLEL_SEARCH
 void *thread_search(void* arg){
   SearchSpec *sp = (SearchSpec*) arg;
-  printf("Thread %d, start=%d, n_items=%d\n", sp->start_index, sp->start_index, sp->n_items);
 
   for(int i=0; i<sp->n_items; i++){
     pthread_mutex_lock(sp->mutex);
     if(*(sp->found) == 1){
-      printf("Thread %d checked found = 1\n", sp->start_index);
       pthread_mutex_unlock(sp->mutex);
       return NULL;
     }
     pthread_mutex_unlock(sp->mutex);
 
-    //printf("Thread %d checks:   %d = %d ?\n", sp->start_index, ((*sp->pq)->A[sp->start_index+i]).index, *sp->target);
     if(((*sp->pq)->A[sp->start_index+i]).index == *sp->target){
-      printf("Thread %d found element\n", sp->start_index);
       pthread_mutex_lock(sp->mutex);
-      (sp->sr)->index = ((*sp->pq)->A[sp->start_index+i]).index;
-      (sp->sr)->priority = ((*sp->pq)->A[sp->start_index+i]).priority;
-      *sp->found = 1;
-      printf("Thread %d, index=%d, priority=%f\n", sp->start_index, (sp->sr)->index, (sp->sr)->priority);
+        (sp->sr)->index = ((*sp->pq)->A[sp->start_index+i]).index;
+        (sp->sr)->priority = ((*sp->pq)->A[sp->start_index+i]).priority;
+        *sp->found = 1;
       pthread_mutex_unlock(sp->mutex);
     }
   }
 
-  printf("Thread %d exits for\n", sp->start_index);
   return NULL;
 }
 #endif
@@ -307,7 +301,6 @@ int PQsearch(PQ pq, int node_index, float *priority){
   #ifdef PARALLEL_SEARCH
     long number_of_processors = sysconf(_SC_NPROCESSORS_ONLN);
     long max_thread = number_of_processors * 2;
-    //long max_thread = 2;
     pthread_t th[max_thread];
     pthread_mutex_t *mutex = (pthread_mutex_t*) malloc(sizeof(pthread_mutex_t));
 
@@ -338,15 +331,11 @@ int PQsearch(PQ pq, int node_index, float *priority){
         sp->n_items += rem;
       }
 
-
       int res = pthread_create(&th[i], NULL, thread_search, (void *) sp);
-
-      //printf("Thread %d started\n", sp->start_index);
     }
 
     for(int i=0; i<max_thread; i++){
       pthread_join(th[i], NULL);
-      printf("Joined\n");
     }
 
     //printf("Search result: index=%d, priority=%d", sr->index, sr->priority);
