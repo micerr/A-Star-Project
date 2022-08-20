@@ -17,6 +17,9 @@
 
 #define maxWT INT_MAX
 
+char spinner[] = "|/-\\";
+int spin = 0;
+
 /*
   This function is in charge of creating the tree containing all 
   minimum-weight paths from one specified source node to all reachable nodes.
@@ -141,7 +144,7 @@ int GRAPHcheckAdmissibility(Graph G,int source, int target){
   Coord coordTarget = STsearchByIndex(G->coords, target);
   int C = GRAPHspD(G, source, target);
   if(C == -1) return -1;
-  int h = Hcoord(STsearchByIndex(G->coords, source), coordTarget);
+  int h = Hdijkstra(STsearchByIndex(G->coords, source), coordTarget);
   if( h > C ){
     printf("(%d, %d) is NOT ammissible h(n)= %d, C*(n)= %d\n", source, target, h, C);
     isAmmisible = 0;
@@ -160,7 +163,7 @@ int GRAPHcheckAdmissibility(Graph G,int source, int target){
 // gScores are obtained starting from the fScores and subtracting the value of the heuristic
 
 //openSet is enlarged gradually (inside PQinsert)
-void GRAPHSequentialAStar(Graph G, int start, int end){
+void GRAPHSequentialAStar(Graph G, int start, int end, double (*h)(Coord, Coord)){
   if(G == NULL){
     printf("No graph inserted.\n");
     return;
@@ -211,7 +214,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
 
   //compute starting node's fScore. (gScore = 0)
   coord = STsearchByIndex(G->coords, start);
-  prio = Hcoord(coord, dest_coord);
+  prio = h(coord, dest_coord);
 
   //insert the starting node in the open set (priority queue)
   PQinsert(openSet_PQ, start, prio);
@@ -219,6 +222,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
 
   //until the open set is not empty
   while(!PQempty(openSet_PQ)){
+    printf("%c\b", spinner[(spin++)%4]);
 
     //extract the vertex with the lowest fScore
     extrNode = PQextractMin(openSet_PQ);
@@ -237,12 +241,12 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
     for(t=G->ladj[extrNode.index]; t!=G->z; t=t->next){
       //retrieve coordinates of the adjacent vertex
       neighboor_coord = STsearchByIndex(G->coords, t->v);
-      neighboor_hScore = Hcoord(neighboor_coord, dest_coord);
+      neighboor_hScore = h(neighboor_coord, dest_coord);
 
       //cost to reach the extracted node is equal to fScore less the heuristic.
       //newGscore is the sum between the cost to reach extrNode and the
       //weight of the edge to reach its neighboor.
-      newGscore = (extrNode.priority - Hcoord(coord, dest_coord)) + t->wt;
+      newGscore = (extrNode.priority - h(coord, dest_coord)) + t->wt;
 
       //check if adjacent node has been already closed
       if(closedSet[t->v] > 0){

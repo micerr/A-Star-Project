@@ -13,7 +13,7 @@
 
     Return: in meters the distance of two points 
 */
-static double Harversine(Coord coord1, Coord coord2){
+static double Haversine(Coord coord1, Coord coord2){
     double dLat = (coord2->c1 * M_PI / 180 - coord1->c1 * M_PI /180) / 2;
     double dLon = (coord2->c2 * M_PI / 180 - coord1->c2 * M_PI /180) / 2;
     double a = sin(dLat);
@@ -25,6 +25,12 @@ static double Harversine(Coord coord1, Coord coord2){
 
 double Hcoord(Coord coord1, Coord coord2){
     return sqrt(pow(coord1->c1 - coord2->c1,2) + pow(coord1->c2 - coord2->c2,2));
-    //return Harversine(coord1, coord2);
 }
 
+double Hhaver(Coord coord1, Coord coord2){
+    return Haversine(coord1, coord2);
+}
+
+double Hdijkstra(Coord coord1, Coord coord2){
+    return 0;
+}
