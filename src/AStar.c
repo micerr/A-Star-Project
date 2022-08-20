@@ -107,11 +107,17 @@ int GRAPHspD(Graph G, int id, int end) {
     int sizeofPath = sizeof(int)*G->V;
     int sizeofPQ = sizeof(PQ*) + PQmaxSize(pq)*sizeof(Item);
     int total = sizeofPath+sizeofPQ;
+    int expandedNodes = 0;
     printf("sizeofPath= %d B (%d MB), sizeofPQ= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
+    for(int i=0;i<G->V;i++){
+      if(path[i]>=0)
+        expandedNodes++;
+    }
+    printf("Expanded nodes: %d\n",expandedNodes);
   #endif
 
   // Print the found path
-  if(path[v] == -1){
+  if(path[end] == -1){
     printf("No path from %d to %d has been found.\n", id, end);
   }else{
     printf("Path from %d to %d has been found with cost %.3f.\n", id, end, min_item.priority);
@@ -171,9 +177,9 @@ void GRAPHSequentialAStar(Graph G, int start, int end, double (*h)(Coord, Coord)
 
   PQ openSet_PQ;
   float *closedSet;
-  int *path, flag, hop=0, isNotConsistent = 0;
+  int *path, hop=0, isNotConsistent = 0, isInsert;
   float newGscore, newFscore, prio;
-  float neighboor_gScore, neighboor_fScore, neighboor_hScore;
+  float neighboor_fScore, neighboor_hScore;
   Item extrNode;
   Coord dest_coord, coord, neighboor_coord;
   ptr_node t;
@@ -194,15 +200,17 @@ void GRAPHSequentialAStar(Graph G, int start, int end, double (*h)(Coord, Coord)
     perror("Error trying to create closedSet: ");
     exit(1);
   }
-  for(int i=0; i<G->V; i++){
-    closedSet[i]=-1;
-  }
 
   //allocate the path array
   path = (int *) malloc(G->V * sizeof(int));
   if(path == NULL){
     perror("Error trying to allocate path array: ");
     exit(1);
+  }
+
+  for(int i=0; i<G->V; i++){
+    closedSet[i]=-1;
+    path[i]=-1;
   }
 
   #ifdef TIME
@@ -247,51 +255,57 @@ void GRAPHSequentialAStar(Graph G, int start, int end, double (*h)(Coord, Coord)
       //newGscore is the sum between the cost to reach extrNode and the
       //weight of the edge to reach its neighboor.
       newGscore = (extrNode.priority - h(coord, dest_coord)) + t->wt;
+      newFscore = newGscore + neighboor_hScore;
+
+      isInsert = -1;
 
       //check if adjacent node has been already closed
-      if(closedSet[t->v] > 0){
+      if( (neighboor_fScore = closedSet[t->v]) >= 0){
         // n' belongs to CLOSED SET
-        if(!isNotConsistent){
-          printf("The heuristic function is NOT consistent\n");
-          isNotConsistent = 1;
-        }
-
-        neighboor_fScore = closedSet[t->v];
-        neighboor_gScore = neighboor_fScore - neighboor_hScore;
 
         //if a lower gScore is found, reopen the vertex
-        if(newGscore < neighboor_gScore){
+        if(newGscore < neighboor_fScore - neighboor_hScore){
+          if(!isNotConsistent){
+            printf("The heuristic function is NOT consistent\n");
+            isNotConsistent = 1;
+          }
           //remove it from closed set
           closedSet[t->v] = -1;
           
           //add it to the open set
-          newFscore = newGscore + neighboor_hScore;
-          PQinsert(openSet_PQ, t->v, newFscore);
-          path[t->v] = extrNode.index;
+          isInsert = 1;
         }
         else
           continue;
       }
       //if it hasn't been closed yet
       else{
-        flag = PQsearch(openSet_PQ, t->v, &neighboor_fScore);
-        neighboor_gScore = neighboor_fScore - neighboor_hScore;
-
-        //if it doesn't belong to the open set yet, add it
-        if(flag<0){
-          newFscore = newGscore + neighboor_hScore;
-          PQinsert(openSet_PQ, t->v, newFscore);
-          path[t->v] = extrNode.index;
+        if(PQsearch(openSet_PQ, t->v, &neighboor_fScore) < 0){
+          //if it doesn't belong to the open set yet, add it
+          isInsert = 1;
         }
         //if it belongs to the open set but with a lower gScore, continue
-        else if(neighboor_gScore < newGscore)
+        else if(newGscore >= neighboor_fScore - neighboor_hScore)
           continue;
         else{
-          newFscore = newGscore + neighboor_hScore;
-          PQchange(openSet_PQ, t->v, newFscore);
-          path[t->v] = extrNode.index;
+          // change the fScore if this new path is better
+          isInsert = 0;
         }
       }
+
+      if(isInsert == -1){
+        // error
+        printf("PANIC!!!!!!\n");
+        exit(1);
+      }else if(isInsert){
+        // PQinsert new Fscore
+        PQinsert(openSet_PQ, t->v, newFscore);
+      }else{
+        // PQchange new Fscore
+        PQchange(openSet_PQ, t->v, newFscore);
+      }
+      // change parent
+      path[t->v] = extrNode.index;
     }
   }
 
@@ -301,7 +315,13 @@ void GRAPHSequentialAStar(Graph G, int start, int end, double (*h)(Coord, Coord)
     int sizeofClosedSet = sizeof(float)*G->V;
     int sizeofPQ = sizeof(PQ*) + PQmaxSize(openSet_PQ)*sizeof(Item);
     int total = sizeofPath+sizeofClosedSet+sizeofPQ;
+    int expandedNodes = 0;
     printf("sizeofPath= %d B (%d MB *2), sizeofClosedSet= %d B (%d MB), sizeofOpenSet= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofClosedSet, sizeofClosedSet>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
+    for(int i=0;i<G->V;i++){
+      if(path[i]>=0)
+        expandedNodes++;
+    }
+    printf("Expanded nodes: %d\n",expandedNodes);
   #endif
 
   if(closedSet[end] < 0)
