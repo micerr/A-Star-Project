@@ -164,7 +164,7 @@ void PQinsert (PQ pq, int node_index, float priority){
   int i;
 
   if( pq->heapsize >= pq->maxN){
-    pq->A = realloc(pq->A, (2*pq->maxN)* sizeof(Item*));
+    pq->A = realloc(pq->A, (2*pq->maxN) * sizeof(Item*));
     if(pq->A == NULL){
       perror("Realloc");
       free(item);

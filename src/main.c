@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "Graph.h"
 #include "AStar.h"
+#include "Heuristic.h"
 #define MAXC 11
 
 int main(void) {
@@ -23,8 +24,9 @@ int main(void) {
     printf("8. Check Admissibility\n");
     printf("---\n");
     printf("9. Shortest path with Dijkstra's algorithm\n");
-    printf("10. Shortest path with concurrent A*\n");
-    printf("11. Free graph and exit\n");
+    printf("10. Shortest path with sequential A*\n");
+    printf("11. Shortest path with SPA*\n");
+    printf("12. Free graph and exit\n");
     printf("===============\n");
     printf("Enter your choice : ");
     if(scanf("%d",&i)<=0) {
@@ -109,12 +111,43 @@ int main(void) {
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
-                        printf("Insert number of threads: ");
-                        scanf("%d", &numThreads);
-                        ASTARSimpleParallel(G, id1, id2, numThreads);
+                        printf("Insert the heuristic function h(x) to use:\n");
+                        printf("1: Dijkstra emulator\n");
+                        printf("2: Euclidean distance\n");
+                        printf("3: Haversine formula\n");
+                        printf("Enter your choice : ");
+                        if(scanf("%d",&i)<=0) {
+                          printf("Integers only!\n");
+                          exit(0);
+                        }else{
+                          switch (i)
+                          {
+                          case 1:
+                            GRAPHSequentialAStar(G, id1, id2, Hdijkstra);
+                            break;
+                          case 2:
+                            GRAPHSequentialAStar(G, id1, id2, Hcoord);
+                            break;
+                          case 3:
+                            GRAPHSequentialAStar(G, id1, id2, Hhaver);
+                            break;
+                          default:
+                            printf("\nInvalid option\n");
+                            break;
+                          }
+                        }
                         break;
 
-            case 11:    cont = 0;
+            case 11:    printf("\nInsert starting node = ");
+                        scanf("%d", &id1);
+                        printf("Insert destination node = ");
+                        scanf("%d", &id2);
+                        printf("Insert number of threads: ");
+                        scanf("%d", &numThreads);
+                        ASTARSimpleParallel(G, id1, id2, numThreads);                        
+                        break;
+
+            case 12:    cont = 0;
                         break;
             default:    printf("\nInvalid option\n");
           }
