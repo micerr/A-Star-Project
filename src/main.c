@@ -140,6 +140,12 @@ int main(void) {
 
             case 11:    cont = 0;
                         break;
+            /*TO BE REMOVED*/
+            case 8:
+                        printf("Starting parallel search test\n");
+                        GRAPHParallelSearchTest();
+                        break;
+            /* END */
             default:    printf("\nInvalid option\n");
           }
         }
