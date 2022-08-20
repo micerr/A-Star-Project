@@ -37,8 +37,8 @@ Timer timerLoad;
 /*
     Prototypes of static functions
 */
-static Edge EDGEcreate(int v, int w, short int wt);
-static ptr_node NEW(int v, short int wt, ptr_node next);
+static Edge EDGEcreate(int v, int w, unsigned short int wt);
+static ptr_node NEW(int v, unsigned short int wt, ptr_node next);
 static void insertE(Graph G, Edge e);
 static void removeE(Graph G, Edge e);
 static void *loadThread(void *);
@@ -53,7 +53,7 @@ static void *loadThread(void *);
   
   Return value: the structure representing the edge.
 */
-static Edge EDGEcreate(int v, int w, short int wt) {
+static Edge EDGEcreate(int v, int w,unsigned short int wt) {
   Edge e;
   e.vert1 = v;
   e.vert2 = w;
@@ -73,7 +73,7 @@ static Edge EDGEcreate(int v, int w, short int wt) {
 
   Return value: pointer to the new node.
 */
-static ptr_node NEW(int v, short int wt, ptr_node next) {
+static ptr_node NEW(int v, unsigned short int wt, ptr_node next) {
   //allocate the space for the node and check for success
   ptr_node x = malloc(sizeof *x);
   if (x == NULL)
@@ -487,7 +487,7 @@ void GRAPHedges(Graph G, Edge *a) {
   Parameters: graph in wich to insert the edge, source and destination
   vertices of the edge, weight of the edge.
 */
-void GRAPHinsertE(Graph G, int id1, int id2, short int wt) {
+void GRAPHinsertE(Graph G, int id1, int id2, unsigned short int wt) {
   if(G == NULL){
     printf("No graph inserted.\n");
     return;
@@ -571,7 +571,7 @@ void GRAPHstats(Graph G){
   nCoords = STsize(G->coords);
   nMaxCoords = STmaxSize(G->coords);
   sizeCoords = sizeof(struct coord) * nCoords + sizeof(Coord) * nMaxCoords;
-  // struct coord = 4B (two short int), Coord = 8B (it is a pointer)
+  // struct coord = 4B (two unsigned short int), Coord = 8B (it is a pointer)
   printf("nMaxCoords= %d nodes, sizeCoords= %d B (%d MB)\n", nMaxCoords, sizeCoords, sizeCoords>>20 );
 
   sizeLadj = sizeof(ptr_node) * G->V + sizeof(struct node) * G->E;

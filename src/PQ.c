@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
-// #define PARALLEL_SEARCH 1
+#define PARALLEL_SEARCH 1
 
 struct pqueue { 
   Item *A; //array of Items.
@@ -252,15 +252,16 @@ void *thread_search(void* arg){
   for(int i=0; i<sp->n_items; i++){
     pthread_mutex_lock(sp->mutex);
     if(*(sp->found) == 1){
+      pthread_mutex_unlock(sp->mutex);
       return NULL;
     }
     pthread_mutex_unlock(sp->mutex);
 
     if(((*sp->pq)->A[sp->start_index+i]).index == *sp->target){
       pthread_mutex_lock(sp->mutex);
-      (sp->sr)->index = ((*sp->pq)->A[sp->start_index+i]).index;
-      (sp->sr)->priority = ((*sp->pq)->A[sp->start_index+i]).priority;
-      *sp->found = 1;
+        (sp->sr)->index = ((*sp->pq)->A[sp->start_index+i]).index;
+        (sp->sr)->priority = ((*sp->pq)->A[sp->start_index+i]).priority;
+        *sp->found = 1;
       pthread_mutex_unlock(sp->mutex);
     }
   }
@@ -317,20 +318,20 @@ int PQsearch(PQ pq, int node_index, float *priority){
     int rem = pq->heapsize % max_thread;
 
     for(int i=0; i<max_thread; i++){
-      SearchSpec sp;
-      sp.mutex = mutex;
-      sp.found = found;
-      sp.n_items = items_each;
-      sp.start_index = i*items_each;
-      sp.target = target;
-      sp.sr = sr;
-      sp.pq = &pq;
+      SearchSpec *sp = (SearchSpec*) malloc(sizeof(SearchSpec));
+      sp->mutex = mutex;
+      sp->found = found;
+      sp->n_items = items_each;
+      sp->start_index = i*items_each;
+      sp->target = target;
+      sp->sr = sr;
+      sp->pq = &pq;
 
       if(i == (max_thread-1)){
-        sp.n_items += rem;
+        sp->n_items += rem;
       }
 
-      int res = pthread_create(&th[i], NULL, thread_search, (void *) &sp);
+      int res = pthread_create(&th[i], NULL, thread_search, (void *) sp);
     }
 
     for(int i=0; i<max_thread; i++){
@@ -421,6 +422,10 @@ void PQdisplayHeap(PQ pq){
   }
 
   return;
+}
+
+float PQgetPriority(PQ pq, int index){
+  return (pq->A[index]).priority;
 }
 
 

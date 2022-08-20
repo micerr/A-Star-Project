@@ -13,13 +13,13 @@ typedef struct{
 //struct representing an edge
 typedef struct __attribute__((__packed__)) edge_s{
   int vert1, vert2;
-  short int wt;
+  unsigned short int wt;
 } Edge;
 
 typedef struct node *ptr_node;
 struct node {     //element of the adjacency list
   int v;          //edge's destination vertex
-  short int wt;         //weight of the edge
+  unsigned short int wt;         //weight of the edge
   ptr_node next;  //pointer to the next node
 };
 
@@ -38,7 +38,7 @@ Graph GRAPHinit(int V);
 void  GRAPHfree(Graph G);
 Graph GRAPHSequentialLoad(char *fin);
 Graph GRAPHParallelLoad(char *fin, int numThreads);
-void  GRAPHinsertE(Graph G, int id1, int id2, short int wt);
+void  GRAPHinsertE(Graph G, int id1, int id2, unsigned short int wt);
 void  GRAPHremoveE(Graph G, int id1, int id2);
 void  GRAPHedges(Graph G, Edge *a);
 void  GRAPHstats(Graph G);
