@@ -376,7 +376,7 @@ typedef struct thArg_s {
   Graph G;
   int start, end, numTH;
   int id;
-  pthread_mutex_t *meLc, *meLo, *meCv;
+  pthread_mutex_t *meLc, *meLo;
   pthread_cond_t *cv;
   BestPath *best;
 } thArg_t;
@@ -394,7 +394,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   float prio;
   Coord dest_coord, coord;
   thArg_t *thArgArray;
-  pthread_mutex_t *meLc, *meLo, *meCv;
+  pthread_mutex_t *meLc, *meLo;
   pthread_cond_t *cv;
 
   #ifdef TIME
@@ -445,9 +445,6 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   meLo = (pthread_mutex_t *)malloc(sizeof(*meLo));
   pthread_mutex_init(meLo, NULL);
 
-  meCv = (pthread_mutex_t *)malloc(sizeof(*meCv));
-  pthread_mutex_init(meCv, NULL);
-  
   cv = (pthread_cond_t*) malloc(sizeof(*cv));
   pthread_cond_init(cv, NULL);
 
@@ -477,7 +474,6 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
     thArgArray[i].numTH = numTH;
     thArgArray[i].meLc = meLc;
     thArgArray[i].meLo = meLo;
-    thArgArray[i].meCv = meCv;
     thArgArray[i].cv = cv;
     thArgArray[i].best = &best;
     #ifdef DEBUG
@@ -522,12 +518,10 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   PQfree(openSet_PQ);
   pthread_mutex_destroy(meLo);
   pthread_mutex_destroy(meLc);
-  pthread_mutex_destroy(meCv);
   pthread_mutex_destroy(best.me);
   pthread_cond_destroy(cv);
   free(cv);
   free(best.me);
-  free(meCv);
   free(meLc);
   free(meLo);
   free(thArgArray);
@@ -559,7 +553,7 @@ static void* thFunction(void *par){
     printf("%c\b", spinner[(spin++)%4]);
     // Termiante Detection
     
-    pthread_mutex_lock(arg->meCv);
+    pthread_mutex_lock(arg->meLo);
     
     while(PQempty(openSet_PQ)){
       
@@ -572,8 +566,8 @@ static void* thFunction(void *par){
           printf("%d:No more nodes to expand, i'll kill everybody\n",arg->id);
         #endif
         pthread_cond_broadcast(arg->cv);
-        pthread_mutex_unlock(arg->meCv);
-        #ifdef TIMER
+        pthread_mutex_unlock(arg->meLo);
+        #ifdef TIME
           TIMERstopEprint(timer);
         #endif
         pthread_exit(NULL);
@@ -581,13 +575,13 @@ static void* thFunction(void *par){
       #ifdef DEBUG
         printf("%d: waiting for other nodes\n", arg->id);
       #endif      
-      pthread_cond_wait(arg->cv, arg->meCv);
+      pthread_cond_wait(arg->cv, arg->meLo);
       #ifdef DEBUG
         printf("%d: woke up\n", arg->id);
       #endif 
       if(n == arg->numTH){
-        pthread_mutex_unlock(arg->meCv);
-        #ifdef TIMER
+        pthread_mutex_unlock(arg->meLo);
+        #ifdef TIME
           TIMERstopEprint(timer);
         #endif
         #ifdef DEBUG
@@ -599,7 +593,7 @@ static void* thFunction(void *par){
 
     //extract the vertex with the lowest fScore
     extrNode = PQextractMin(openSet_PQ);
-    pthread_mutex_unlock(arg->meCv);
+    pthread_mutex_unlock(arg->meLo);
 
     #ifdef DEBUG
       printf("%d: extracted node:%d prio:%f\n", arg->id, extrNode.index, extrNode.priority);
@@ -634,17 +628,35 @@ static void* thFunction(void *par){
       #endif
       pthread_mutex_lock(best->me);
         if(extrNode.priority < best->cost){
-          int len = 1;
-          for(int i=arg->end; i!=arg->start; i=path[i]){
+          int len = 1, i;
+          for(i=arg->end; i!=arg->start; i=path[i]){
+            if(path[path[i]] == i){
+              // found a loop
+              break;
+            }
             len++;
           }
+
+          // checker for the loop
+          if(path[path[i]] == i){
+            pthread_mutex_unlock(best->me);
+            
+            printf("%d: loop in the path found\n", arg->id);
+            
+            continue;
+          }
+
+          // realloc for the new path
           best->path = realloc(best->path, len*sizeof(int));
-          int i = len-1;
+          i = len-1;
+          // save the new path
           for(best->path[i]=arg->end; i>0; ){
             best->path[i-1] = path[best->path[i]];
             i--;
           }
+          // save the length
           best->len = len;
+          // save the cost
           best->cost = extrNode.priority;
         }
       pthread_mutex_unlock(best->me);
@@ -693,10 +705,13 @@ static void* thFunction(void *par){
           pthread_mutex_lock(arg->meLo);
             PQinsert(openSet_PQ, t->v, newFscore);
 
-            pthread_mutex_lock(arg->meCv);
               pthread_cond_signal(arg->cv);
               if(n>0) n--; // decrease only if there is someone who is waiting
-            pthread_mutex_unlock(arg->meCv);
+
+            // change parent
+            pthread_mutex_lock(best->me);
+              path[t->v] = extrNode.index;
+            pthread_mutex_unlock(best->me);
 
           pthread_mutex_unlock(arg->meLo);
 
@@ -718,13 +733,15 @@ static void* thFunction(void *par){
 
           PQinsert(openSet_PQ, t->v, newFscore);
 
-          pthread_mutex_lock(arg->meCv);
-            pthread_cond_signal(arg->cv);
-            if(n>0) n--; // decrease only if there is someone who is waiting
-          pthread_mutex_unlock(arg->meCv);
+
+          pthread_cond_signal(arg->cv);
+          if(n>0) n--; // decrease only if there is someone who is waiting
+
 
           // change parent
-          path[t->v] = extrNode.index;
+          pthread_mutex_lock(best->me);
+            path[t->v] = extrNode.index;
+          pthread_mutex_unlock(best->me);
 
         }
         //if it belongs to the open set but with a lower gScore, continue
@@ -745,7 +762,9 @@ static void* thFunction(void *par){
           PQchange(openSet_PQ, t->v, newFscore);
 
           // change parent
-          path[t->v] = extrNode.index;
+          pthread_mutex_lock(best->me);
+            path[t->v] = extrNode.index;
+          pthread_mutex_unlock(best->me);
         }
         pthread_mutex_unlock(arg->meLo);
       }
