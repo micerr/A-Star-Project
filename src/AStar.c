@@ -154,7 +154,7 @@ int GRAPHcheckAdmissibility(Graph G,int source, int target){
 // gScores are obtained starting from the fScores and subtracting the value of the heuristic
 
 //openSet is enlarged gradually (inside PQinsert)
-void GRAPHSequentialAStar(Graph G, int start, int end){
+void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Coord coord2)){
   if(G == NULL){
     printf("No graph inserted.\n");
     return ;
@@ -167,6 +167,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
   int *path, *closedSet;
   int *gScore, *fScore;
   int newGscore, newFscore;
+  int hScore;
   int flag;
   Coord coord, dest_coord;
 
@@ -174,7 +175,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
     Timer timer = TIMERinit(1);
   #endif
 
-  openSet = PQinit(1);
+  openSet = PQinit(G->V);
 
   path = malloc(G->V * sizeof(int));
   if(path == NULL){
@@ -207,9 +208,9 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
 
   path[start] = start;
   gScore[start] = 0;
-  fScore[start] = gScore[start] + Hcoord(coord, dest_coord);
+  fScore[start] = gScore[start] + h(coord, dest_coord);
 
-  PQinsert(openSet, start, 0);
+  PQinsert(openSet, start, fScore[start]);
 
   while (!PQempty(openSet)){
     //extract node
@@ -228,18 +229,18 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
       break;
     }
 
-    coord = STsearchByIndex(G->coords, extrNode.index);
-
     for(t=G->ladj[extrNode.index]; t!=G->z; t=t->next){
+      coord = STsearchByIndex(G->coords, t->v);
       newGscore = gScore[extrNode.index] + t->wt;
-      newFscore = newGscore + Hcoord(coord, dest_coord);
+      hScore = h(coord, dest_coord);
+      newFscore = newGscore + hScore;
 
       //if it belongs to the closed set
       if(closedSet[t->v] == 1){
         if(newGscore < gScore[t->v]){
           closedSet[t->v] = 0;
-          //printf("%d is changing priority of %d (f(n)=%d)\n", extrNode.index, t->v, newFscore);
-          PQchange(openSet, t->v, newFscore);
+          // printf("%d is adding %d (f(n)=%d)\n", extrNode.index, t->v, newFscore);
+          PQinsert(openSet, t->v, newFscore);
         }
         else
           continue;
@@ -249,13 +250,15 @@ void GRAPHSequentialAStar(Graph G, int start, int end){
         //if it doesn't belong to the open set
         if(flag < 0){
           PQinsert(openSet, t->v, newFscore);
-          //printf("%d is adding %d (f(n)=%d)\n", extrNode.index, t->v, newFscore);
+          // printf("%d is adding %d (f(n)=%d)\n", extrNode.index, t->v, newFscore);
         }
         
         else if(newGscore >= gScore[t->v])
           continue;
-        else
+        else{
+          // printf("%d is changing priority of %d (f(n)=%d)\n", extrNode.index, t->v, newFscore);
           PQchange(openSet, t->v, newFscore);
+        }
       }
       gScore[t->v] = newGscore;
       fScore[t->v] = newFscore;

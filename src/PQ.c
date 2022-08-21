@@ -161,16 +161,16 @@ void PQinsert (PQ pq, int node_index, float priority){
   Item *item = ITEMinit(node_index, priority);
   int i;
   
-  if( pq->heapsize >= pq->maxN){
-    pq->A = realloc(pq->A, (2*pq->maxN)* sizeof(Item));
-    if(pq->A == NULL){
-      perror("Realloc");
-      free(pq->A);
-      free(pq);
-      exit(1);
-    }
-    pq->maxN = 2*pq->maxN;
-  }
+  // if( pq->heapsize >= pq->maxN){
+  //   pq->A = realloc(pq->A, (2*pq->maxN)* sizeof(Item));
+  //   if(pq->A == NULL){
+  //     perror("Realloc");
+  //     free(pq->A);
+  //     free(pq);
+  //     exit(1);
+  //   }
+  //   pq->maxN = 2*pq->maxN;
+  // }
 
   //set i equal to the most-right available index. Also update the heap size.
   i = pq->heapsize++;

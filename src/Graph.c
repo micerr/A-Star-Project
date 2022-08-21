@@ -589,7 +589,7 @@ void  GRAPHcomputeDistance(Graph G, int v1, int v2){
   coord1 = STsearchByIndex(G->coords, v1);
   coord2 = STsearchByIndex(G->coords, v2);
 
-  printf("Distance (heuristic): %f\n", Hcoord(coord1, coord2));
+  printf("Distance (heuristic): %d\n", Hcoord(coord1, coord2));
 }
 
 void  GRAPHgetEdge(Graph G, int start, int end){
