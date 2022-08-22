@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
-// #define PARALLEL_SEARCH 1
+
 
 struct pqueue { 
   Item *A; //array of Items.
@@ -92,8 +92,7 @@ PQ PQinit(int maxN) {
     return NULL;
   }
 
-  //allocate array (heap)
-  pq->A = malloc(maxN * sizeof(Item*));
+  pq->A = malloc(maxN * sizeof(Item));
     if(pq->A == NULL){
     perror("Error trying to allocate heap array: ");
     return NULL;
@@ -159,20 +158,20 @@ int PQmaxSize(PQ pq){
   Parameters: PQ in which we want to insert the new node, array containing
   priority of each Item in the heap, Item's index used to retrieve its priority.
 */
-void PQinsert (PQ pq, int node_index, float priority){
+void PQinsert (PQ pq, int node_index, int priority){
   Item *item = ITEMinit(node_index, priority);
   int i;
-
-  if( pq->heapsize >= pq->maxN){
-    pq->A = realloc(pq->A, (2*pq->maxN) * sizeof(Item*));
-    if(pq->A == NULL){
-      perror("Realloc");
-      free(item);
-      PQfree(pq);
-      exit(1);
-    }
-    pq->maxN = 2*pq->maxN;
-  }
+  
+  // if( pq->heapsize >= pq->maxN){
+  //   pq->A = realloc(pq->A, (2*pq->maxN)* sizeof(Item));
+  //   if(pq->A == NULL){
+  //     perror("Realloc");
+  //     free(pq->A);
+  //     free(pq);
+  //     exit(1);
+  //   }
+  //   pq->maxN = 2*pq->maxN;
+  // }
 
   //set i equal to the most-right available index. Also update the heap size.
   i = pq->heapsize++;
@@ -254,15 +253,16 @@ static void *thread_search(void* arg){
   for(int i=0; i<sp->n_items; i++){
     pthread_mutex_lock(sp->mutex);
     if(*(sp->found) == 1){
+      pthread_mutex_unlock(sp->mutex);
       return NULL;
     }
     pthread_mutex_unlock(sp->mutex);
 
     if(((*sp->pq)->A[sp->start_index+i]).index == *sp->target){
       pthread_mutex_lock(sp->mutex);
-      (sp->sr)->index = ((*sp->pq)->A[sp->start_index+i]).index;
-      (sp->sr)->priority = ((*sp->pq)->A[sp->start_index+i]).priority;
-      *sp->found = 1;
+        (sp->sr)->index = ((*sp->pq)->A[sp->start_index+i]).index;
+        (sp->sr)->priority = ((*sp->pq)->A[sp->start_index+i]).priority;
+        *sp->found = 1;
       pthread_mutex_unlock(sp->mutex);
     }
   }
@@ -277,7 +277,7 @@ static void *thread_search(void* arg){
 Searches for a specific node inside the Item array and returns it's index 
 and the priority value inside the priority pointer
 */
-int PQsearch(PQ pq, int node_index, float *priority){
+int PQsearch(PQ pq, int node_index, int *priority){
   #ifndef PARALLEL_SEARCH
     int pos = -1;
     for(int i=0; i<pq->heapsize; i++){
@@ -316,20 +316,20 @@ int PQsearch(PQ pq, int node_index, float *priority){
     int rem = pq->heapsize % max_thread;
 
     for(int i=0; i<max_thread; i++){
-      SearchSpec sp;
-      sp.mutex = mutex;
-      sp.found = found;
-      sp.n_items = items_each;
-      sp.start_index = i*items_each;
-      sp.target = target;
-      sp.sr = sr;
-      sp.pq = &pq;
+      SearchSpec *sp = (SearchSpec*) malloc(sizeof(SearchSpec));
+      sp->mutex = mutex;
+      sp->found = found;
+      sp->n_items = items_each;
+      sp->start_index = i*items_each;
+      sp->target = target;
+      sp->sr = sr;
+      sp->pq = &pq;
 
       if(i == (max_thread-1)){
-        sp.n_items += rem;
+        sp->n_items += rem;
       }
 
-      int res = pthread_create(&th[i], NULL, thread_search, (void *) &sp);
+      int res = pthread_create(&th[i], NULL, thread_search, (void *) sp);
     }
 
     for(int i=0; i<max_thread; i++){
@@ -403,7 +403,7 @@ Item PQgetMin(PQ pq){
   Parameters: PQ, Items' priority array and position of the Item we want
   to change priority. 
 */
-void PQchange (PQ pq, int node_index, float priority) {
+void PQchange (PQ pq, int node_index, int priority) {
   // printf("Searching for %d with priority %d\n", node_index, priority);
 
   int item_index = PQsearch(pq, node_index, NULL);
@@ -423,9 +423,13 @@ void PQchange (PQ pq, int node_index, float priority) {
 
 void PQdisplayHeap(PQ pq){
   for(int i=0; i<pq->heapsize; i++){
-    printf("i = %d, priority = %f\n", (pq->A[i]).index, (pq->A[i]).priority);
+    printf("i = %d, priority = %.3d\n", (pq->A[i]).index, (pq->A[i]).priority);
   }
   return;
+}
+
+float PQgetPriority(PQ pq, int index){
+  return (pq->A[index]).priority;
 }
 
 

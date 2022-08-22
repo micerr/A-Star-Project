@@ -8,7 +8,7 @@
 #include "Item.h"
 
 
-Item* ITEMinit(int node_index, float priority){
+Item* ITEMinit(int node_index, int priority){
   Item *item = (Item*) malloc(sizeof(*item));
 
   if(item == NULL){

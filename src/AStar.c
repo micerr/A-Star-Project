@@ -39,8 +39,7 @@ int GRAPHspD(Graph G, int id, int end) {
   ptr_node t;
   Item min_item;
   PQ pq = PQinit(G->V);
-  float neighbour_priority;
-  int *path;
+  int *path, *mindist;
   #ifdef TIME
     Timer timer = TIMERinit(1);
   #endif
@@ -50,9 +49,12 @@ int GRAPHspD(Graph G, int id, int end) {
     exit(1);
   }
 
+  mindist = malloc(G->V * sizeof(int));
+
   //insert all nodes in the priority queue with total weight equal to infinity
   for (v = 0; v < G->V; v++){
     path[v] = -1;
+    mindist[v] = maxWT;
     PQinsert(pq, v, maxWT);
     #if DEBUG
       printf("Inserted node %d priority %d\n", v, maxWT);
@@ -68,6 +70,7 @@ int GRAPHspD(Graph G, int id, int end) {
 
   path[id] = id;
   PQchange(pq, id, 0);
+  mindist[id] = 0;
   while (!PQempty(pq)){
     min_item = PQextractMin(pq);
     #if DEBUG
@@ -80,26 +83,17 @@ int GRAPHspD(Graph G, int id, int end) {
     }
 
     // if the node is discovered
-    if(min_item.priority != maxWT){
+    if(mindist[min_item.index] != maxWT){
       // mindist[min_item.index] = min_item.priority;
 
       for(t=G->ladj[min_item.index]; t!=G->z; t=t->next){
-        if(PQsearch(pq, t->v, &neighbour_priority) < 0){
-          // The node is already closed
-          continue;
-        }
-        #if DEBUG
-          printf("Node: %d, Neighbour: %d, New priority: %.3f, Neighbour priority: %.3f\n", min_item.index, t->v, min_item.priority + t->wt, neighbour_priority);
-        #endif
-
-        if(min_item.priority + t->wt < (neighbour_priority)){
-          // we have found a better path
+        // se è nella PQ
+        // PQsearch(pq, t->v, &neighbour_priority);
+        if(min_item.priority + t->wt < mindist[t->v]){
+          mindist[t->v] = min_item.priority + t->wt;
           PQchange(pq, t->v, min_item.priority + t->wt);
           path[t->v] = min_item.index;
         }
-        #if DEBUG
-          PQdisplayHeap(pq);
-        #endif
       }
     }
   }
@@ -109,20 +103,14 @@ int GRAPHspD(Graph G, int id, int end) {
     int sizeofPath = sizeof(int)*G->V;
     int sizeofPQ = sizeof(PQ*) + PQmaxSize(pq)*sizeof(Item);
     int total = sizeofPath+sizeofPQ;
-    int expandedNodes = 0;
     printf("sizeofPath= %d B (%d MB), sizeofPQ= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
-    for(int i=0;i<G->V;i++){
-      if(path[i]>=0)
-        expandedNodes++;
-    }
-    printf("Expanded nodes: %d\n",expandedNodes);
   #endif
 
   // Print the found path
-  if(path[end] == -1){
+  if(path[v] == -1){
     printf("No path from %d to %d has been found.\n", id, end);
   }else{
-    printf("Path from %d to %d has been found with cost %.3f.\n", id, end, min_item.priority);
+    printf("Path from %d to %d has been found with cost %.3d.\n", id, end, min_item.priority);
     for(int v=end; v!=id; ){
       printf("%d <- ", v);
       v = path[v];
@@ -136,6 +124,7 @@ int GRAPHspD(Graph G, int id, int end) {
     TIMERfree(timer);
   #endif
 
+  //free(mindist);
   free(path);
   PQfree(pq);
 
@@ -171,182 +160,150 @@ int GRAPHcheckAdmissibility(Graph G,int source, int target){
 // gScores are obtained starting from the fScores and subtracting the value of the heuristic
 
 //openSet is enlarged gradually (inside PQinsert)
-void GRAPHSequentialAStar(Graph G, int start, int end, double (*h)(Coord, Coord)){
+void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Coord coord2)){
   if(G == NULL){
     printf("No graph inserted.\n");
-    return;
+    return ;
   }
 
-  PQ openSet_PQ;
-  float *closedSet;
-  int *path, hop=0, isInsert;
-  float newGscore, newFscore, prio;
-  float neighboor_fScore, neighboor_hScore;
-  Item extrNode;
-  Coord dest_coord, coord, neighboor_coord;
+  int v, hop=0;
   ptr_node t;
+  Item extrNode;
+  PQ openSet;
+  int *path, *closedSet;
+  int newGscore, newFscore;
+  int hScore, neighboor_hScore, neighboor_fScore;
+  int flag;
+  Coord coord, dest_coord, neighboor_coord;
+
   #ifdef TIME
     Timer timer = TIMERinit(1);
   #endif
 
-  isNotConsistent = 0;
-
-  //init the open set (priority queue)
-  openSet_PQ = PQinit(1);
-  if(openSet_PQ == NULL){
-    perror("Error trying to create openSet_PQ: ");
+  openSet = PQinit(G->V);
+  if(openSet == NULL){
+    perror("Error trying to create openSet: ");
     exit(1);
   }
 
-  //init the closed set (int array)
-  closedSet = malloc(G->V * sizeof(float));
-  if(closedSet == NULL){
-    perror("Error trying to create closedSet: ");
-    exit(1);
-  }
-
-  //allocate the path array
-  path = (int *) malloc(G->V * sizeof(int));
+  path = malloc(G->V * sizeof(int));
   if(path == NULL){
-    perror("Error trying to allocate path array: ");
     exit(1);
   }
 
-  for(int i=0; i<G->V; i++){
-    closedSet[i]=-1;
-    path[i]=-1;
+  closedSet = malloc(G->V * sizeof(int));
+  
+  //insert all nodes in the priority queue with total weight equal to infinity
+  for (v = 0; v < G->V; v++){
+    path[v] = -1;
+    closedSet[v] = -1;
+    #if DEBUG
+      printf("Inserted node %d priority %d\n", v, maxWT);
+    #endif
   }
+  #if DEBUG
+    PQdisplayHeap(openSet);
+  #endif
 
   #ifdef TIME
     TIMERstart(timer);
   #endif
-  
-  //retrieve coordinates of the target vertex
+
+  coord = STsearchByIndex(G->coords, start);
   dest_coord = STsearchByIndex(G->coords, end);
 
-  //compute starting node's fScore. (gScore = 0)
-  coord = STsearchByIndex(G->coords, start);
-  prio = h(coord, dest_coord);
-
-  //insert the starting node in the open set (priority queue)
-  PQinsert(openSet_PQ, start, prio);
   path[start] = start;
+  closedSet[start] = 0 + h(coord, dest_coord);
 
-  //until the open set is not empty
-  while(!PQempty(openSet_PQ)){
-    printf("%c\b", spinner[(spin++)%4]);
+  PQinsert(openSet, start, closedSet[start]);
 
-    //extract the vertex with the lowest fScore
-    extrNode = PQextractMin(openSet_PQ);
+  while (!PQempty(openSet)){
+    //extract node
+    extrNode = PQextractMin(openSet);
+    //printf("extrNode.index: %d\n", extrNode.index);
+    #if DEBUG
+      printf("Min extracted is (index): %d\n", extrNode.index);
+    #endif
 
-    //retrieve its coordinates
-    coord = STsearchByIndex(G->coords, extrNode.index);
-    
-    //add the extracted node to the closed set
+    //add to the closed set
     closedSet[extrNode.index] = extrNode.priority;
 
-    //if the extracted node is the goal one, end the computation
-    if(extrNode.index == end)
+    //it it is the destination node, end computation
+    if(extrNode.index == end){
+      // we reached the end node
       break;
+    }
 
-    //consider all adjacent vertex of the extracted node
+    coord = STsearchByIndex(G->coords, extrNode.index);
+    hScore = h(coord, dest_coord);
+
     for(t=G->ladj[extrNode.index]; t!=G->z; t=t->next){
-      //retrieve coordinates of the adjacent vertex
       neighboor_coord = STsearchByIndex(G->coords, t->v);
       neighboor_hScore = h(neighboor_coord, dest_coord);
-
-      //cost to reach the extracted node is equal to fScore less the heuristic.
-      //newGscore is the sum between the cost to reach extrNode and the
-      //weight of the edge to reach its neighboor.
-      newGscore = (extrNode.priority - h(coord, dest_coord)) + t->wt;
+      newGscore = (extrNode.priority - hScore) + t->wt;
       newFscore = newGscore + neighboor_hScore;
 
-      isInsert = -1;
-
-      //check if adjacent node has been already closed
-      if( (neighboor_fScore = closedSet[t->v]) >= 0){
-        // n' belongs to CLOSED SET
-
-        //if a lower gScore is found, reopen the vertex
-        if(newGscore < neighboor_fScore - neighboor_hScore){
-          if(!isNotConsistent){
-            printf("The heuristic function is NOT consistent\n");
-            isNotConsistent = 1;
-          }
-          //remove it from closed set
+      //if it belongs to the closed set
+      if(closedSet[t->v] > -1){
+        if(newGscore < (closedSet[t->v] - neighboor_hScore)){
           closedSet[t->v] = -1;
-          
-          //add it to the open set
-          isInsert = 1;
+          // printf("%d is adding %d (f(n)=%d)\n", extrNode.index, t->v, newFscore);
+          PQinsert(openSet, t->v, newFscore);
         }
         else
           continue;
-      }
-      //if it hasn't been closed yet
-      else{
-        if(PQsearch(openSet_PQ, t->v, &neighboor_fScore) < 0){
-          //if it doesn't belong to the open set yet, add it
-          isInsert = 1;
+      }else{  //it doesn't belong to closed set
+        flag = PQsearch(openSet, t->v, &neighboor_fScore);
+
+        //if it doesn't belong to the open set
+        if(flag < 0){
+          PQinsert(openSet, t->v, newFscore);
+          // printf("%d is adding %d (f(n)=%d)\n", extrNode.index, t->v, newFscore);
         }
-        //if it belongs to the open set but with a lower gScore, continue
-        else if(newGscore >= neighboor_fScore - neighboor_hScore)
+        
+        else if(newGscore >= (neighboor_fScore - neighboor_hScore))
           continue;
         else{
-          // change the fScore if this new path is better
-          isInsert = 0;
+          // printf("%d is changing priority of %d (f(n)=%d)\n", extrNode.index, t->v, newFscore);
+          PQchange(openSet, t->v, newFscore);
         }
       }
-
-      if(isInsert == -1){
-        // error
-        printf("PANIC!!!!!!\n");
-        exit(1);
-      }else if(isInsert){
-        // PQinsert new Fscore
-        PQinsert(openSet_PQ, t->v, newFscore);
-      }else{
-        // PQchange new Fscore
-        PQchange(openSet_PQ, t->v, newFscore);
-      }
-      // change parent
+      // gScore[t->v] = newGscore;
+      // fScore[t->v] = newFscore;
       path[t->v] = extrNode.index;
     }
+
   }
 
   #ifdef TIME
     TIMERstopEprint(timer);
     int sizeofPath = sizeof(int)*G->V;
-    int sizeofClosedSet = sizeof(float)*G->V;
-    int sizeofPQ = sizeof(PQ*) + PQmaxSize(openSet_PQ)*sizeof(Item);
-    int total = sizeofPath+sizeofClosedSet+sizeofPQ;
-    int expandedNodes = 0;
-    printf("sizeofPath= %d B (%d MB *2), sizeofClosedSet= %d B (%d MB), sizeofOpenSet= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofClosedSet, sizeofClosedSet>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
-    for(int i=0;i<G->V;i++){
-      if(path[i]>=0)
-        expandedNodes++;
-    }
-    printf("Expanded nodes: %d\n",expandedNodes);
+    int sizeofPQ = sizeof(PQ*) + PQmaxSize(openSet)*sizeof(Item);
+    int total = sizeofPath+sizeofPQ;
+    printf("sizeofPath= %d B (%d MB), sizeofPQ= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
   #endif
 
-  if(closedSet[end] < 0)
+  // Print the found path
+  if(path[v] == -1){
     printf("No path from %d to %d has been found.\n", start, end);
-  else{
-    printf("Path from %d to %d has been found with cost %.3f.\n", start, end, extrNode.priority);
+  }else{
+    printf("Path from %d to %d has been found with cost %.3d.\n", start, end, extrNode.priority);
     for(int v=end; v!=start; ){
       printf("%d <- ", v);
       v = path[v];
       hop++;
     }
-    printf("%d\nHops: %d\n", start, hop);
+    printf("%d\nHops: %d\n",start, hop);
   }
-
-
+  
+  
   #ifdef TIME
     TIMERfree(timer);
   #endif
+
+  PQfree(openSet);
   free(path);
   free(closedSet);
-  PQfree(openSet_PQ);
 
   return;
 }
@@ -361,7 +318,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end, double (*h)(Coord, Coord)
 //openSet is enlarged gradually (inside PQinsert)
 
 PQ openSet_PQ;
-float *closedSet, bCost;
+int *closedSet, bCost;
 int *path, n;
 Timer timer;
 
@@ -384,7 +341,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
     printf("No graph inserted.\n");
     return;
   }
-  float prio;
+  int prio;
   Coord dest_coord, coord;
   thArg_t *thArgArray;
   pthread_mutex_t *meNodes, *meBest;
@@ -395,14 +352,14 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   #endif
 
   //init the open set (priority queue)
-  openSet_PQ = PQinit(1);
+  openSet_PQ = PQinit(G->V);
   if(openSet_PQ == NULL){
     perror("Error trying to create openSet_PQ: ");
     exit(1);
   }
 
   //init the closed set (int array)
-  closedSet = malloc(G->V * sizeof(float));
+  closedSet = malloc(G->V * sizeof(int));
   if(closedSet == NULL){
     perror("Error trying to create closedSet: ");
     exit(1);
@@ -489,7 +446,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   if(path[0]==-1)
     printf("No path from %d to %d has been found.\n", start, end);
   else{
-    printf("Path from %d to %d has been found with cost %.3f.\n", start, end, bCost);
+    printf("Path from %d to %d has been found with cost %d\n", start, end, bCost);
     int hops=0;
     for(int i=end; i!=start; i=path[i]){
       printf("%d <- ", i);
@@ -516,8 +473,8 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
 static void* thFunction(void *par){
   thArg_t *arg = (thArg_t *)par;
 
-  float newGscore, newFscore, Hscore;
-  float neighboor_fScore, neighboor_hScore;
+  int newGscore, newFscore, Hscore;
+  int neighboor_fScore, neighboor_hScore;
   Item extrNode;
   Graph G = arg->G;
   Coord dest_coord, extr_coord, neighboor_coord;
@@ -585,14 +542,14 @@ static void* thFunction(void *par){
     pthread_mutex_unlock(arg->meNodes);
 
     #ifdef DEBUG
-      printf("%d: extracted node:%d prio:%f\n", arg->id, extrNode.index, extrNode.priority);
+      printf("%d: extracted node:%d prio:%d\n", arg->id, extrNode.index, extrNode.priority);
     #endif
 
     pthread_mutex_lock(arg->meBest);
     if(extrNode.priority >= bCost){
       pthread_mutex_unlock(arg->meBest);
       #ifdef DEBUG
-        printf("%d: f(n)=%f >= f(bestPath)=%f, skip it!\n", arg->id, extrNode.priority, best->cost);
+        printf("%d: f(n)=%d >= f(bestPath)=%d, skip it!\n", arg->id, extrNode.priority, bCost);
       #endif
       continue;
     }
@@ -606,7 +563,7 @@ static void* thFunction(void *par){
     // a lower cost, and if necessary update the cost
     if(extrNode.index == arg->end){
       #ifdef DEBUG
-        printf("%d: found the target with cost: %f\n", arg->id, extrNode.priority);
+        printf("%d: found the target with cost: %d\n", arg->id, extrNode.priority);
       #endif
       pthread_mutex_lock(arg->meBest);
         if(extrNode.priority < bCost){          
@@ -658,7 +615,7 @@ static void* thFunction(void *par){
         // n' belongs to CLOSED SET
 
         #ifdef DEBUG
-          printf("%d: found a closed node %d f(n')=%f\n",arg->id, t->v, neighboor_fScore);
+          printf("%d: found a closed node %d f(n')=%d\n",arg->id, t->v, neighboor_fScore);
         #endif
 
         //if a lower gScore is found, reopen the vertex
@@ -672,7 +629,7 @@ static void* thFunction(void *par){
           //remove it from closed set
           closedSet[t->v] = -1;
           #ifdef DEBUG
-            printf("%d: a new better path is found for a closed node %d old g(n')=%f, new g(n')= %f, f(n')=%f\n", arg->id, t->v, neighboor_fScore - neighboor_hScore, newGscore, newFscore);
+            printf("%d: a new better path is found for a closed node %d old g(n')=%d, new g(n')= %d, f(n')=%d\n", arg->id, t->v, neighboor_fScore - neighboor_hScore, newGscore, newFscore);
           #endif
           
           //add it to the open set
@@ -684,7 +641,7 @@ static void* thFunction(void *par){
         }else{
           pthread_mutex_unlock(arg->meNodes);
           #ifdef DEBUG
-            printf("%d: g1=%f >= g(n')=%f, skip it!\n",arg->id, newGscore, neighboor_fScore - neighboor_hScore);
+            printf("%d: g1=%d >= g(n')=%d, skip it!\n",arg->id, newGscore, neighboor_fScore - neighboor_hScore);
           #endif
           continue;
         }
@@ -692,7 +649,7 @@ static void* thFunction(void *par){
         if(PQsearch(openSet_PQ, t->v, &neighboor_fScore) < 0){
           //if it doesn't belong to the open set yet, add it
           #ifdef DEBUG
-            printf("%d: found a new node %d f(n')=%f\n",arg->id, t->v, newFscore);
+            printf("%d: found a new node %d f(n')=%d\n",arg->id, t->v, newFscore);
           #endif
 
           PQinsert(openSet_PQ, t->v, newFscore);
@@ -705,14 +662,14 @@ static void* thFunction(void *par){
         else if(newGscore >= neighboor_fScore - neighboor_hScore){
           pthread_mutex_unlock(arg->meNodes);
           #ifdef DEBUG
-            printf("%d: g1=%f >= g(n')=%f, skip it!\n",arg->id, newGscore, neighboor_fScore - neighboor_hScore);
+            printf("%d: g1=%d >= g(n')=%d, skip it!\n",arg->id, newGscore, neighboor_fScore - neighboor_hScore);
           #endif
           continue;
         }
         else{
           // change the fScore if this new path is better
           #ifdef DEBUG
-            printf("%d: change the f(n')=%f because old g(n')=%f > new g(n')=%f\n", arg->id,newFscore, neighboor_fScore - neighboor_hScore, newGscore );
+            printf("%d: change the f(n')=%d because old g(n')=%d > new g(n')=%d\n", arg->id,newFscore, neighboor_fScore - neighboor_hScore, newGscore );
           #endif
 
           PQchange(openSet_PQ, t->v, newFscore);

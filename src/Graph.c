@@ -204,9 +204,9 @@ static void *loadThread(void *vpars){
         ret=1;
         pthread_exit(&ret);
       }
-      // #ifdef DEBUG
-      //   printf("%d: curr=%d coords=%d %d\n", pars->id, curr, v.coord1, v.coord2);
-      // #endif
+      #ifdef DEBUG
+        //printf("%d: curr=%d coords=%d %d\n", pars->id, curr, v.coord1, v.coord2);
+      #endif
       STinsert(G->coords, v.coord1, v.coord2, curr);
     }
   }else{    
@@ -214,9 +214,9 @@ static void *loadThread(void *vpars){
       // get the position
       pthread_mutex_lock(meLoadE);
       curr = posE;
-      // #ifdef DEBUG
-      //   printf("%d: curr E=%d\n", pars->id, curr);
-      // #endif
+      #ifdef DEBUG
+        //printf("%d: curr E=%d\n", pars->id, curr);
+      #endif
       posE++;
       pthread_mutex_unlock(meLoadE);
       // move the pointer into file
@@ -240,9 +240,9 @@ static void *loadThread(void *vpars){
         ret=1;
         pthread_exit(&ret);
       }
-      // #ifdef DEBUG
-      //   printf("%d %d %d\n", e.vert1, e.vert2, e.wt);
-      // #endif
+      #ifdef DEBUG
+        //printf("%d %d %d\n", e.vert1, e.vert2, e.wt);
+      #endif
       if (e.vert1 >= 0 && e.vert2 >=0)
         GRAPHinsertE(G, e.vert1-1, e.vert2-1, e.wt); // nodes into file starts from 1
     }
@@ -327,9 +327,9 @@ Graph GRAPHSequentialLoad(char *fin) {
         close(fd);
         return NULL;
       }
-    // #ifdef DEBUG
-    //   printf("%d: %d %d\n", i, v.coord1, v.coord2);
-    // #endif
+    #ifdef DEBUG
+      //printf("%d: %d %d\n", i, v.coord1, v.coord2);
+    #endif
     STinsert(G->coords, v.coord1, v.coord2, i);
   }
 
@@ -348,9 +348,9 @@ Graph GRAPHSequentialLoad(char *fin) {
       close(fd);
       return NULL;
     }
-    // #ifdef DEBUG
-    //   printf("%d %d %d\n", e.vert1, e.vert2, e.wt);
-    // #endif
+    #ifdef DEBUG
+      //printf("%d %d %d\n", e.vert1, e.vert2, e.wt);
+    #endif
 
     //insert the edge.
     //By calling GRAPHinsertE a new node in the adjacency list of vert1
@@ -591,7 +591,7 @@ void  GRAPHcomputeDistance(Graph G, int v1, int v2){
   coord1 = STsearchByIndex(G->coords, v1);
   coord2 = STsearchByIndex(G->coords, v2);
 
-  printf("Distance (heuristic): %f\n", Hcoord(coord1, coord2));
+  printf("Distance (heuristic): %d\n", Hcoord(coord1, coord2));
 }
 
 void  GRAPHgetEdge(Graph G, int start, int end){

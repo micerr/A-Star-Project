@@ -11,11 +11,11 @@ PQ      PQinit(int maxN);
 void    PQfree(PQ pq);
 int     PQempty(PQ pq);
 int     PQmaxSize(PQ pq);
-void    PQinsert(PQ pq, int index, float priority);
+void    PQinsert(PQ pq, int index, int priority);
 Item    PQextractMin(PQ pq);
-Item    PQgetMin(PQ pq);
-void    PQchange (PQ pq, int node_index, float priority);
-int     PQsearch(PQ pq, int node_index, float *priority);
+void    PQchange (PQ pq, int node_index, int priority);
+int     PQsearch(PQ pq, int node_index, int *priority);
 void    PQdisplayHeap(PQ pq);
+float PQgetPriority(PQ pq, int index);
 
 #endif
