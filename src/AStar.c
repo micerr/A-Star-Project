@@ -329,11 +329,12 @@ typedef struct thArg_s {
   int id;
   pthread_mutex_t *meNodes, *meBest;
   pthread_cond_t *cv;
+  int (*h)(Coord, Coord);
 } thArg_t;
 
 static void* thFunction(void *par);
 
-void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
+void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
 
   setbuf(stdout, NULL);
 
@@ -382,7 +383,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
 
   //compute starting node's fScore. (gScore = 0)
   coord = STsearchByIndex(G->coords, start);
-  prio = Hcoord(coord, dest_coord);
+  prio = h(coord, dest_coord);
 
   //insert the starting node in the open set (priority queue)
   PQinsert(openSet_PQ, start, prio);
@@ -418,6 +419,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
     thArgArray[i].meNodes = meNodes;
     thArgArray[i].cv = cv;
     thArgArray[i].meBest = meBest;
+    thArgArray[i].h = h;
     #ifdef DEBUG
       printf("Creo thread %d\n", i);
     #endif
@@ -557,7 +559,7 @@ static void* thFunction(void *par){
 
     //retrieve its coordinates
     extr_coord = STsearchByIndex(G->coords, extrNode.index);
-    Hscore = Hcoord(extr_coord, dest_coord);
+    Hscore = arg->h(extr_coord, dest_coord);
     
     //if the extracted node is the goal one, check if it has been reached with
     // a lower cost, and if necessary update the cost
@@ -581,7 +583,7 @@ static void* thFunction(void *par){
       #endif
       //retrieve coordinates of the adjacent vertex
       neighboor_coord = STsearchByIndex(G->coords, t->v);
-      neighboor_hScore = Hcoord(neighboor_coord, dest_coord); 
+      neighboor_hScore = arg->h(neighboor_coord, dest_coord); 
 
       //cost to reach the extracted node is equal to fScore less the heuristic.
       //newGscore is the sum between the cost to reach extrNode and the
