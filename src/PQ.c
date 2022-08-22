@@ -360,6 +360,11 @@ int PQsearch(PQ pq, int node_index, int *priority){
 Item PQextractMin(PQ pq) {
   Item item;
 
+  if(pq->heapsize == 0){
+    item.index = item.priority = -1;
+    return item;
+  }
+
   //swap the root with last element of the array
   Swap (pq, 0, pq->heapsize-1);
   //store the Item to return
