@@ -105,7 +105,7 @@ int GRAPHspD(Graph G, int id, int end) {
   if(path[v] == -1){
     printf("No path from %d to %d has been found.\n", id, end);
   }else{
-    printf("Path from %d to %d has been found with cost %.3f.\n", id, end, min_item.priority);
+    printf("Path from %d to %d has been found with cost %.3d.\n", id, end, min_item.priority);
     for(int v=end; v!=id; ){
       printf("%d <- ", v);
       v = path[v];
@@ -165,11 +165,10 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   Item extrNode;
   PQ openSet;
   int *path, *closedSet;
-  int *gScore, *fScore;
   int newGscore, newFscore;
-  int hScore;
+  int hScore, neighboor_hScore, neighboor_fScore;
   int flag;
-  Coord coord, dest_coord;
+  Coord coord, dest_coord, neighboor_coord;
 
   #ifdef TIME
     Timer timer = TIMERinit(1);
@@ -182,16 +181,13 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
     exit(1);
   }
 
-  gScore = malloc(G->V * sizeof(int));
-  fScore = malloc(G->V * sizeof(int));
   closedSet = malloc(G->V * sizeof(int));
   
   //insert all nodes in the priority queue with total weight equal to infinity
   for (v = 0; v < G->V; v++){
     path[v] = -1;
-    closedSet[v] = 0;
-    gScore[v] = fScore[v] = maxWT;
-    #if DEBUG
+    closedSet[v] = -1;
+  #if DEBUG
       printf("Inserted node %d priority %d\n", v, maxWT);
     #endif
   }
@@ -207,10 +203,9 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   dest_coord = STsearchByIndex(G->coords, end);
 
   path[start] = start;
-  gScore[start] = 0;
-  fScore[start] = gScore[start] + h(coord, dest_coord);
+  closedSet[start] = 0 + h(coord, dest_coord);
 
-  PQinsert(openSet, start, fScore[start]);
+  PQinsert(openSet, start, closedSet[start]);
 
   while (!PQempty(openSet)){
     //extract node
@@ -221,7 +216,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
     #endif
 
     //add to the closed set
-    closedSet[extrNode.index] = 1;
+    closedSet[extrNode.index] = extrNode.priority;
 
     //it it is the destination node, end computation
     if(extrNode.index == end){
@@ -229,23 +224,26 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
       break;
     }
 
+    coord = STsearchByIndex(G->coords, extrNode.index);
+    hScore = h(coord, dest_coord);
+
     for(t=G->ladj[extrNode.index]; t!=G->z; t=t->next){
-      coord = STsearchByIndex(G->coords, t->v);
-      newGscore = gScore[extrNode.index] + t->wt;
-      hScore = h(coord, dest_coord);
-      newFscore = newGscore + hScore;
+      neighboor_coord = STsearchByIndex(G->coords, t->v);
+      neighboor_hScore = h(neighboor_coord, dest_coord);
+      newGscore = (extrNode.priority - hScore) + t->wt;
+      newFscore = newGscore + neighboor_hScore;
 
       //if it belongs to the closed set
-      if(closedSet[t->v] == 1){
-        if(newGscore < gScore[t->v]){
-          closedSet[t->v] = 0;
+      if(closedSet[t->v] > -1){
+        if(newGscore < (closedSet[t->v] - neighboor_hScore)){
+          closedSet[t->v] = -1;
           // printf("%d is adding %d (f(n)=%d)\n", extrNode.index, t->v, newFscore);
           PQinsert(openSet, t->v, newFscore);
         }
         else
           continue;
       }else{  //it doesn't belong to closed set
-        flag = PQsearch(openSet, t->v, NULL);
+        flag = PQsearch(openSet, t->v, &neighboor_fScore);
 
         //if it doesn't belong to the open set
         if(flag < 0){
@@ -253,15 +251,15 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
           // printf("%d is adding %d (f(n)=%d)\n", extrNode.index, t->v, newFscore);
         }
         
-        else if(newGscore >= gScore[t->v])
+        else if(newGscore >= (neighboor_fScore - neighboor_hScore))
           continue;
         else{
           // printf("%d is changing priority of %d (f(n)=%d)\n", extrNode.index, t->v, newFscore);
           PQchange(openSet, t->v, newFscore);
         }
       }
-      gScore[t->v] = newGscore;
-      fScore[t->v] = newFscore;
+      // gScore[t->v] = newGscore;
+      // fScore[t->v] = newFscore;
       path[t->v] = extrNode.index;
     }
 
@@ -279,7 +277,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   if(path[v] == -1){
     printf("No path from %d to %d has been found.\n", start, end);
   }else{
-    printf("Path from %d to %d has been found with cost %.3f.\n", start, end, extrNode.priority);
+    printf("Path from %d to %d has been found with cost %.3d.\n", start, end, extrNode.priority);
     for(int v=end; v!=start; ){
       printf("%d <- ", v);
       v = path[v];
@@ -296,8 +294,6 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   PQfree(openSet);
   free(path);
   free(closedSet);
-  free(gScore);
-  free(fScore);
 
   return;
 }

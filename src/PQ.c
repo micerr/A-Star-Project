@@ -157,7 +157,7 @@ int PQmaxSize(PQ pq){
   Parameters: PQ in which we want to insert the new node, array containing
   priority of each Item in the heap, Item's index used to retrieve its priority.
 */
-void PQinsert (PQ pq, int node_index, float priority){
+void PQinsert (PQ pq, int node_index, int priority){
   Item *item = ITEMinit(node_index, priority);
   int i;
   
@@ -276,7 +276,7 @@ void *thread_search(void* arg){
 Searches for a specific node inside the Item array and returns it's index 
 and the priority value inside the priority pointer
 */
-int PQsearch(PQ pq, int node_index, float *priority){
+int PQsearch(PQ pq, int node_index, int *priority){
   #ifndef PARALLEL_SEARCH
 
     for(int i=0; i<pq->heapsize; i++){
@@ -398,7 +398,7 @@ Item PQextractMin(PQ pq) {
   Parameters: PQ, Items' priority array and position of the Item we want
   to change priority. 
 */
-void PQchange (PQ pq, int node_index, float priority) {
+void PQchange (PQ pq, int node_index, int priority) {
   // printf("Searching for %d with priority %d\n", node_index, priority);
 
   int item_index = PQsearch(pq, node_index, NULL);
@@ -418,7 +418,7 @@ void PQchange (PQ pq, int node_index, float priority) {
 
 void PQdisplayHeap(PQ pq){
   for(int i=0; i<pq->heapsize; i++){
-    printf("i = %d, priority = %f\n", (pq->A[i]).index, (pq->A[i]).priority);
+    printf("i = %d, priority = %.3d\n", (pq->A[i]).index, (pq->A[i]).priority);
   }
 
   return;
