@@ -170,11 +170,11 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   ptr_node t;
   Item extrNode;
   PQ openSet;
-  int *path, *closedSet;
+  int *path, *closedSet, *hScores;
   int newGscore, newFscore;
   int hScore, neighboor_hScore, neighboor_fScore;
   int flag;
-  Coord coord, dest_coord, neighboor_coord;
+  Coord coord, dest_coord;
 
   #ifdef TIME
     Timer timer = TIMERinit(1);
@@ -188,15 +188,29 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
 
   path = malloc(G->V * sizeof(int));
   if(path == NULL){
+    perror("Error trying to allocate path: ");
     exit(1);
   }
 
   closedSet = malloc(G->V * sizeof(int));
-  
-  //insert all nodes in the priority queue with total weight equal to infinity
+  if(closedSet == NULL){
+    perror("Error trying to allocate closedSet: ");
+    exit(1);
+  }
+
+  hScores = malloc(G->V * sizeof(int));
+  if(hScores == NULL){
+    perror("Error trying to allocate hScores: ");
+    exit(1);
+  }
+
+  dest_coord = STsearchByIndex(G->coords, end);
+
   for (v = 0; v < G->V; v++){
     path[v] = -1;
     closedSet[v] = -1;
+    coord = STsearchByIndex(G->coords, v);
+    hScores[v] = h(coord, dest_coord);
     #if DEBUG
       printf("Inserted node %d priority %d\n", v, maxWT);
     #endif
@@ -209,11 +223,8 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
     TIMERstart(timer);
   #endif
 
-  coord = STsearchByIndex(G->coords, start);
-  dest_coord = STsearchByIndex(G->coords, end);
-
   path[start] = start;
-  closedSet[start] = 0 + h(coord, dest_coord);
+  closedSet[start] = 0 + hScores[start];
 
   PQinsert(openSet, start, closedSet[start]);
 
@@ -234,12 +245,10 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
       break;
     }
 
-    coord = STsearchByIndex(G->coords, extrNode.index);
-    hScore = h(coord, dest_coord);
+    hScore = hScores[extrNode.index];
 
     for(t=G->ladj[extrNode.index]; t!=G->z; t=t->next){
-      neighboor_coord = STsearchByIndex(G->coords, t->v);
-      neighboor_hScore = h(neighboor_coord, dest_coord);
+      neighboor_hScore = hScores[t->v];
       newGscore = (extrNode.priority - hScore) + t->wt;
       newFscore = newGscore + neighboor_hScore;
 
@@ -268,8 +277,6 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
           PQchange(openSet, t->v, newFscore);
         }
       }
-      // gScore[t->v] = newGscore;
-      // fScore[t->v] = newFscore;
       path[t->v] = extrNode.index;
     }
 
@@ -304,7 +311,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   PQfree(openSet);
   free(path);
   free(closedSet);
-
+  free(hScores);
   return;
 }
 
@@ -319,6 +326,7 @@ void GRAPHSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
 
 PQ openSet_PQ;
 int *closedSet, bCost;
+int *hScores;
 int *path, n;
 Timer timer;
 
@@ -373,6 +381,13 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord,
     exit(1);
   }
 
+  //init hScores array
+  hScores = (int *) malloc(G->V * sizeof(int));
+  if(hScores == NULL){
+    perror("Error trying to allocate hScores: ");
+    exit(1);
+  }
+
   for(int i=0; i<G->V; i++){
     closedSet[i]=-1;
     path[i]=-1;
@@ -381,9 +396,14 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord,
   //retrieve coordinates of the target vertex
   dest_coord = STsearchByIndex(G->coords, end);
 
+  //compute all hScores for the desired end node
+  for(int v=0; v<G->V; v++){
+    coord = STsearchByIndex(G->coords, v);
+    hScores[v] = h(coord, dest_coord);    
+  }
+
   //compute starting node's fScore. (gScore = 0)
-  coord = STsearchByIndex(G->coords, start);
-  prio = h(coord, dest_coord);
+  prio = hScores[start];
 
   //insert the starting node in the open set (priority queue)
   PQinsert(openSet_PQ, start, prio);
@@ -419,7 +439,6 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord,
     thArgArray[i].meNodes = meNodes;
     thArgArray[i].cv = cv;
     thArgArray[i].meBest = meBest;
-    thArgArray[i].h = h;
     #ifdef DEBUG
       printf("Creo thread %d\n", i);
     #endif
@@ -468,6 +487,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord,
   free(meBest);
   free(meNodes);
   free(thArgArray);
+  free(hScores);
 
   return;
 }
@@ -479,13 +499,9 @@ static void* thFunction(void *par){
   int neighboor_fScore, neighboor_hScore;
   Item extrNode;
   Graph G = arg->G;
-  Coord dest_coord, extr_coord, neighboor_coord;
   ptr_node t;
 
   isNotConsistent = 0;
-
-  //retrieve coordinates of the target vertex
-  dest_coord = STsearchByIndex(G->coords, arg->end);
 
   #ifdef TIME
     TIMERstart(timer);
@@ -558,8 +574,8 @@ static void* thFunction(void *par){
     pthread_mutex_unlock(arg->meBest);
 
     //retrieve its coordinates
-    extr_coord = STsearchByIndex(G->coords, extrNode.index);
-    Hscore = arg->h(extr_coord, dest_coord);
+    //extr_coord = STsearchByIndex(G->coords, extrNode.index);
+    Hscore = hScores[extrNode.index];
     
     //if the extracted node is the goal one, check if it has been reached with
     // a lower cost, and if necessary update the cost
@@ -582,8 +598,8 @@ static void* thFunction(void *par){
         printf("Thread %d is analyzing edge(%d,%d)\n", arg->id, extrNode.index, t->v);
       #endif
       //retrieve coordinates of the adjacent vertex
-      neighboor_coord = STsearchByIndex(G->coords, t->v);
-      neighboor_hScore = arg->h(neighboor_coord, dest_coord); 
+      // neighboor_coord = STsearchByIndex(G->coords, t->v);
+      neighboor_hScore = hScores[t->v]; 
 
       //cost to reach the extracted node is equal to fScore less the heuristic.
       //newGscore is the sum between the cost to reach extrNode and the
