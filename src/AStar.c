@@ -361,24 +361,17 @@ void GRAPHSequentialAStar(Graph G, int start, int end, double (*h)(Coord, Coord)
 //openSet is enlarged gradually (inside PQinsert)
 
 PQ openSet_PQ;
-float *closedSet;
+float *closedSet, bCost;
 int *path, n;
 Timer timer;
-
-typedef struct bestPath_s{
-  int *path, len;
-  float cost;
-  pthread_mutex_t *me;
-}BestPath;
 
 typedef struct thArg_s {
   pthread_t tid;
   Graph G;
   int start, end, numTH;
   int id;
-  pthread_mutex_t *meNodes;
+  pthread_mutex_t *meNodes, *meBest;
   pthread_cond_t *cv;
-  BestPath *best;
 } thArg_t;
 
 static void* thFunction(void *par);
@@ -394,7 +387,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   float prio;
   Coord dest_coord, coord;
   thArg_t *thArgArray;
-  pthread_mutex_t *meNodes;
+  pthread_mutex_t *meNodes, *meBest;
   pthread_cond_t *cv;
 
   #ifdef TIME
@@ -447,14 +440,10 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
 
   n=0;
 
-  //create struct BestPath
-  BestPath best;
-  best.path = malloc(sizeof(int));
-  best.path[0] = -1;
-  best.cost = maxWT;
-  best.len = 1;
-  best.me = malloc(sizeof(pthread_mutex_t));
-  pthread_mutex_init(best.me, NULL);
+  meBest = malloc(sizeof(pthread_mutex_t));
+  pthread_mutex_init(meBest, NULL);
+
+  bCost = maxWT;
 
   //create and launch all threads
   thArgArray = (thArg_t *)malloc(numTH * sizeof(thArg_t));
@@ -471,7 +460,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
     thArgArray[i].numTH = numTH;
     thArgArray[i].meNodes = meNodes;
     thArgArray[i].cv = cv;
-    thArgArray[i].best = &best;
+    thArgArray[i].meBest = meBest;
     #ifdef DEBUG
       printf("Creo thread %d\n", i);
     #endif
@@ -497,26 +486,27 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH){
   #endif
 
   //printf path and its cost
-  if(best.len==1 && best.path[0]==-1)
+  if(path[0]==-1)
     printf("No path from %d to %d has been found.\n", start, end);
   else{
-    printf("Path from %d to %d has been found with cost %.3f.\n", start, end, best.cost);
-    for(int i=best.len-1; i>0; i--){
-      printf("%d <- ", best.path[i]);
+    printf("Path from %d to %d has been found with cost %.3f.\n", start, end, bCost);
+    int hops=0;
+    for(int i=end; i!=start; i=path[i]){
+      printf("%d <- ", i);
+      hops++;
     }
-    printf("%d\nHops: %d\n", start, best.len-1);
+    printf("%d\nHops: %d\n", start, hops);
   }
 
 
   free(path);
-  free(best.path);
   free(closedSet);
   PQfree(openSet_PQ);
   pthread_mutex_destroy(meNodes);
-  pthread_mutex_destroy(best.me);
+  pthread_mutex_destroy(meBest);
   pthread_cond_destroy(cv);
   free(cv);
-  free(best.me);
+  free(meBest);
   free(meNodes);
   free(thArgArray);
 
@@ -530,7 +520,6 @@ static void* thFunction(void *par){
   float neighboor_fScore, neighboor_hScore;
   Item extrNode;
   Graph G = arg->G;
-  BestPath *best = arg->best;
   Coord dest_coord, extr_coord, neighboor_coord;
   ptr_node t;
 
@@ -599,15 +588,15 @@ static void* thFunction(void *par){
       printf("%d: extracted node:%d prio:%f\n", arg->id, extrNode.index, extrNode.priority);
     #endif
 
-    pthread_mutex_lock(best->me);
-    if(extrNode.priority >= best->cost){
-      pthread_mutex_unlock(best->me);
+    pthread_mutex_lock(arg->meBest);
+    if(extrNode.priority >= bCost){
+      pthread_mutex_unlock(arg->meBest);
       #ifdef DEBUG
         printf("%d: f(n)=%f >= f(bestPath)=%f, skip it!\n", arg->id, extrNode.priority, best->cost);
       #endif
       continue;
     }
-    pthread_mutex_unlock(best->me);
+    pthread_mutex_unlock(arg->meBest);
 
     //retrieve its coordinates
     extr_coord = STsearchByIndex(G->coords, extrNode.index);
@@ -619,60 +608,12 @@ static void* thFunction(void *par){
       #ifdef DEBUG
         printf("%d: found the target with cost: %f\n", arg->id, extrNode.priority);
       #endif
-      pthread_mutex_lock(best->me);
-        if(extrNode.priority < best->cost){
-          int len = 1, i;
-          pthread_mutex_lock(arg->meNodes);
-          // compute the dimension
-          for(i=arg->end; i!=arg->start; i=path[i]){
-            if(len>G->V || (i!=arg->start && path[path[i]] == i) ){
-              // found a loop
-              break;
-            }
-            len++;
-          }
-
-          // checker for the loop
-          if( len>G->V || (i!=arg->start && path[path[i]] == i)){
-            pthread_mutex_unlock(arg->meNodes);
-            pthread_mutex_unlock(best->me);
-            
-            printf("%d: loop in the path found\n", arg->id);
-            
-            continue;
-          }
-
-          // realloc for the new path
-          best->path = realloc(best->path, len*sizeof(int));
-          i = len-1;
-          // save the new path
-          for(best->path[i]=arg->end; i>0; ){
-            best->path[i-1] = path[best->path[i]];
-            i--;
-          }
-          pthread_mutex_unlock(arg->meNodes);
-
-          // check that the cost is really that cost
-          int k = 0, sum = 0;
-          for(i=arg->start; i!=arg->end; ){
-            for(t=G->ladj[i]; t!=G->z; t=t->next){
-              if(t->v==best->path[k+1]){
-                sum+=t->wt;
-                i = best->path[k+1];
-                k++;
-                break;
-              }
-            }
-          }
-          printf("Real cost is %d\n", sum);
-          
-          
-          // save the length
-          best->len = len;
+      pthread_mutex_lock(arg->meBest);
+        if(extrNode.priority < bCost){          
           // save the cost
-          best->cost = extrNode.priority;
+          bCost = extrNode.priority;
         }
-      pthread_mutex_unlock(best->me);
+      pthread_mutex_unlock(arg->meBest);
       continue;
     }
 
