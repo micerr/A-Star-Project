@@ -625,7 +625,7 @@ void  GRAPHgetEdge(Graph G, int start, int end){
 int GRAPHcheckAdmissibility(Graph G,int source, int target){
   int isAmmisible = 1;
   Coord coordTarget = STsearchByIndex(G->coords, target);
-  int C = ASTARSequentialAStar(G, source, target, Hhaver);
+  int C = GRAPHspD(G, source, target);
   if(C == -1) return -1;
   int h = Hcoord(STsearchByIndex(G->coords, source), coordTarget);
   if( h > C ){

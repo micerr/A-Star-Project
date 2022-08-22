@@ -6,7 +6,7 @@
 #define MAXC 11
 
 int main(void) {
-  int i, cont, id1, id2, wt, numThreads;
+  int i, cont, id1, id2, numThreads;
   char name[MAXC];
   Graph G = NULL;
 

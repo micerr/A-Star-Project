@@ -10,6 +10,6 @@
 // A-star implementations
 void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord, Coord));
 void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord));
-
+int GRAPHspD(Graph G, int id, int end); 
 
 #endif
