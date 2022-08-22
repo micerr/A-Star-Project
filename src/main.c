@@ -16,17 +16,11 @@ int main(void) {
     printf("===============\n");
     printf("1. Load graph from file (sequential)\n");
     printf("2. Load graph from file (parallel)\n");
-    printf("3. Edge insertion\n");
-    printf("4. Edge removal\n");
-    printf("5. Get coordinates of a vertex\n");
-    printf("6. Compute distance\n");
-    printf("7. Get weight of an edge\n");
-    printf("8. Check Admissibility\n");
+    printf("3. Check Admissibility\n");
     printf("---\n");
-    printf("9. Shortest path with Dijkstra's algorithm\n");
-    printf("10. Shortest path with sequential A*\n");
-    printf("11. Shortest path with SPA*\n");
-    printf("12. Free graph and exit\n");
+    printf("4. Shortest path with sequential A*\n");
+    printf("5. Shortest path with SPA*\n");
+    printf("6. Free graph and exit\n");
     printf("===============\n");
     printf("Enter your choice : ");
     if(scanf("%d",&i)<=0) {
@@ -60,54 +54,12 @@ int main(void) {
 
             case 3:     printf("\nInsert first node = ");
                         scanf("%d", &id1);
-                        printf("Insert second node = ");
-                        scanf("%d", &id2);
-                        printf("Insert weight = ");
-                        scanf("%d", &wt);
-                        GRAPHinsertE(G, id1, id2, wt);
-                        break;
-
-            case 4:     printf("\nInsert first node = ");
-                        scanf("%d", &id1);
-                        printf("Insert second node = ");
-                        scanf("%d", &id2);
-                        GRAPHremoveE(G, id1, id2);
-                        break;
-                    
-            case 5:     printf("\nInsert node's index = ");
-                        scanf("%d", &id1);
-                        GRAPHgetCoordinates(G, id1);
-                        break;
-
-            case 6:     printf("\nInsert first node = ");
-                        scanf("%d", &id1);
-                        printf("Insert second node = ");
-                        scanf("%d", &id2);
-                        GRAPHcomputeDistance(G, id1, id2);
-                        break;
-
-            case 7:     printf("\nInsert start node = ");
-                        scanf("%d", &id1);
-                        printf("Insert destination node = ");
-                        scanf("%d", &id2);
-                        GRAPHgetEdge(G, id1, id2);
-                        break;
-
-            case 8:     printf("\nInsert first node = ");
-                        scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
                         GRAPHcheckAdmissibility(G, id1, id2);
                         break;
 
-            case 9:     printf("\nInsert first node = ");
-                        scanf("%d", &id1);
-                        printf("Insert destination node = ");
-                        scanf("%d", &id2);
-                        GRAPHspD(G, id1, id2);
-                        break;
-
-            case 10:    printf("\nInsert starting node = ");
+            case 4:     printf("\nInsert starting node = ");
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
@@ -123,13 +75,13 @@ int main(void) {
                           switch (i)
                           {
                           case 1:
-                            GRAPHSequentialAStar(G, id1, id2, Hdijkstra);
+                            ASTARSequentialAStar(G, id1, id2, Hdijkstra);
                             break;
                           case 2:
-                            GRAPHSequentialAStar(G, id1, id2, Hcoord);
+                            ASTARSequentialAStar(G, id1, id2, Hcoord);
                             break;
                           case 3:
-                            GRAPHSequentialAStar(G, id1, id2, Hhaver);
+                            ASTARSequentialAStar(G, id1, id2, Hhaver);
                             break;
                           default:
                             printf("\nInvalid option\n");
@@ -138,7 +90,7 @@ int main(void) {
                         }
                         break;
 
-            case 11:    printf("\nInsert starting node = ");
+            case 5:    printf("\nInsert starting node = ");
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
@@ -171,7 +123,7 @@ int main(void) {
                         }                        
                         break;
 
-            case 12:    cont = 0;
+            case 6:    cont = 0;
                         break;
             default:    printf("\nInvalid option\n");
           }
