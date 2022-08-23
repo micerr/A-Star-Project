@@ -17,6 +17,8 @@
 #include "./utility/Timer.h"
 
 
+static char spinner[] = "|/-\\";
+static int spin = 0, isNotConsistent;
 
 // Data structures:
 // openSet -> Priority queue containing an heap made of Items (Item has index of node and priority (fScore))
@@ -33,6 +35,7 @@ int *hScores;
 int *path, n;
 Timer timer;
 
+static void* thFunction(void *par);
 
 void ASTARSimpleParallelV2(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
 

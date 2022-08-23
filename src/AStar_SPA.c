@@ -17,11 +17,8 @@
 #include "./utility/Timer.h"
 
 
-char spinner[] = "|/-\\";
-int spin = 0, isNotConsistent;
-
-
-
+static char spinner[] = "|/-\\";
+static int spin = 0, isNotConsistent;
 
 // Data structures:
 // openSet -> Priority queue containing an heap made of Items (Item has index of node and priority (fScore))
@@ -37,16 +34,6 @@ int *closedSet, bCost;
 int *hScores;
 int *path, n;
 Timer timer;
-
-typedef struct thArg_s {
-  pthread_t tid;
-  Graph G;
-  int start, end, numTH;
-  int id;
-  pthread_mutex_t *meNodes, *meBest;
-  pthread_cond_t *cv;
-  int (*h)(Coord, Coord);
-} thArg_t;
 
 static void* thFunction(void *par);
 
@@ -145,6 +132,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord,
     thArgArray[i].end = end;
     thArgArray[i].numTH = numTH;
     thArgArray[i].meNodes = meNodes;
+    thArgArray[i].meOpen = NULL;
     thArgArray[i].cv = cv;
     thArgArray[i].meBest = meBest;
     #ifdef DEBUG

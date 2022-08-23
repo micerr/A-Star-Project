@@ -12,6 +12,7 @@ void    PQfree(PQ pq);
 int     PQempty(PQ pq);
 int     PQmaxSize(PQ pq);
 void    PQinsert(PQ pq, int index, int priority);
+Item    PQgetMin(PQ pq);
 Item    PQextractMin(PQ pq);
 void    PQchange (PQ pq, int node_index, int priority);
 int     PQsearch(PQ pq, int node_index, int *priority);

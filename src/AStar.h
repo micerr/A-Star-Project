@@ -11,12 +11,13 @@ typedef struct thArg_s {
   Graph G;
   int start, end, numTH;
   int id;
-  pthread_mutex_t *meNodes, *meBest;
+  pthread_mutex_t *meNodes, *meBest, *meOpen;
   pthread_cond_t *cv;
   int (*h)(Coord, Coord);
 } thArg_t;
 
-static void* thFunction(void *par);
+
+
 
 // A-star implementations
 void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord, Coord));
