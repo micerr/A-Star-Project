@@ -17,7 +17,7 @@ int main(void) {
     printf("1. Load graph from file (sequential)\n");
     printf("2. Load graph from file (parallel)\n");
     printf("---\n");
-    printf("3. Shortest path with Dijkstra\n");
+    printf("3. Shortest path with Dijkstra algorithm\n");
     printf("4. Shortest path with sequential A*\n");
     printf("5. Shortest path with SPA*\n");
     printf("6. Shortest path with SPA* Version 2\n");
