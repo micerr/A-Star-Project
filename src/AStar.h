@@ -6,10 +6,22 @@
 #include "Graph.h"
 
 
+typedef struct thArg_s {
+  pthread_t tid;
+  Graph G;
+  int start, end, numTH;
+  int id;
+  pthread_mutex_t *meNodes, *meBest;
+  pthread_cond_t *cv;
+  int (*h)(Coord, Coord);
+} thArg_t;
+
+static void* thFunction(void *par);
 
 // A-star implementations
 void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord, Coord));
 void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord));
-int GRAPHspD(Graph G, int id, int end); 
+void ASTARSimpleParallelV2(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord));
+int  GRAPHspD(Graph G, int id, int end); 
 
 #endif
