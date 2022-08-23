@@ -508,7 +508,7 @@ static void* thFunction(void *par){
 
   int newGscore, newFscore, Hscore;
   int neighboor_fScore, neighboor_hScore;
-  Item extrNode, futureNode;
+  Item extrNode;
   Graph G = arg->G;
   ptr_node t;
 
@@ -562,7 +562,7 @@ static void* thFunction(void *par){
     //extract the vertex with the lowest fScore
     extrNode = PQgetMin(openSet_PQ);
 
-    if(pthread_mutex_trylock(&(arg->meNodes[futureNode.index])) != 0){
+    if(pthread_mutex_trylock(&(arg->meNodes[extrNode.index])) != 0){
       pthread_mutex_unlock(arg->meOpen);
       continue;
     }
@@ -570,7 +570,7 @@ static void* thFunction(void *par){
     extrNode = PQextractMin(openSet_PQ);
     closedSet[extrNode.index] = extrNode.priority;
 
-    pthread_mutex_unlock(&(arg->meNodes[futureNode.index]));
+    pthread_mutex_unlock(&(arg->meNodes[extrNode.index]));
 
     pthread_mutex_unlock(arg->meOpen);
 
