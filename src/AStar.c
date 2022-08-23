@@ -560,31 +560,24 @@ static void* thFunction(void *par){
     }
 
     //extract the vertex with the lowest fScore
-    futureNode = PQgetMin(openSet_PQ);
+    extrNode = PQgetMin(openSet_PQ);
+
+    if(pthread_mutex_trylock(&(arg->meNodes[futureNode.index])) != 0){
+      pthread_mutex_unlock(arg->meOpen);
+      continue;
+    }
+
+    extrNode = PQextractMin(openSet_PQ);
+    closedSet[extrNode.index] = extrNode.priority;
+
+    pthread_mutex_unlock(&(arg->meNodes[futureNode.index]));
+
     pthread_mutex_unlock(arg->meOpen);
 
     //add the extracted node to the closed set
-    #ifdef DEBUG
-      printf("%d: closed node:%d\n", arg->id, extrNode.index);
-    #endif
-    pthread_mutex_lock(&(arg->meNodes[futureNode.index]));
-    pthread_mutex_lock(arg->meOpen);
-
-    extrNode = PQgetMin(openSet_PQ);
-    if(extrNode.index != futureNode.index){
-      pthread_mutex_unlock(arg->meOpen);
-      pthread_mutex_unlock(&(arg->meNodes[futureNode.index]));
-      continue;
-    }
-    extrNode = PQextractMin(openSet_PQ);
-    pthread_mutex_unlock(arg->meOpen);
-
-    closedSet[extrNode.index] = extrNode.priority; // Closed set is already protected by meExtr
-    pthread_mutex_unlock(&(arg->meNodes[futureNode.index]));
-
 
     #ifdef DEBUG
-      printf("%d: extracted node:%d prio:%d\n", arg->id, extrNode.index, extrNode.priority);
+      printf("%d: extracted and closed node:%d prio:%d\n", arg->id, extrNode.index, extrNode.priority);
     #endif
 
     pthread_mutex_lock(arg->meBest);

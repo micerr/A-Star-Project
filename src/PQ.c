@@ -383,6 +383,35 @@ Item PQextractMin(PQ pq) {
   return item;
 }
 
+Item PQextractMinAddClosed(PQ pq, int* closed, pthread_mutex_t *meC, pthread_mutex_t *mePQ) {
+  Item item;
+
+  pthread_mutex_lock(mePQ);
+  if(pq->heapsize == 0){
+    item.index = item.priority = -1;
+    return item;
+  }
+
+  
+
+  //swap the root with last element of the array
+  Swap (pq, 0, pq->heapsize-1);
+  //store the Item to return
+  item = pq->A[pq->heapsize-1];
+  //decrease the heapsize
+  pq->heapsize--;
+  //restore heap properties by calling HEAPify on the root
+  Heapify(pq, 0);
+
+  #ifdef DEBUG
+    printf("\n*****AUXILIARY******\n");
+    PQdisplayHeap(pq);
+    printf("\n**************\n");
+  #endif
+
+  return item;
+}
+
 /*
   This function get the root Item without extracting it.
 */
