@@ -12,13 +12,14 @@
 #include "AStar.h"
 #include "PQ.h"
 #include "Heuristic.h"
+#include "Test.h"
 #include "./utility/BitArray.h"
 #include "./utility/Item.h"
 #include "./utility/Timer.h"
 
 
 static char spinner[] = "|/-\\";
-static int spin = 0, isNotConsistent;
+static int spin = 0;
 
 // Data structures:
 // openSet -> Priority queue containing an heap made of Items (Item has index of node and priority (fScore))
@@ -29,21 +30,23 @@ static int spin = 0, isNotConsistent;
 
 //openSet is enlarged gradually (inside PQinsert)
 
-PQ openSet_PQ;
-int *closedSet, bCost;
-int *hScores;
-int *path, n;
-Timer timer;
+static PQ openSet_PQ;
+static int *closedSet, bCost;
+static int *hScores;
+static int *path, n;
+#if defined TIME || defined ANALYTICS
+  static Timer timer;
+#endif 
 
 static void* thFunction(void *par);
 
-void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
+Analytics ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
 
   setbuf(stdout, NULL);
 
   if(G == NULL){
     printf("No graph inserted.\n");
-    return;
+    return NULL;
   }
   int prio;
   Coord dest_coord, coord;
@@ -51,7 +54,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord,
   pthread_mutex_t *meNodes, *meBest;
   pthread_cond_t *cv;
 
-  #ifdef TIME
+  #if defined TIME || defined ANALYTICS
     timer = TIMERinit(numTH);
   #endif
 
@@ -144,8 +147,11 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord,
   for(int i=0; i<numTH; i++)
     pthread_join(thArgArray[i].tid, NULL);
 
+  Analytics stats = NULL;
+  #ifdef ANALYTICS
+    stats = ANALYTICSsave(G, start, end, path, bCost, TIMERgetElapsed(timer));
+  #endif
   #ifdef TIME
-    TIMERfree(timer);
     int sizeofPath = sizeof(int)*G->V;
     int sizeofClosedSet = sizeof(float)*G->V;
     int sizeofPQ = sizeof(PQ*) + PQmaxSize(openSet_PQ)*sizeof(Item);
@@ -160,6 +166,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord,
   #endif
 
   //printf path and its cost
+  #ifndef ANALYTICS
   if(path[0]==-1)
     printf("No path from %d to %d has been found.\n", start, end);
   else{
@@ -171,7 +178,11 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord,
     }
     printf("%d\nHops: %d\n", start, hops);
   }
+  #endif
 
+  #if defined TIME || defined ANALYTICS
+    TIMERfree(timer);
+  #endif
 
   free(path);
   free(closedSet);
@@ -185,7 +196,7 @@ void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord,
   free(thArgArray);
   free(hScores);
 
-  return;
+  return stats;
 }
 
 static void* thFunction(void *par){
@@ -197,9 +208,7 @@ static void* thFunction(void *par){
   Graph G = arg->G;
   ptr_node t;
 
-  isNotConsistent = 0;
-
-  #ifdef TIME
+  #if defined TIME || defined ANALYTICS
     TIMERstart(timer);
   #endif  
   //until the open set is not empty
@@ -220,8 +229,11 @@ static void* thFunction(void *par){
         #endif
         pthread_cond_broadcast(arg->cv);
         pthread_mutex_unlock(arg->meNodes);
-        #ifdef TIME
+        #ifdef TIME 
           TIMERstopEprint(timer);
+        #endif
+        #ifdef ANALYTICS 
+          TIMERstop(timer);
         #endif
         pthread_exit(NULL);
       }
@@ -234,8 +246,11 @@ static void* thFunction(void *par){
       #endif 
       if(n == arg->numTH){
         pthread_mutex_unlock(arg->meNodes);
-        #ifdef TIME
+        #ifdef TIME 
           TIMERstopEprint(timer);
+        #endif
+        #ifdef ANALYTICS 
+          TIMERstop(timer);
         #endif
         #ifdef DEBUG
           printf("%d:Killed\n", arg->id);
@@ -334,11 +349,6 @@ static void* thFunction(void *par){
 
         //if a lower gScore is found, reopen the vertex
         if(newGscore < neighboor_fScore - neighboor_hScore){
-
-          if(!isNotConsistent){
-            printf("The heuristic function is NOT consistent\n");
-            isNotConsistent = 1;
-          }
 
           //remove it from closed set
           closedSet[t->v] = -1;

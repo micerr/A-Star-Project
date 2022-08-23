@@ -57,7 +57,7 @@ int main(void) {
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
-                        GRAPHspD(G, id1, id2);
+                        GRAPHspD(G, id1, id2, 1, NULL);
                         break;
 
             case 4:     printf("\nInsert starting node = ");
@@ -76,13 +76,13 @@ int main(void) {
                           switch (i)
                           {
                           case 1:
-                            ASTARSequentialAStar(G, id1, id2, Hdijkstra);
+                            ASTARSequentialAStar(G, id1, id2, 1, Hdijkstra);
                             break;
                           case 2:
-                            ASTARSequentialAStar(G, id1, id2, Hcoord);
+                            ASTARSequentialAStar(G, id1, id2, 1, Hcoord);
                             break;
                           case 3:
-                            ASTARSequentialAStar(G, id1, id2, Hhaver);
+                            ASTARSequentialAStar(G, id1, id2, 1, Hhaver);
                             break;
                           default:
                             printf("\nInvalid option\n");

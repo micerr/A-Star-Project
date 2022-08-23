@@ -45,7 +45,6 @@ void  GRAPHstats(Graph G);
 void  GRAPHgetCoordinates(Graph G, int v);
 void  GRAPHcomputeDistance(Graph G, int v1, int v2);
 void  GRAPHgetEdge(Graph G, int start, int end);
-int   GRAPHcheckAdmissibility(Graph G,int source, int target);
-int GRAPHspD(Graph G, int id, int end);
+//int   GRAPHcheckAdmissibility(Graph G,int source, int target);
 
 #endif

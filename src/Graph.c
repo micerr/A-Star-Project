@@ -10,6 +10,7 @@
 
 #include "Graph.h"
 #include "PQ.h"
+#include "AStar.h"
 #include "Heuristic.h"
 #include "./utility/BitArray.h"
 #include "./utility/Item.h"
@@ -617,23 +618,3 @@ void  GRAPHgetEdge(Graph G, int start, int end){
   return;
 }
 
-/*
-  Check the admissibility of a heuristc function for a given graph and (src, dest) couple
-
-  return: 0:= NOT admissible, 1:= admissible
-*/
-int GRAPHcheckAdmissibility(Graph G,int source, int target){
-  int isAmmisible = 1;
-  Coord coordTarget = STsearchByIndex(G->coords, target);
-  int C = GRAPHspD(G, source, target);
-  if(C == -1) return -1;
-  int h = Hcoord(STsearchByIndex(G->coords, source), coordTarget);
-  if( h > C ){
-    printf("(%d, %d) is NOT ammissible h(n)= %d, C*(n)= %d\n", source, target, h, C);
-    isAmmisible = 0;
-  }
-  if(isAmmisible){
-    printf("is ammissible\n");
-  }
-  return isAmmisible;
-}

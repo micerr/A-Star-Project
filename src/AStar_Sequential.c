@@ -12,10 +12,13 @@
 #include "AStar.h"
 #include "PQ.h"
 #include "Heuristic.h"
+#include "Test.h"
 #include "./utility/BitArray.h"
 #include "./utility/Item.h"
 #include "./utility/Timer.h"
 
+char spinner[] = "|/-\\";
+int spin = 0;
 
 
 // Data structures:
@@ -26,13 +29,13 @@
 // gScores are obtained starting from the fScores and subtracting the value of the heuristic
 
 //openSet is enlarged gradually (inside PQinsert)
-void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Coord coord2)){
+Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
   if(G == NULL){
     printf("No graph inserted.\n");
-    return ;
+    return NULL;
   }
 
-  int v, hop=0;
+  int v;
   ptr_node t;
   Item extrNode;
   PQ openSet;
@@ -42,7 +45,7 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   int flag;
   Coord coord, dest_coord;
 
-  #ifdef TIME
+  #if defined TIME || defined ANALYTICS
     Timer timer = TIMERinit(1);
   #endif
 
@@ -85,7 +88,7 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
     PQdisplayHeap(openSet);
   #endif
 
-  #ifdef TIME
+  #if defined TIME || defined ANALYTICS
     TIMERstart(timer);
   #endif
 
@@ -95,6 +98,8 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   PQinsert(openSet, start, closedSet[start]);
 
   while (!PQempty(openSet)){
+    printf("%c\b", spinner[(spin++)%4]);
+
     //extract node
     extrNode = PQextractMin(openSet);
     //printf("extrNode.index: %d\n", extrNode.index);
@@ -148,6 +153,10 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
 
   }
 
+  Analytics stats = NULL;
+  #ifdef ANALYTICS
+    stats = ANALYTICSsave(G, start, end, path, extrNode.priority, TIMERstop(timer));
+  #endif
   #ifdef TIME
     TIMERstopEprint(timer);
     int sizeofPath = sizeof(int)*G->V;
@@ -157,9 +166,11 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   #endif
 
   // Print the found path
+  #ifndef ANALYTICS
   if(path[v] == -1){
     printf("No path from %d to %d has been found.\n", start, end);
   }else{
+    int hop=0;
     printf("Path from %d to %d has been found with cost %.3d.\n", start, end, extrNode.priority);
     for(int v=end; v!=start; ){
       printf("%d <- ", v);
@@ -168,9 +179,10 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
     }
     printf("%d\nHops: %d\n",start, hop);
   }
+  #endif
   
   
-  #ifdef TIME
+  #if defined TIME || defined ANALYTICS
     TIMERfree(timer);
   #endif
 
@@ -178,7 +190,7 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   free(path);
   free(closedSet);
   free(hScores);
-  return;
+  return stats;
 }
 
 
@@ -189,18 +201,18 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
 
   Parameters: graph, start node end node.
 */
-int GRAPHspD(Graph G, int id, int end) {
+Analytics GRAPHspD(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)) {
   if(G == NULL){
     printf("No graph inserted.\n");
-    return -1;
+    return NULL;
   }
 
-  int v, hop=0;
+  int v;
   ptr_node t;
   Item min_item;
   PQ pq = PQinit(G->V);
   int *path, *mindist;
-  #ifdef TIME
+  #if defined TIME || defined ANALYTICS
     Timer timer = TIMERinit(1);
   #endif
 
@@ -224,14 +236,16 @@ int GRAPHspD(Graph G, int id, int end) {
     PQdisplayHeap(pq);
   #endif
 
-  #ifdef TIME
+  #if defined TIME || defined ANALYTICS
     TIMERstart(timer);
   #endif
 
-  path[id] = id;
-  PQchange(pq, id, 0);
-  mindist[id] = 0;
+  path[start] = start;
+  PQchange(pq, start, 0);
+  mindist[start] = 0;
   while (!PQempty(pq)){
+    printf("%c\b", spinner[(spin++)%4]);
+
     min_item = PQextractMin(pq);
     #if DEBUG
       printf("Min extracted is (index): %d\n", min_item.index);
@@ -257,7 +271,12 @@ int GRAPHspD(Graph G, int id, int end) {
       }
     }
   }
+  printf("\b");
 
+  Analytics stats = NULL;
+  #ifdef ANALYTICS
+    stats = ANALYTICSsave(G, start, end, path, min_item.priority, TIMERstop(timer));
+  #endif
   #ifdef TIME
     TIMERstopEprint(timer);
     int sizeofPath = sizeof(int)*G->V;
@@ -267,20 +286,22 @@ int GRAPHspD(Graph G, int id, int end) {
   #endif
 
   // Print the found path
+  #ifndef ANALYTICS
   if(path[v] == -1){
-    printf("No path from %d to %d has been found.\n", id, end);
+    printf("No path from %d to %d has been found.\n", start, end);
   }else{
-    printf("Path from %d to %d has been found with cost %.3d.\n", id, end, min_item.priority);
-    for(int v=end; v!=id; ){
+    int hop=0;
+    printf("Path from %d to %d has been found with cost %.3d.\n", start, end, min_item.priority);
+    for(int v=end; v!=start; ){
       printf("%d <- ", v);
       v = path[v];
       hop++;
     }
-    printf("%d\nHops: %d\n",id, hop);
+    printf("%d\nHops: %d\n",start, hop);
   }
+  #endif
   
-  
-  #ifdef TIME
+  #if defined TIME || defined ANALYTICS
     TIMERfree(timer);
   #endif
 
@@ -288,5 +309,6 @@ int GRAPHspD(Graph G, int id, int end) {
   free(path);
   PQfree(pq);
 
-  return min_item.priority;
+
+  return stats;
 }

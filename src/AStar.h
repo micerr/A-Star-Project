@@ -4,6 +4,7 @@
 #define maxWT INT_MAX
 
 #include "Graph.h"
+#include "Test.h"
 
 
 typedef struct thArg_s {
@@ -17,12 +18,10 @@ typedef struct thArg_s {
 } thArg_t;
 
 
-
-
 // A-star implementations
-void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord, Coord));
-void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord));
-void ASTARSimpleParallelV2(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord));
-int  GRAPHspD(Graph G, int id, int end); 
+Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord));
+Analytics ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord));
+Analytics ASTARSimpleParallelV2(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord));
+Analytics GRAPHspD(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)); 
 
 #endif
