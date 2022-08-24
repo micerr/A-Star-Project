@@ -14,6 +14,8 @@ typedef struct{
     int start, end;
     Queue *queueArr_S2M;
     Queue *queueArr_M2S;
+    pthread_mutex_t **meS2M;
+    pthread_mutex_t **meM2S;
 } masterArg_t;
 
 typedef struct{
@@ -24,8 +26,8 @@ typedef struct{
     int *hScores;
     int *bCost, *n;
     int *path;
-    Queue S2M;
-    Queue M2S;
+    Queue S2M, M2S;
+    pthread_mutex_t *meS2M, *meM2S;
     Graph G;
 } slaveArg_t;
 
@@ -37,10 +39,13 @@ static int terminateDetection();
 void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     Queue *queueArr_S2M;
     Queue *queueArr_M2S;
+    pthread_mutex_t **meS2M;
+    pthread_mutex_t **meM2S;
+    
     masterArg_t masterArg;
     slaveArg_t *slaveArgArr;
     Coord coord, dest_coord;
-    int *hScores, *path, bCost = INT_MAX;
+    int i, *hScores, *path, bCost = INT_MAX;
 
     //create the array containing all precomputed Hscores
     hScores = malloc(G->V * sizeof(int));
@@ -63,15 +68,13 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     for(int i=0; i<G->V; i++)
         path[i] = -1;
 
-
-
     // allocate the array of Slave-to-Master queues
     queueArr_S2M = malloc(numTH * sizeof(Queue));
     if(queueArr_S2M == NULL){
         perror("Error allocating queueArr_S2M: ");
         exit(1);
     }
-    for(int i=0; i<numTH; i++)
+    for(i=0; i<numTH; i++)
         queueArr_S2M[i] = QUEUEinit();
     
     // allocate the array of Master-to-Slave queues
@@ -80,37 +83,57 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
         perror("Error allocating queueArr_M2S: ");
         exit(1);
     }
-    for(int i=0; i<numTH; i++)
+    for(i=0; i<numTH; i++)
         queueArr_M2S[i] = QUEUEinit();
+
+    //allocate and init the array of M2S mutexes
+    meM2S = malloc(numTH * sizeof(pthread_mutex_t*));
+    for(i=0; i<numTH; i++){
+        meM2S[i] = malloc(sizeof(pthread_mutex_t));
+        pthread_mutex_init(meM2S[i], NULL);
+    }
+
+    //allocate and init the array of M2S mutexes
+    meS2M = malloc(numTH * sizeof(pthread_mutex_t*));
+    for(i=0; i<numTH; i++){
+        meS2M[i] = malloc(sizeof(pthread_mutex_t));
+        pthread_mutex_init(meS2M[i], NULL);
+    }
 
     //create the arg-structure of the master
     masterArg.numTH = numTH;
+    masterArg.start = start;
+    masterArg.end = end;
     masterArg.queueArr_M2S = queueArr_M2S;
     masterArg.queueArr_S2M = queueArr_S2M;
+    masterArg.meM2S = meM2S;
+    masterArg.meS2M = meS2M;
 
     //create the array of slaves' arg-struct
     slaveArgArr = malloc(numTH * sizeof(slaveArg_t));
-    for(int i=0; i<numTH; i++){
+    for(i=0; i<numTH; i++){
         slaveArgArr[i].numTH = numTH;
         slaveArgArr[i].M2S = queueArr_M2S[i];
         slaveArgArr[i].S2M = queueArr_S2M[i];
         slaveArgArr[i].hScores = hScores;
         slaveArgArr[i].path = path;
         slaveArgArr[i].bCost = &bCost;
+        slaveArgArr[i].id = i;
         slaveArgArr[i].G = G;
+        slaveArgArr[i].meM2S = meM2S[i];
+        slaveArgArr[i].meS2M = meS2M[i];
     }
 
     //start the master
     pthread_create(&masterArg.tid, NULL, masterTH, (void *)&masterArg);
 
     //start all slaves
-    for(int i=0; i<numTH; i++){
-        slaveArgArr[i].id = i;
+    for(i=0; i<numTH; i++)
         pthread_create(&slaveArgArr[i].tid, NULL, slaveTH, (void *)&slaveArgArr[i]);
-    }
+    
 
     //wait termination of all slaves
-    for(int i=0; i<numTH; i++)
+    for(i=0; i<numTH; i++)
         pthread_join(slaveArgArr[i].tid, NULL);
 
     //wait termination of the master
@@ -122,12 +145,12 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
 
 
     //free the array of Slave-to-Master queues
-    for(int i=0; i<numTH; i++)
+    for(i=0; i<numTH; i++)
         QUEUEfree(queueArr_S2M[i]);
     free(queueArr_S2M);
 
     //free the array of Master-to-Slave queues
-    for(int i=0; i<numTH; i++)
+    for(i=0; i<numTH; i++)
         QUEUEfree(queueArr_M2S[i]);
     free(queueArr_M2S);
 
@@ -155,20 +178,22 @@ static void *masterTH(void *par){
     owner = multiplicativeHashing(arg->start);
 
     //insert the node in the owner's queue
-    QUEUEtailInsert(arg->queueArr_M2S[owner], HITEMinit(arg->start, 0, -1, NULL));
+    QUEUEtailInsert(arg->queueArr_M2S[owner], HITEMinit(arg->start, 0, arg->start, NULL));
 
+    //TODO: 
     while(1){
-        for(i=0; i<arg->numTH; i++)
-        // TODO: vanno inseriti i lock (eventualmente trylock)
-            while(!QUEUEisEmpty(arg->queueArr_S2M[i])){
-                message = QUEUEheadExtract(arg->queueArr_S2M[i]);
-                owner = multiplicativeHashing(message->index);
-                QUEUEtailInsert(arg->queueArr_M2S[owner], message);
+        for(i=0; i<arg->numTH; i++){
+            if(pthread_mutex_trylock(arg->meS2M[i]) == 0){
+                while(!QUEUEisEmpty(arg->queueArr_S2M[i])){
+                    message = QUEUEheadExtract(arg->queueArr_S2M[i]);
+                    owner = multiplicativeHashing(message->index);
+                    pthread_mutex_lock(arg->meM2S[owner]);
+                    QUEUEtailInsert(arg->queueArr_M2S[owner], message);
+                    pthread_mutex_unlock(arg->meM2S[owner]);
+                }
             }
+        }            
     }
-
-
-
 
     pthread_exit(NULL);
 }
@@ -180,10 +205,12 @@ static void *slaveTH(void *par){
     int *closedSet;
 
     HItem message;
+    Item extrNode;
+    ptr_node t;
     int gScore, fScore, newGscore, newFscore;
 
     //init the openSet PQ
-    openSet = PQinit(64);
+    openSet = PQinit(5);
     if(openSet == NULL){
         printf("Error initializing openSet (PQ) in thread%d: ", arg->id);
         exit(1);
@@ -207,9 +234,11 @@ static void *slaveTH(void *par){
         //      risveglio il singolo thread dovrebbe controllare una condizione per capire se deve 
         //      terminare).
 
+        pthread_mutex_lock(arg->M2S);
         while(!QUEUEisEmpty(arg->M2S)){
             //extract a message from the queue
             message = QUEUEheadExtract(arg->M2S);
+            pthread_mutex_unlock(arg->meM2S);
             newGscore = message->priority;
 
             //if it belongs to the closed set
@@ -224,8 +253,11 @@ static void *slaveTH(void *par){
                     //add it to the openSet
                     PQinsert(openSet, message->index, newFscore);
                 }
-                else
+                else{
+                    pthread_mutex_lock(arg->M2S);
                     continue;
+                }
+                    
             }
             //if it doesn't belong to the closed set
             else{
@@ -240,16 +272,44 @@ static void *slaveTH(void *par){
                     //if it belongs to the closed set with an higher gScore, change is priority
                     if(newGscore < gScore)
                         PQchange(openSet, message->index, newFscore);
-                    else 
+                    else{
+                        pthread_mutex_lock(arg->M2S);
                         continue;
+                    }
+                        
                 }
             }
             arg->path[message->index] = message->father;
+            pthread_mutex_lock(arg->M2S);
+        }
+
+        if(PQempty(openSet))
+            continue;
+        
+        extrNode = PQextractMin(openSet);
+        if(extrNode.priority >= arg->bCost)
+            continue;
+
+        closedSet[extrNode.index] = extrNode.priority;
+
+        if(extrNode.index == arg->end){
+            if(extrNode.priority < *(arg->bCost))          
+            // save the cost
+            *(arg->bCost) = extrNode.priority;
+            
+            continue;
+        }
+
+        fScore = extrNode.priority;
+        gScore = fScore - arg->hScores[extrNode.index];
+
+        for(t=arg->G->ladj[extrNode.index]; t!=arg->G->z; t=t->next){
+            newGscore = gScore + t->wt;
+            pthread_mutex_lock(arg->S2M);
+            QUEUEtailInsert(arg->S2M, HITEMinit(t->v, newGscore, extrNode.index, NULL));
+            pthread_mutex_unlock(arg->S2M);
         }
     }
-
-    
-
 
 
     //destroy openSet PQ
