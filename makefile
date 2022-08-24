@@ -11,3 +11,6 @@ debug: $(SRCS)
 
 time: $(SRCS)
 	$(CC) -o bin/aStar.exe $^ $(CFLAGS) -DTIME
+
+psearch: $(SRCS)
+	$(CC) -o bin/aStar.exe $^ $(CFLAGS) -DPARALLEL_SEARCH
