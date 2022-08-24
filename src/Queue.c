@@ -7,7 +7,6 @@ struct queue{
     int size;
     HItem_ptr head;
     HItem_ptr tail;
-    HItem_ptr z;
 };
 
 Queue QUEUEinit(){
@@ -19,16 +18,15 @@ Queue QUEUEinit(){
     }
 
     q->size = 0;
-    q->z = HITEMinit(-1, -1, -1, NULL);
-    q->head = q->z;
-    q->tail = q->z;
+    q->head = NULL;
+    q->tail = NULL;
 
     return q;
 }
 void QUEUEfree(Queue q){
     HItem_ptr t, toBeFreed;
 
-    for(t=q->head; t!=q->z; ){
+    for(t=q->head; t!=NULL; ){
         toBeFreed = t;
         t=t->next;
         free(toBeFreed);        
@@ -38,27 +36,37 @@ void QUEUEfree(Queue q){
 }
 
 void QUEUEtailInsert(Queue queue, HItem_ptr node){
+    if(queue->size == 0){
+        queue->head = node;
+        queue->tail = node;
+        queue->size++;
+        return;
+    }
     queue->tail->next = node;
     queue->tail = node;
-    node->next = queue->z;
+    queue->size++;
 }
 
 HItem_ptr QUEUEheadExtract(Queue queue){
     HItem_ptr t;
     t = queue->head;
-    queue->head = queue->head->next;
 
+    if(queue->head == NULL)
+        queue->tail = NULL;
+    else
+        queue->head = queue->head->next;
+
+    queue->size--;
     return t;
 }
 
 void QUEUEprint(Queue queue){
     HItem_ptr t;
 
-    for(t=queue->head; t!=queue->z; t=t->next){
+    for(t=queue->head; t!=NULL; t=t->next){
         printf("index: %d\n", t->index);
-        printf("priority: %d\n", t->priority);
-        printf("father: %d\n", t->father);
-        printf("\t\t->\n");
+        printf("priority: %d\t->\n", t->priority);
+        printf("father: %d\n\n", t->father);
     }
 }
 

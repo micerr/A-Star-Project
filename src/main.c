@@ -29,7 +29,8 @@ int main(void) {
     printf("100. Queue - Insert node .\n");
     printf("101. Queue - Extract node.\n");
     printf("102. Queue - Print queue.\n");
-    printf("103. Queue - Free queue.\n");
+    printf("103. Queue - 100 elements and print.\n");
+    printf("104. Queue - Free queue.\n");
     printf("---\n");
     printf("9. Shortest path with Dijkstra's algorithm\n");
     printf("10. Shortest path with sequential A*\n");
@@ -200,6 +201,10 @@ int main(void) {
                         }
                         HItem_ptr t;
                         t = QUEUEheadExtract(queue);
+                        if(t == NULL){
+                          printf("Nothing extracted.\n");
+                          break;
+                        }
 
                         printf("Extracted node:\n");
                         printf("\tindex: %d\n", t->index);
@@ -215,7 +220,19 @@ int main(void) {
                         QUEUEprint(queue);
                         break;
 
-            case 103:   if(queue == NULL){
+            case 103:   if(queue != NULL){
+                          printf("One queue was already present.\nI'm going to free it.\n");
+                          QUEUEfree(queue);
+                        }
+
+                        queue = QUEUEinit();
+
+                        for(int i=0; i<100; i++)
+                          QUEUEtailInsert(queue, HITEMinit(i,i,i,NULL));
+                        QUEUEprint(queue);
+                        break;
+
+            case 104:   if(queue == NULL){
                           printf("Queue is not initialized.\n");
                           break;
                         }
