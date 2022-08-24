@@ -21,8 +21,8 @@ Item* ITEMinit(int node_index, int priority){
   return item;
 }
 
-HItem_ptr HITEMinit(int index, int priority, int father, HItem_ptr next){
-  HItem_ptr tmp = (HItem_ptr) malloc(sizeof(*tmp));
+HItem HITEMinit(int index, int priority, int father, HItem next){
+  HItem tmp = (HItem) malloc(sizeof(*tmp));
 
   if(tmp == NULL){
     perror("Error trying to allocate an HItem: ");

@@ -5,8 +5,8 @@
 
 struct queue{
     int size;
-    HItem_ptr head;
-    HItem_ptr tail;
+    HItem head;
+    HItem tail;
 };
 
 Queue QUEUEinit(){
@@ -24,7 +24,7 @@ Queue QUEUEinit(){
     return q;
 }
 void QUEUEfree(Queue q){
-    HItem_ptr t, toBeFreed;
+    HItem t, toBeFreed;
 
     for(t=q->head; t!=NULL; ){
         toBeFreed = t;
@@ -35,7 +35,7 @@ void QUEUEfree(Queue q){
     free(q);
 }
 
-void QUEUEtailInsert(Queue queue, HItem_ptr node){
+void QUEUEtailInsert(Queue queue, HItem node){
     if(queue->size == 0){
         queue->head = node;
         queue->tail = node;
@@ -47,8 +47,8 @@ void QUEUEtailInsert(Queue queue, HItem_ptr node){
     queue->size++;
 }
 
-HItem_ptr QUEUEheadExtract(Queue queue){
-    HItem_ptr t;
+HItem QUEUEheadExtract(Queue queue){
+    HItem t;
     t = queue->head;
 
     if(queue->head == NULL)
@@ -61,7 +61,7 @@ HItem_ptr QUEUEheadExtract(Queue queue){
 }
 
 void QUEUEprint(Queue queue){
-    HItem_ptr t;
+    HItem t;
 
     for(t=queue->head; t!=NULL; t=t->next){
         printf("index: %d\n", t->index);
@@ -70,7 +70,9 @@ void QUEUEprint(Queue queue){
     }
 }
 
-
+int QUEUEisEmpty(Queue queue){
+    return queue->size == 0;
+}
 
 
 
