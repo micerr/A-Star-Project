@@ -44,6 +44,7 @@ Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(
 
   #if defined TIME || defined ANALYTICS
     Timer timer = TIMERinit(1);
+    int nExtractions = 0;
   #endif
 
   openSet = PQinit(G->V);
@@ -111,6 +112,10 @@ Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(
       // we reached the end node
       break;
     }
+    
+    #if defined TIME || defined ANALYTICS
+      nExtractions++;
+    #endif
 
     hScore = hScores[extrNode.index];
 
@@ -151,14 +156,21 @@ Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(
 
   Analytics stats = NULL;
   #ifdef ANALYTICS
-    stats = ANALYTICSsave(G, start, end, path, extrNode.priority, TIMERstop(timer));
+    stats = ANALYTICSsave(G, start, end, path, extrNode.priority, nExtractions, TIMERstop(timer));
   #endif
   #ifdef TIME
     TIMERstopEprint(timer);
     int sizeofPath = sizeof(int)*G->V;
     int sizeofPQ = sizeof(PQ*) + PQmaxSize(openSet)*sizeof(Item);
     int total = sizeofPath+sizeofPQ;
+    int expandedNodes = 0;
     printf("sizeofPath= %d B (%d MB), sizeofPQ= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
+    for(int i=0;i<G->V;i++){
+      if(path[i]>=0)
+        expandedNodes++;
+    }
+    printf("Expanded nodes: %d\n",expandedNodes);
+    printf("Total extraction from OpenSet: %d\n", nExtractions);
   #endif
 
   // Print the found path
@@ -210,6 +222,7 @@ Analytics GRAPHspD(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord
   int *path, *mindist;
   #if defined TIME || defined ANALYTICS
     Timer timer = TIMERinit(1);
+    int nExtractions = 0;
   #endif
 
   path = malloc(G->V * sizeof(int));
@@ -251,6 +264,10 @@ Analytics GRAPHspD(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord
       break;
     }
 
+    #if defined TIME || defined ANALYTICS
+      nExtractions++;
+    #endif
+
     // if the node is discovered
     if(mindist[min_item.index] != maxWT){
       // mindist[min_item.index] = min_item.priority;
@@ -270,14 +287,21 @@ Analytics GRAPHspD(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord
 
   Analytics stats = NULL;
   #ifdef ANALYTICS
-    stats = ANALYTICSsave(G, start, end, path, min_item.priority, TIMERstop(timer));
+    stats = ANALYTICSsave(G, start, end, path, min_item.priority, nExtractions, TIMERstop(timer));
   #endif
   #ifdef TIME
     TIMERstopEprint(timer);
     int sizeofPath = sizeof(int)*G->V;
     int sizeofPQ = sizeof(PQ*) + PQmaxSize(pq)*sizeof(Item);
     int total = sizeofPath+sizeofPQ;
+    int expandedNodes = 0;
     printf("sizeofPath= %d B (%d MB), sizeofPQ= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
+    for(int i=0;i<G->V;i++){
+      if(path[i]>=0)
+        expandedNodes++;
+    }
+    printf("Expanded nodes: %d\n",expandedNodes);
+    printf("Total extraction from OpenSet: %d\n", nExtractions);
   #endif
 
   // Print the found path

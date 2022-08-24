@@ -15,7 +15,7 @@
 #define nSeq 2
 
 struct analytics_s{
-    int *path, len, cost, expandedNodes;
+    int *path, len, cost, expandedNodes, numExtr;
     double totTime, algorithmTime;
     struct timeval endTotTime;
 };
@@ -65,7 +65,7 @@ int main(int argc, char **argv){
 
     for(int i=0; i<P; i++){
         printf("Test on path (%d, %d)\n", points[i].src, points[i].dst);
-        printf("%-20s%-10s%-10s%-13s%-17s%-17s%-6s\n","Algorithm","Threads","Cost","Total Time", "Algorithm Time", "Expanded Nodes", "PASSED");
+        printf("%-20s%-10s%-10s%-13s%-17s%-17s%-18s%-6s\n","Algorithm","Threads","Cost","Total Time", "Algorithm Time", "Expanded Nodes", "Extracted Nodes", "PASSED");
         printf("---------------------------------------------------------------------------------------------\n");
         int *correctPath = NULL, correctLen = -1;
         for(int j=0; algorithms[j].algorithm != NULL; j++){
@@ -144,7 +144,7 @@ static void printAnalytics(char *name, int numTh, Analytics stats, int **correct
         printf("%-13.6f%-17.6f",stats->totTime, stats->algorithmTime);
     else
         printf("%-13.3f%-17.3f",stats->totTime, stats->algorithmTime);
-    printf("%-17d%-6s\n", stats->expandedNodes, ok ? "OK" : "NO");
+    printf("%-17d%-18d%-6s\n", stats->expandedNodes, stats->numExtr, ok ? "OK" : "NO");
     return;
 }
 
@@ -167,12 +167,12 @@ static void* genPoint(Point* points, int n, int maxV){
     return points;
 }
 
-Analytics ANALYTICSsave(Graph G, int start, int end, int *path, int cost, double algorithmTime){
+Analytics ANALYTICSsave(Graph G, int start, int end, int *path, int cost, int numExtr, double algorithmTime){
     struct timeval now = TIMERgetTime();
 
     Analytics stats = malloc(sizeof(struct analytics_s));
 
-
+    stats->numExtr = numExtr;
     stats->endTotTime = now;
     stats->cost = cost;
     stats->algorithmTime = algorithmTime;

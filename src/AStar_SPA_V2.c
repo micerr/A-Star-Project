@@ -33,6 +33,8 @@ static int *hScores;
 static int *path, n;
 #if defined TIME || defined ANALYTICS
   static Timer timer;
+  static int nExtractions;
+  static pthread_mutex_t meNExtractions = PTHREAD_MUTEX_INITIALIZER;
 #endif 
 
 static void* thFunction(void *par);
@@ -53,6 +55,7 @@ Analytics ASTARSimpleParallelV2(Graph G, int start, int end, int numTH, int (*h)
 
   #if defined TIME || defined ANALYTICS
     timer = TIMERinit(numTH);
+    nExtractions = 0;
   #endif
 
   //init the open set (priority queue)
@@ -152,7 +155,7 @@ Analytics ASTARSimpleParallelV2(Graph G, int start, int end, int numTH, int (*h)
 
   Analytics stats = NULL;
   #ifdef ANALYTICS
-    stats = ANALYTICSsave(G, start, end, path, bCost, TIMERgetElapsed(timer));
+    stats = ANALYTICSsave(G, start, end, path, bCost, nExtractions, TIMERgetElapsed(timer));
   #endif
   #ifdef TIME
     int sizeofPath = sizeof(int)*G->V;
@@ -166,6 +169,7 @@ Analytics ASTARSimpleParallelV2(Graph G, int start, int end, int numTH, int (*h)
         expandedNodes++;
     }
     printf("Expanded nodes: %d\n",expandedNodes);
+    printf("Total extraction from OpenSet: %d\n", nExtractions);
   #endif
 
   //printf path and its cost
@@ -314,6 +318,12 @@ static void* thFunction(void *par){
       pthread_mutex_unlock(arg->meBest);
       continue;
     }
+
+    #if defined TIME || defined ANALYTICS
+      pthread_mutex_lock(&meNExtractions);
+        nExtractions++;
+      pthread_mutex_unlock(&meNExtractions);
+    #endif
 
     //consider all adjacent vertex of the extracted node
     for(t=G->ladj[extrNode.index]; t!=G->z; t=t->next){
