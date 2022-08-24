@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
+ #define PARALLEL_SEARCH
 
 
 struct pqueue { 
@@ -240,6 +241,21 @@ static void Heapify(PQ pq, int i) {
   //If the root is smaller than the two children it will stop even if some nodes underneath dont respect heap condition
 }
 
+// void main(void){
+//   PQ set = PQinit(20);
+//   //PQinsert(set, 2, 10);
+//   // PQinsert(set, 4, 12);
+//   // PQinsert(set, 6, 14);
+//   for(int i=0; i<20; i++){
+//     PQinsert(set, i, i*2);
+//   }
+
+//   int *prio = malloc(sizeof(int));
+//   int index;
+
+//   index = PQsearch(set, 100, prio); 
+// }
+
 
 /*
 Each thread performs the search in a portion of the array pq->A,
@@ -250,10 +266,8 @@ contains the index of the node and it's priority
 static void *thread_search(void* arg){
   SearchSpec *sp = (SearchSpec*) arg;
 
-  
-  printf("\n\n");
 
-  printf("Thread searches target %d from %d to %d, num items: %d\n", *sp->target, sp->start_index, sp->start_index + sp->n_items, sp->n_items);
+  //  printf("Thread searches target %d from %d to %d, num items: %d\n", *sp->target, sp->start_index, sp->start_index + sp->n_items, sp->n_items);
   for(int i=0; i<sp->n_items; i++){
     pthread_mutex_lock(sp->mutex);
     if(*(sp->found) == 1){
@@ -264,16 +278,17 @@ static void *thread_search(void* arg){
 
     if(((*sp->pq)->A[sp->start_index+i]).index == *sp->target){
       pthread_mutex_lock(sp->mutex);
-        (sp->sr)->index = ((*sp->pq)->A[sp->start_index+i]).index;
+        //(sp->sr)->index = ((*sp->pq)->A[sp->start_index+i]).index;
+        (sp->sr)->index = sp->start_index+i;
         (sp->sr)->priority = ((*sp->pq)->A[sp->start_index+i]).priority;
         *sp->found = 1;
-        printf("Thread found node, index: %d, priority: %d\n", (sp->sr)->index, (sp->sr)->priority);
+        //  printf("Thread found node, index: %d, priority: %d\n", (sp->sr)->index, (sp->sr)->priority);
       pthread_mutex_unlock(sp->mutex);
     }
   }
 
 
-  free(sp);
+  //free(sp);
   return NULL;
 }
 #endif
@@ -285,7 +300,7 @@ Searches for a specific node inside the Item array and returns it's index
 and the priority value inside the priority pointer
 */
 int PQsearch(PQ pq, int node_index, int *priority){
-  printf("\n\nRequested search for node: %d\n", node_index);
+  // printf("\n\nRequested search for node: %d\n", node_index);
   #ifndef PARALLEL_SEARCH
     int pos = -1;
     for(int i=0; i<pq->heapsize; i++){
@@ -307,6 +322,7 @@ int PQsearch(PQ pq, int node_index, int *priority){
   #ifdef PARALLEL_SEARCH
     long number_of_processors = sysconf(_SC_NPROCESSORS_ONLN);
     long max_thread = number_of_processors * 2;
+    long actual_threads = max_thread;
     pthread_t th[max_thread];
     pthread_mutex_t *mutex = (pthread_mutex_t*) malloc(sizeof(pthread_mutex_t));
     int index;
@@ -326,26 +342,26 @@ int PQsearch(PQ pq, int node_index, int *priority){
     int rem;
 
     if(pq->heapsize == 0){
-      printf("heapsize is 0, returning. index: %d", sr->index);
+      // printf("Heapsize is 0, returning. index: %d", sr->index);
       index = sr->index;
-      free(sr);
+      //free(sr);
 
       return index;
     }
     else if(pq->heapsize < max_thread){
       items_each = 1;
-      max_thread = pq->heapsize;
-      printf("Launching %ld threads\n", max_thread);
+      actual_threads = pq->heapsize;
+      //printf("Launching %ld threads\n", max_thread);
     }
     else {
       items_each = pq->heapsize / max_thread;
       rem = pq->heapsize % max_thread;
     } 
 
-    printf("heapsize: %d, items each: %d\n", pq->heapsize, items_each);
+    //printf("heapsize: %d, items each: %d\n", pq->heapsize, items_each);
+    
 
-
-    for(int i=0; i<max_thread; i++){
+    for(int i=0; i<actual_threads; i++){
       SearchSpec *sp = (SearchSpec*) malloc(sizeof(SearchSpec));
       sp->mutex = mutex;
       sp->found = found;
@@ -355,23 +371,27 @@ int PQsearch(PQ pq, int node_index, int *priority){
       sp->sr = sr;
       sp->pq = &pq;
 
-      if(i == (max_thread-1)){
+      if((pq->heapsize >= max_thread) && (i == (actual_threads-1))){
         sp->n_items += rem;
       }
 
       int res = pthread_create(&th[i], NULL, thread_search, (void *) sp);
     }
 
-    for(int i=0; i<max_thread; i++){
+    for(int i=0; i<actual_threads; i++){
       pthread_join(th[i], NULL);
     }
 
-    printf("Search result: index=%d, priority=%d\n", sr->index, sr->priority);
+    // printf("Search result: index=%d, priority=%d\n", sr->index, sr->priority);
 
-    *priority = sr->priority;
+    if(priority != NULL){
+      *priority = sr->priority;
+    }
+    
     index = sr->index;
 
     free(sr);
+    //free(sp);
 
     return index;
 
@@ -443,11 +463,10 @@ Item PQgetMin(PQ pq){
   to change priority. 
 */
 void PQchange (PQ pq, int node_index, int priority) {
-  // printf("Searching for %d with priority %d\n", node_index, priority);
-
   int item_index = PQsearch(pq, node_index, NULL);
   Item item = pq->A[item_index];
   item.priority = priority;
+
 
   while( (item_index>=1) && ((pq->A[PARENT(item_index)]).priority > item.priority)) {
     pq->A[item_index] = pq->A[PARENT(item_index)];
@@ -462,7 +481,7 @@ void PQchange (PQ pq, int node_index, int priority) {
 
 void PQdisplayHeap(PQ pq){
   for(int i=0; i<pq->heapsize; i++){
-    printf("i = %d, priority = %.3d\n", (pq->A[i]).index, (pq->A[i]).priority);
+    printf("i = %d, priority = %d\n", (pq->A[i]).index, (pq->A[i]).priority);
   }
   return;
 }

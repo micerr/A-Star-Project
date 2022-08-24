@@ -95,7 +95,6 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   PQinsert(openSet, start, closedSet[start]);
 
   while (!PQempty(openSet)){
-    PQdisplayHeap(openSet);
     //extract node
     extrNode = PQextractMin(openSet);
     //printf("extrNode.index: %d\n", extrNode.index);
@@ -129,6 +128,9 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
         else
           continue;
       }else{  //it doesn't belong to closed set
+        // printf("Heap: \n");
+        // PQdisplayHeap(openSet);
+        
         flag = PQsearch(openSet, t->v, &neighboor_fScore);
 
         //if it doesn't belong to the open set
@@ -158,10 +160,10 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   #endif
 
   // Print the found path
-  if(path[v] == -1){
+  if(path[end] == -1){
     printf("No path from %d to %d has been found.\n", start, end);
   }else{
-    printf("Path from %d to %d has been found with cost %.3d.\n", start, end, extrNode.priority);
+    printf("Path from %d to %d has been found with cost %d.\n", start, end, extrNode.priority);
     for(int v=end; v!=start; ){
       printf("%d <- ", v);
       v = path[v];
