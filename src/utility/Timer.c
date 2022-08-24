@@ -64,7 +64,11 @@ double TIMERstopEprint(Timer t){
 
       t->elapsed = computeTime(t->begin, t->end);
 
-      printf("Time spent: %.3f seconds.\n", t->elapsed);
+      if(t->elapsed < 0.010)
+        printf("Time spent: %.6f seconds.\n", t->elapsed);
+      else
+        printf("Time spent: %.3f seconds.\n", t->elapsed);
+      
     }
   pthread_mutex_unlock(t->me);
   return t->elapsed;
@@ -108,14 +112,10 @@ double computeTime(struct timeval begin, struct timeval end){
   return the time from begin to end or to the current moment if not end.
 */
 double TIMERgetElapsed(Timer t){
-  if(t->elapsed == 0.0 && t->begin.tv_usec == 0){
+  if(t->elapsed == 0.0 
+    && t->begin.tv_usec == 0){
     // never started
     return -1;
-  }else if(t->elapsed == 0.0 && t->begin.tv_sec != 0){
-    // startet but not stopped yet
-    struct timeval tv;
-    gettimeofday(&(tv), 0);
-    return computeTime(t->begin, tv);
   }
   return t->elapsed;
 }

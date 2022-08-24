@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/time.h>
-#include <time.h>
 #include <string.h>
 
 #include "Test.h"
@@ -43,7 +42,7 @@ typedef struct point_s{
 }Point;
 
 static void* genPoint(Point* points, int n, int maxV);
-static void printAnalytics(char *name, int numTh, Analytics, int **correctPath);
+static void printAnalytics(char *name, int numTh, Analytics, int **correctPath, int *lenCorrect);
 
 int main(int argc, char **argv){
     // if(argc != 2){
@@ -51,15 +50,13 @@ int main(int argc, char **argv){
     //     exit(1);
     // }
 
-    setbuf(stdout, NULL);
-
     Analytics stats;
     struct timeval begin;
 
     // TODO:  ha senso fare confronti sui tempi delle load?
     // Loading graph
     Graph G = GRAPHSequentialLoad(argv[1]);
-    //Graph G = GRAPHSequentialLoad("../examples/01-NY/13-NY1-distanceWeight.bin");
+    //Graph G = GRAPHSequentialLoad("../examples/00-EASY/00-EASY-distanceWeight.bin");
 
     // Allocate 10 points, in which we will do tests
     Point *points =(Point *) malloc(P*sizeof(Point));
@@ -69,8 +66,8 @@ int main(int argc, char **argv){
     for(int i=0; i<P; i++){
         printf("Test on path (%d, %d)\n", points[i].src, points[i].dst);
         printf("%-20s%-10s%-10s%-13s%-17s%-17s%-6s\n","Algorithm","Threads","Cost","Total Time", "Algorithm Time", "Expanded Nodes", "PASSED");
-        printf("--------------------------------------------------------\n");
-        int *correctPath = NULL;
+        printf("---------------------------------------------------------------------------------------------\n");
+        int *correctPath = NULL, correctLen = -1;
         for(int j=0; algorithms[j].algorithm != NULL; j++){
             if(!algorithms[j].isConcurrent){
                 // sequential algorithm
@@ -80,7 +77,7 @@ int main(int argc, char **argv){
                 stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, 1, strcmp(algorithms[i].name, "A* Dijkstra")==0 ? Hdijkstra : Hhaver);
                 stats->totTime = computeTime(begin, stats->endTotTime);
                 
-                printAnalytics(algorithms[j].name, 1, stats, &correctPath);
+                printAnalytics(algorithms[j].name, 1, stats, &correctPath, &correctLen);
                 ANALYTICSfree(stats);
             }else{
                 // concurrent algorithm
@@ -90,13 +87,14 @@ int main(int argc, char **argv){
                     stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, threads[k], Hhaver);
                     stats->totTime = computeTime(begin, stats->endTotTime);
 
-                    printAnalytics(algorithms[j].name, threads[k], stats, &correctPath);
+                    printAnalytics(algorithms[j].name, threads[k], stats, &correctPath, &correctLen);
                     ANALYTICSfree(stats);
                 }
             }
         }
-        free(correctPath);
-        printf("--------------------------------------------------------\n");
+        if(correctPath != NULL)
+            free(correctPath);
+        printf("---------------------------------------------------------------------------------------------\n");
         printf("\n");
     }
 
@@ -110,29 +108,43 @@ int main(int argc, char **argv){
 /*
     Print all the statistics
 */
-static void printAnalytics(char *name, int numTh, Analytics stats, int **correctPath){
+static void printAnalytics(char *name, int numTh, Analytics stats, int **correctPath, int *lenCorrect){
 		int ok = 1;
 
+        //checks if passed or not
 		if(strcmp(name, "Dijkstra") == 0){
-            *correctPath = malloc(stats->len*sizeof(int));
-			for(int i=0; i<stats->len; i++){
-				(*correctPath)[i] = stats->path[i];
-			}
+            *lenCorrect = stats->len;
+            if(stats->len != 0){
+                *correctPath = malloc(stats->len*sizeof(int));
+			    for(int i=0; i<stats->len; i++){
+			    	(*correctPath)[i] = stats->path[i];
+			    }
+            }
 		}else if(*correctPath != NULL){
-			for(int i=0; i<stats->len; i++){
-				if((*correctPath)[i] != stats->path[i]){
-					ok = 0;
-                    break;
-				}
-			}
+            // checks the lenght of the path
+            if(stats->len != *lenCorrect){
+                ok = 0;
+            }else{
+                // checks the paths
+			    for(int i=0; i<stats->len; i++){
+			    	if((*correctPath)[i] != stats->path[i]){
+			    		ok = 0;
+                        break;
+			    	}
+			    }
+            }
 		}
 
-    fprintf(stdout, "%-20s%-10d%-10d%-13.3f%-17.3f%-17d%-6s\n", numTh==1 ? name : "", numTh, 
-			stats->cost, 
-			stats->totTime, stats->algorithmTime, 
-			stats->expandedNodes,
-			ok ? "OK" : "NO"
-			);
+    printf("%-20s%-10d", numTh==1 ? name : "", numTh);
+    if(stats->len != 0)
+        printf("%-10d", stats->cost);
+    else
+        printf("%-10s", "no path");
+    if(stats->algorithmTime < 0.010)
+        printf("%-13.6f%-17.6f",stats->totTime, stats->algorithmTime);
+    else
+        printf("%-13.3f%-17.3f",stats->totTime, stats->algorithmTime);
+    printf("%-17d%-6s\n", stats->expandedNodes, ok ? "OK" : "NO");
     return;
 }
 
@@ -143,7 +155,9 @@ static void* genPoint(Point* points, int n, int maxV){
     if(points == NULL)
         return NULL;
 
-    srand(time(NULL));
+    struct timeval now = TIMERgetTime();
+
+    srand(now.tv_sec+now.tv_usec);
 
     for(int i=0; i<n; i++){
         points[i].src = rand()/((RAND_MAX + 1u)/maxV);
@@ -163,6 +177,14 @@ Analytics ANALYTICSsave(Graph G, int start, int end, int *path, int cost, double
     stats->cost = cost;
     stats->algorithmTime = algorithmTime;
     stats->len = 0;
+    // compute number of expanded nodes
+	stats->expandedNodes = 0;
+	for(int i=0; i<G->V; i++)
+		if(path[i] >= 0)
+			stats->expandedNodes++;
+    // check if no path is found
+    if(path[end] == -1)
+        return stats;
     // compute the len
     for(int i=end; i!=start; i=path[i]){
       stats->len++;
@@ -174,18 +196,11 @@ Analytics ANALYTICSsave(Graph G, int start, int end, int *path, int cost, double
     for(stats->path[i]=end; i>0; i--){
       stats->path[i-1] = path[stats->path[i]];
     }
-
-	// compute number of expanded nodes
-	stats->expandedNodes = 0;
-	for(int i=0; i<G->V; i++)
-		if(path[i] >= 0)
-			stats->expandedNodes++;
-
     return stats;
 }
 
 void ANALYTICSfree(Analytics stats){
-    if(stats != NULL && stats->path != NULL)
+    if(stats != NULL && stats->path != NULL && stats->len != 0) 
         free(stats->path);
     if(stats != NULL)
         free(stats);

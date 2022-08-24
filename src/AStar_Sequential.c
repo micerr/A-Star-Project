@@ -17,9 +17,6 @@
 #include "./utility/Item.h"
 #include "./utility/Timer.h"
 
-char spinner[] = "|/-\\";
-int spin = 0;
-
 
 // Data structures:
 // openSet -> Priority queue containing an heap made of Items (Item has index of node and priority (fScore))
@@ -98,7 +95,6 @@ Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(
   PQinsert(openSet, start, closedSet[start]);
 
   while (!PQempty(openSet)){
-    printf("%c\b", spinner[(spin++)%4]);
 
     //extract node
     extrNode = PQextractMin(openSet);
@@ -167,7 +163,7 @@ Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(
 
   // Print the found path
   #ifndef ANALYTICS
-  if(path[v] == -1){
+  if(path[end] == -1){
     printf("No path from %d to %d has been found.\n", start, end);
   }else{
     int hop=0;
@@ -244,7 +240,6 @@ Analytics GRAPHspD(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord
   PQchange(pq, start, 0);
   mindist[start] = 0;
   while (!PQempty(pq)){
-    printf("%c\b", spinner[(spin++)%4]);
 
     min_item = PQextractMin(pq);
     #if DEBUG
@@ -287,7 +282,7 @@ Analytics GRAPHspD(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord
 
   // Print the found path
   #ifndef ANALYTICS
-  if(path[v] == -1){
+  if(path[end] == -1){
     printf("No path from %d to %d has been found.\n", start, end);
   }else{
     int hop=0;

@@ -18,9 +18,6 @@
 #include "./utility/Timer.h"
 
 
-static char spinner[] = "|/-\\";
-static int spin = 0;
-
 // Data structures:
 // openSet -> Priority queue containing an heap made of Items (Item has index of node and priority (fScore))
 // closedSet -> Array of int, each cell is the fScore of a node.
@@ -173,7 +170,7 @@ Analytics ASTARSimpleParallelV2(Graph G, int start, int end, int numTH, int (*h)
 
   //printf path and its cost
   #ifndef ANALYTICS
-  if(path[0]==-1)
+  if(path[end]==-1)
     printf("No path from %d to %d has been found.\n", start, end);
   else{
     printf("Path from %d to %d has been found with cost %d\n", start, end, bCost);
@@ -223,7 +220,6 @@ static void* thFunction(void *par){
   #endif  
   //until the open set is not empty
   while(1){
-    printf("%c\b", spinner[(spin++)%4]);
 
     // Termiante Detection
     pthread_mutex_lock(arg->meOpen);
