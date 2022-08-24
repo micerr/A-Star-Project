@@ -20,3 +20,19 @@ Item* ITEMinit(int node_index, int priority){
 
   return item;
 }
+
+HItem HITEMinit(int index, int priority, int father, HItem next){
+  HItem tmp = (HItem) malloc(sizeof(*tmp));
+
+  if(tmp == NULL){
+    perror("Error trying to allocate an HItem: ");
+    exit(1);
+  }
+
+  tmp->father = father;
+  tmp->index = index;
+  tmp->next = next;
+  tmp->priority = priority;
+
+  return tmp;
+}
