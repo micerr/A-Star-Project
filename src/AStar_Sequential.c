@@ -42,6 +42,19 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   int flag;
   Coord coord, dest_coord;
 
+
+  //TO BE REMOVED
+  int proc = sysconf(_SC_NPROCESSORS_ONLN);
+  int occurrences[proc];
+
+  for(int i=0; i<proc; i++){
+        occurrences[i] = 0;
+  }
+
+  srand(time(NULL));
+
+  //
+
   #ifdef TIME
     Timer timer = TIMERinit(1);
   #endif
@@ -94,7 +107,20 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
 
   PQinsert(openSet, start, closedSet[start]);
 
+  //TO BE REMOVED
+  int count = 0;
+  //
+
   while (!PQempty(openSet)){
+    // TO BE REMOVED
+    count += 1;
+    if((count % 100) == 0){
+      printf("\nRand occurrences: \n");
+      for(int i=0; i<proc; i++){
+          printf("Proc %d: %d\n", i+1, occurrences[i]);
+      }
+    }
+
     //extract node
     extrNode = PQextractMin(openSet);
     //printf("extrNode.index: %d\n", extrNode.index);
@@ -117,6 +143,12 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
       neighboor_hScore = hScores[t->v];
       newGscore = (extrNode.priority - hScore) + t->wt;
       newFscore = newGscore + neighboor_hScore;
+
+
+      // TO BE REMOVED
+      occurrences[extrNode.index % proc] += 1;
+
+      //
 
       //if it belongs to the closed set
       if(closedSet[t->v] > -1){
