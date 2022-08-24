@@ -1,14 +1,21 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "Queue.h"
 #include "Graph.h"
 #include "AStar.h"
 #include "Heuristic.h"
 #define MAXC 11
 
 int main(void) {
+<<<<<<< HEAD
   int i, cont, id1, id2, numThreads;
+=======
+  int i, cont, id1, id2, wt, numThreads;
+  int index, priority, father;                      
+>>>>>>> develop
   char name[MAXC];
   Graph G = NULL;
+  Queue queue = NULL;
 
   cont = 1;
   while(cont) {
@@ -17,11 +24,24 @@ int main(void) {
     printf("1. Load graph from file (sequential)\n");
     printf("2. Load graph from file (parallel)\n");
     printf("---\n");
+<<<<<<< HEAD
     printf("3. Shortest path with Dijkstra algorithm\n");
     printf("4. Shortest path with sequential A*\n");
     printf("5. Shortest path with SPA*\n");
     printf("6. Shortest path with SPA* Version 2\n");
     printf("7. Free graph and exit\n");
+=======
+    printf("100. Queue - Insert node .\n");
+    printf("101. Queue - Extract node.\n");
+    printf("102. Queue - Print queue.\n");
+    printf("103. Queue - 100 elements and print.\n");
+    printf("104. Queue - Free queue.\n");
+    printf("---\n");
+    printf("9. Shortest path with Dijkstra's algorithm\n");
+    printf("10. Shortest path with sequential A*\n");
+    printf("11. Shortest path with SPA*\n");
+    printf("12. Free graph and exit\n");
+>>>>>>> develop
     printf("===============\n");
     printf("Enter your choice : ");
     if(scanf("%d",&i)<=0) {
@@ -159,6 +179,65 @@ int main(void) {
 
             case 7:    cont = 0;
                         break;
+
+            case 100:   if(queue == NULL)
+                          queue = QUEUEinit();
+                        printf("\tInsert the index: ");
+                        scanf("%d", &index);
+                        printf("\tInsert the priority: ");
+                        scanf("%d", &priority);
+                        printf("\tInsert the father: ");
+                        scanf("%d", &father);
+
+                        QUEUEtailInsert(queue, HITEMinit(index, priority, father, NULL));
+                        break;
+            
+            case 101:   if(queue == NULL){
+                          printf("Queue is not initialized.\n");
+                          break;
+                        }
+                        HItem_ptr t;
+                        t = QUEUEheadExtract(queue);
+                        if(t == NULL){
+                          printf("Nothing extracted.\n");
+                          break;
+                        }
+
+                        printf("Extracted node:\n");
+                        printf("\tindex: %d\n", t->index);
+                        printf("\tpriority: %d\n", t->priority);
+                        printf("\tfather: %d\n", t->father);
+                        break;
+
+            case 102:   if(queue == NULL){
+                          printf("Queue is not initialized.\n");
+                          break;
+                        }
+
+                        QUEUEprint(queue);
+                        break;
+
+            case 103:   if(queue != NULL){
+                          printf("One queue was already present.\nI'm going to free it.\n");
+                          QUEUEfree(queue);
+                        }
+
+                        queue = QUEUEinit();
+
+                        for(int i=0; i<100; i++)
+                          QUEUEtailInsert(queue, HITEMinit(i,i,i,NULL));
+                        QUEUEprint(queue);
+                        break;
+
+            case 104:   if(queue == NULL){
+                          printf("Queue is not initialized.\n");
+                          break;
+                        }
+
+                        QUEUEfree(queue);
+                        queue = NULL;
+                        break;
+
             default:    printf("\nInvalid option\n");
           }
         }
