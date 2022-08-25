@@ -7,16 +7,19 @@
 #include "AStar.h"
 #include "Queue.h"
 #include "PQ.h"
+#include "./utility/BitArray.h"
 
 typedef struct{
     pthread_t tid;
     int numTH;
     int start, end;
+    int *stop;
     Queue *queueArr_S2M;
     Queue *queueArr_M2S;
     pthread_mutex_t **meS2M;
     pthread_mutex_t **meM2S;
     pthread_cond_t **cvM2S;
+    BitArray sleeping;
 } masterArg_t;
 
 typedef struct{
@@ -27,6 +30,8 @@ typedef struct{
     int *hScores;
     int *bCost, *n;
     int *path;
+    int *stop;
+    BitArray sleeping;
     Queue S2M, M2S;
     pthread_mutex_t *meS2M, *meM2S, *meCost;
     pthread_cond_t *cvM2S;
@@ -35,8 +40,7 @@ typedef struct{
 
 static void *masterTH(void *par);
 static void *slaveTH(void *par);
-static int multiplicativeHashing(int s);
-static int terminateDetection();
+static int hashing(int s, int numTH);
 
 void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     Queue *queueArr_S2M;
@@ -45,11 +49,11 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     pthread_mutex_t **meM2S;
     pthread_mutex_t *meCost;
     pthread_cond_t **cvM2S;
-    
+    BitArray sleeping;
     masterArg_t masterArg;
     slaveArg_t *slaveArgArr;
     Coord coord, dest_coord;
-    int i, *hScores, *path, bCost = INT_MAX;
+    int i, *hScores, *path, bCost = INT_MAX, stop = 0;
 
     //create the array containing all precomputed Hscores
     hScores = malloc(G->V * sizeof(int));
@@ -60,7 +64,7 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     dest_coord = STsearchByIndex(G->coords, end);
     for(int i=0; i<G->V; i++){
         coord = STsearchByIndex(G->coords, i);
-        hScores = h(coord, dest_coord);
+        hScores[i] = h(coord, dest_coord);
     }
 
     //init the path array
@@ -104,12 +108,18 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
         pthread_mutex_init(meS2M[i], NULL);
     }
 
+    meCost = malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(meCost, NULL);
+
     //allocate the array of conditional variables
     cvM2S = malloc(numTH * sizeof(pthread_cond_t*));
     for(i=0; i<numTH; i++){
         cvM2S[i] = malloc(sizeof(pthread_cond_t));
         pthread_cond_init(cvM2S[i], NULL);
     }
+
+    // init BitArray
+    sleeping = BITARRAYinit(numTH);
 
     //create the arg-structure of the master
     masterArg.numTH = numTH;
@@ -119,6 +129,9 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     masterArg.queueArr_S2M = queueArr_S2M;
     masterArg.meM2S = meM2S;
     masterArg.meS2M = meS2M;
+    masterArg.cvM2S = cvM2S;
+    masterArg.stop = &stop;
+    masterArg.sleeping = sleeping;
 
     //create the array of slaves' arg-struct
     slaveArgArr = malloc(numTH * sizeof(slaveArg_t));
@@ -135,6 +148,8 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
         slaveArgArr[i].meS2M = meS2M[i];
         slaveArgArr[i].meCost = meCost;
         slaveArgArr[i].cvM2S = cvM2S[i];
+        slaveArgArr[i].stop = &stop;
+        slaveArgArr[i].sleeping = sleeping;
     }
 
     //start the master
@@ -152,10 +167,20 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     //wait termination of the master
     pthread_join(masterArg.tid, NULL);
 
+    if(path[end]==-1)
+        printf("No path from %d to %d has been found.\n", start, end);
+    else{
+        printf("Path from %d to %d has been found with cost %d\n", start, end, bCost);
+        int hops=0;
+        for(int i=end; i!=start; i=path[i]){
+            printf("%d <- ", i);
+            hops++;
+        }
+        printf("%d\nHops: %d\n", start, hops);
+    }
 
-
-
-
+    //free BitArray
+    BITARRAYfree(sleeping);
 
     //free the array of Slave-to-Master queues
     for(i=0; i<numTH; i++)
@@ -167,23 +192,27 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
         QUEUEfree(queueArr_M2S[i]);
     free(queueArr_M2S);
 
+    //free meCost mutex
+    pthread_mutex_destroy(meCost);
+    free(meCost);
+
     //free the array of M2S mutexes
     for(i=0; i<numTH; i++){
-        pthread_destroy(meM2S[i]);
+        pthread_mutex_destroy(meM2S[i]);
         free(meM2S[i]);
     }
     free(meM2S);
 
     //free the array of S2M mutexes
     for(i=0; i<numTH; i++){
-        pthread_destroy(meS2M[i]);
+        pthread_mutex_destroy(meS2M[i]);
         free(meS2M[i]);
     }
     free(meS2M);
 
     //allocate the array of conditional variables
     for(i=0; i<numTH; i++){
-        pthread_mutex_destroy(cvM2S[i]);
+        pthread_cond_destroy(cvM2S[i]);
         free(cvM2S[i]);
     }
     free(cvM2S);
@@ -209,18 +238,24 @@ static void *masterTH(void *par){
     masterArg_t *arg = (masterArg_t *)par;
 
     //compute the owner of the starting thread
-    owner = multiplicativeHashing(arg->start);
+    owner = hashing(arg->start, arg->numTH);
 
     //insert the node in the owner's queue
     QUEUEtailInsert(arg->queueArr_M2S[owner], HITEMinit(arg->start, 0, arg->start, NULL));
 
     //TODO: 
     while(1){
+        int cEmpty = 0;
         for(i=0; i<arg->numTH; i++){
             if(pthread_mutex_trylock(arg->meS2M[i]) == 0){
+                if(QUEUEisEmpty(arg->queueArr_S2M[i]) && BITARRAYgetBit(arg->sleeping, i)){
+                    pthread_mutex_unlock(arg->meS2M[i]);
+                    cEmpty++;
+                    continue;
+                }
                 while(!QUEUEisEmpty(arg->queueArr_S2M[i])){
                     message = QUEUEheadExtract(arg->queueArr_S2M[i]);
-                    owner = multiplicativeHashing(message->index);
+                    owner = hashing(message->index, arg->numTH);
                     pthread_mutex_lock(arg->meM2S[owner]);
                     QUEUEtailInsert(arg->queueArr_M2S[owner], message);
                     pthread_cond_signal(arg->cvM2S[owner]);
@@ -228,10 +263,14 @@ static void *masterTH(void *par){
                 }
                 pthread_mutex_unlock(arg->meS2M[i]);
             }
-        }            
+        }      
+        if(cEmpty == arg->numTH){
+            *(arg->stop) = 1;
+            for(i=0; i<arg->numTH; i++)
+                pthread_cond_signal(arg->cvM2S[i]);
+            pthread_exit(NULL);
+        }      
     }
-
-    pthread_exit(NULL);
 }
 
 static void *slaveTH(void *par){
@@ -261,7 +300,7 @@ static void *slaveTH(void *par){
     for(int i=0; i<arg->G->V; i++)
         closedSet[i] = -1;
 
-    while(terminateDetection){
+    while(1){
         // TODO: potremmo aggiungere una conditional variable: se sia M2S che openSet sono vuote
         //      (che è la condizone di terminazione parziale del singolo thread), il thread
         //      viene messo a dormire e viene svegliato quando il master aggiunge un messaggio
@@ -272,8 +311,12 @@ static void *slaveTH(void *par){
 
         pthread_mutex_lock(arg->meM2S);
         while(QUEUEisEmpty(arg->M2S) && PQempty(openSet)){
+            BITARRAYset1(arg->sleeping, arg->id);
             pthread_cond_wait(arg->cvM2S, arg->meM2S);
-        } 
+            if(*(arg->stop))
+                pthread_exit(NULL);
+        }
+        BITARRAYset0(arg->sleeping, arg->id);
 
         while(!QUEUEisEmpty(arg->M2S)){
             //extract a message from the queue
@@ -351,9 +394,9 @@ static void *slaveTH(void *par){
 
         for(t=arg->G->ladj[extrNode.index]; t!=arg->G->z; t=t->next){
             newGscore = gScore + t->wt;
-            pthread_mutex_lock(arg->S2M);
+            pthread_mutex_lock(arg->meS2M);
             QUEUEtailInsert(arg->S2M, HITEMinit(t->v, newGscore, extrNode.index, NULL));
-            pthread_mutex_unlock(arg->S2M);
+            pthread_mutex_unlock(arg->meS2M);
         }
     }
 
@@ -369,8 +412,4 @@ static void *slaveTH(void *par){
 
 static int hashing(int s, int numTH){
     return s%numTH;
-}
-
-static int terminateDetection(){
-    return 1;
 }

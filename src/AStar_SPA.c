@@ -29,11 +29,13 @@ static int spin = 0, isNotConsistent;
 
 //openSet is enlarged gradually (inside PQinsert)
 
-PQ openSet_PQ;
-int *closedSet, bCost;
-int *hScores;
-int *path, n;
-Timer timer;
+static PQ openSet_PQ;
+static int *closedSet, bCost;
+static int *hScores;
+static int *path, n;
+#ifdef TIME
+  static Timer timer;
+#endif
 
 static void* thFunction(void *par);
 

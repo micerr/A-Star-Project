@@ -2,15 +2,16 @@ CC=gcc
 CFLAGS=-I. -Wall -lpthread -lm
 SDIR = src
 CRYPTO_FLAGS=-I/usr/local/ssl/include -L/usr/local/ssl/lib64 -Wall -lpthread -lm -lcrypto
-SRCS = $(SDIR)/*.c $(SDIR)/utility/*.c
+SRCS := $(wildcard $(SDIR)/*.c $(SDIR)/utility/*.c)
+SRCNOSSL := $(filter-out $(SDIR)/utility/Balancer.c, $(SRCS))
 
-bin/aStar.exe: $(SRCS)
+bin/aStar.exe: $(SRCNOSSL)
 	$(CC) -o $@ $^ $(CFLAGS)
 
-debug: $(SRCS)
+debug: $(SRCNOSSL)
 	$(CC) -o bin/aStar.exe $^ $(CFLAGS) -DDEBUG
 
-time: $(SRCS)
+time: $(SRCNOSSL)
 	$(CC) -o bin/aStar.exe $^ $(CFLAGS) -DTIME
 
 kdf: $(SRCS)
