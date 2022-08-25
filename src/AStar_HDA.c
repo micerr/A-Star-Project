@@ -271,8 +271,9 @@ static void *slaveTH(void *par){
         //      terminare).
 
         pthread_mutex_lock(arg->meM2S);
-        while(QUEUEisEmpty(arg->M2S) && PQempty(openSet))
+        while(QUEUEisEmpty(arg->M2S) && PQempty(openSet)){
             pthread_cond_wait(arg->cvM2S, arg->meM2S);
+        } 
 
         while(!QUEUEisEmpty(arg->M2S)){
             //extract a message from the queue
@@ -293,7 +294,7 @@ static void *slaveTH(void *par){
                     PQinsert(openSet, message->index, newFscore);
                 }
                 else{
-                    pthread_mutex_lock(arg->M2S);
+                    pthread_mutex_lock(arg->meM2S);
                     continue;
                 }
                     
@@ -312,30 +313,36 @@ static void *slaveTH(void *par){
                     if(newGscore < gScore)
                         PQchange(openSet, message->index, newFscore);
                     else{
-                        pthread_mutex_lock(arg->M2S);
+                        pthread_mutex_lock(arg->meM2S);
                         continue;
                     }
                         
                 }
             }
             arg->path[message->index] = message->father;
-            pthread_mutex_lock(arg->M2S);
+            pthread_mutex_lock(arg->meM2S);
         }
+        pthread_mutex_unlock(arg->meM2S);
 
         if(PQempty(openSet))
             continue;
         
         extrNode = PQextractMin(openSet);
-        if(extrNode.priority >= arg->bCost)
-            continue;
-
         closedSet[extrNode.index] = extrNode.priority;
 
+        pthread_mutex_lock(arg->meCost);
+        if(extrNode.priority >= *(arg->bCost)){
+            pthread_mutex_unlock(arg->meCost);
+            continue;
+        }
+        pthread_mutex_unlock(arg->meCost);
+
         if(extrNode.index == arg->end){
+            pthread_mutex_lock(arg->meCost);
             if(extrNode.priority < *(arg->bCost))          
-            // save the cost
-            *(arg->bCost) = extrNode.priority;
-            
+                // save the cost
+                *(arg->bCost) = extrNode.priority;
+            pthread_mutex_unlock(arg->meCost);    
             continue;
         }
 
