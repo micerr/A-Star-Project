@@ -27,13 +27,13 @@ typedef struct{
     int *bCost, *n;
     int *path;
     Queue S2M, M2S;
-    pthread_mutex_t *meS2M, *meM2S;
+    pthread_mutex_t *meS2M, *meM2S, *meCost;
     Graph G;
 } slaveArg_t;
 
 static void *masterTH(void *par);
 static void *slaveTH(void *par);
-static int multiplicativeHashing(int s);
+static int hashing(int s, int numTH);
 static int terminateDetection();
 
 void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
@@ -41,6 +41,7 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     Queue *queueArr_M2S;
     pthread_mutex_t **meS2M;
     pthread_mutex_t **meM2S;
+    pthread_mutex_t *meCost;
     
     masterArg_t masterArg;
     slaveArg_t *slaveArgArr;
@@ -110,6 +111,8 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     masterArg.meS2M = meS2M;
 
     //create the array of slaves' arg-struct
+    meCost = malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(meCost, NULL);
     slaveArgArr = malloc(numTH * sizeof(slaveArg_t));
     for(i=0; i<numTH; i++){
         slaveArgArr[i].numTH = numTH;
@@ -122,6 +125,7 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
         slaveArgArr[i].G = G;
         slaveArgArr[i].meM2S = meM2S[i];
         slaveArgArr[i].meS2M = meS2M[i];
+        slaveArgArr[i].meCost = meCost;
     }
 
     //start the master
@@ -175,7 +179,7 @@ static void *masterTH(void *par){
     masterArg_t *arg = (masterArg_t *)par;
 
     //compute the owner of the starting thread
-    owner = multiplicativeHashing(arg->start);
+    owner = hashing(arg->start, arg->numTH);
 
     //insert the node in the owner's queue
     QUEUEtailInsert(arg->queueArr_M2S[owner], HITEMinit(arg->start, 0, arg->start, NULL));
@@ -186,7 +190,7 @@ static void *masterTH(void *par){
             if(pthread_mutex_trylock(arg->meS2M[i]) == 0){
                 while(!QUEUEisEmpty(arg->queueArr_S2M[i])){
                     message = QUEUEheadExtract(arg->queueArr_S2M[i]);
-                    owner = multiplicativeHashing(message->index);
+                    owner = hashing(message->index, arg->numTH);
                     pthread_mutex_lock(arg->meM2S[owner]);
                     QUEUEtailInsert(arg->queueArr_M2S[owner], message);
                     pthread_mutex_unlock(arg->meM2S[owner]);
@@ -293,9 +297,11 @@ static void *slaveTH(void *par){
         closedSet[extrNode.index] = extrNode.priority;
 
         if(extrNode.index == arg->end){
+            pthread_mutex_lock(arg->meCost);
             if(extrNode.priority < *(arg->bCost))          
-            // save the cost
-            *(arg->bCost) = extrNode.priority;
+                // save the cost
+                *(arg->bCost) = extrNode.priority;
+            pthread_mutex_unlock(arg->meCost);
             
             continue;
         }
@@ -321,7 +327,7 @@ static void *slaveTH(void *par){
     pthread_exit(NULL);
 }
 
-static int multiplicativeHashing(int s){
+static int hashing(int s, int numTH){
     return 1;
 }
 
