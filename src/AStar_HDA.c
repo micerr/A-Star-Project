@@ -186,10 +186,17 @@ static void *masterTH(void *par){
             if(pthread_mutex_trylock(arg->meS2M[i]) == 0){
                 while(!QUEUEisEmpty(arg->queueArr_S2M[i])){
                     message = QUEUEheadExtract(arg->queueArr_S2M[i]);
+                    pthread_mutex_unlock(arg->meS2M[i]);
+
                     owner = multiplicativeHashing(message->index);
+
                     pthread_mutex_lock(arg->meM2S[owner]);
                     QUEUEtailInsert(arg->queueArr_M2S[owner], message);
                     pthread_mutex_unlock(arg->meM2S[owner]);
+
+                    if(pthread_mutex_trylock(arg->meS2M[i]) != 0){
+                        break;
+                    }
                 }
             }
         }            
@@ -235,10 +242,14 @@ static void *slaveTH(void *par){
         //      terminare).
 
         pthread_mutex_lock(arg->M2S);
+        while(QUEUEisEmpty(arg->meM2S)){
+            pthread_cond_wait(arg->M2Scv, arg->M2S);
+        }
         while(!QUEUEisEmpty(arg->M2S)){
             //extract a message from the queue
             message = QUEUEheadExtract(arg->M2S);
             pthread_mutex_unlock(arg->meM2S);
+
             newGscore = message->priority;
 
             //if it belongs to the closed set
@@ -282,6 +293,7 @@ static void *slaveTH(void *par){
             arg->path[message->index] = message->father;
             pthread_mutex_lock(arg->M2S);
         }
+        pthread_mutex_unlock(arg->M2S);
 
         if(PQempty(openSet))
             continue;
