@@ -150,6 +150,8 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
         slaveArgArr[i].cvM2S = cvM2S[i];
         slaveArgArr[i].stop = &stop;
         slaveArgArr[i].sleeping = sleeping;
+        slaveArgArr[i].start = start;
+        slaveArgArr[i].end = end;
     }
 
     //start the master
@@ -257,6 +259,7 @@ static void *masterTH(void *par){
                     message = QUEUEheadExtract(arg->queueArr_S2M[i]);
                     owner = hashing(message->index, arg->numTH);
                     pthread_mutex_lock(arg->meM2S[owner]);
+                    printf("M: send from %d to %d message(n=%d, n'=%d)\n", i, owner, message->father, message->index);
                     QUEUEtailInsert(arg->queueArr_M2S[owner], message);
                     pthread_cond_signal(arg->cvM2S[owner]);
                     pthread_mutex_unlock(arg->meM2S[owner]);
@@ -324,6 +327,8 @@ static void *slaveTH(void *par){
             pthread_mutex_unlock(arg->meM2S);
             newGscore = message->priority;
 
+            printf("%d: analyzing %d\n", arg->id, message->index);
+
             //if it belongs to the closed set
             if(closedSet[message->index] >= 0){
                 gScore = closedSet[message->index] - arg->hScores[message->index];
@@ -363,6 +368,7 @@ static void *slaveTH(void *par){
                 }
             }
             arg->path[message->index] = message->father;
+            //free(message); a message is never freedzed, so we have to find where put it
             pthread_mutex_lock(arg->meM2S);
         }
         pthread_mutex_unlock(arg->meM2S);
@@ -373,18 +379,23 @@ static void *slaveTH(void *par){
         extrNode = PQextractMin(openSet);
         closedSet[extrNode.index] = extrNode.priority;
 
+        printf("%d: Extracted %d\n", arg->id, extrNode.index);
+
         pthread_mutex_lock(arg->meCost);
         if(extrNode.priority >= *(arg->bCost)){
             pthread_mutex_unlock(arg->meCost);
+            printf("%d: %d skip!\n", arg->id, extrNode.index);
             continue;
         }
         pthread_mutex_unlock(arg->meCost);
 
         if(extrNode.index == arg->end){
             pthread_mutex_lock(arg->meCost);
-            if(extrNode.priority < *(arg->bCost))          
+            if(extrNode.priority < *(arg->bCost)){     
                 // save the cost
                 *(arg->bCost) = extrNode.priority;
+                printf("%d: best %d\n", arg->id, *(arg->bCost));
+            }
             pthread_mutex_unlock(arg->meCost);    
             continue;
         }
@@ -394,6 +405,7 @@ static void *slaveTH(void *par){
 
         for(t=arg->G->ladj[extrNode.index]; t!=arg->G->z; t=t->next){
             newGscore = gScore + t->wt;
+            printf("%d: expanded node %d->%d\n", arg->id, extrNode.index, t->v);
             pthread_mutex_lock(arg->meS2M);
             QUEUEtailInsert(arg->S2M, HITEMinit(t->v, newGscore, extrNode.index, NULL));
             pthread_mutex_unlock(arg->meS2M);

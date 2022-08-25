@@ -4,7 +4,6 @@
 #include "Queue.h"
 
 struct queue{
-    int size;
     HItem head;
     HItem tail;
 };
@@ -17,7 +16,6 @@ Queue QUEUEinit(){
         exit(1);
     }
 
-    q->size = 0;
     q->head = NULL;
     q->tail = NULL;
 
@@ -36,15 +34,13 @@ void QUEUEfree(Queue q){
 }
 
 void QUEUEtailInsert(Queue queue, HItem node){
-    if(queue->size == 0){
-        queue->head = node;
-        queue->tail = node;
-        queue->size++;
+    node->next = NULL;
+    if(queue->head == NULL){
+        queue->head = queue->tail = node;
         return;
     }
     queue->tail->next = node;
     queue->tail = node;
-    queue->size++;
 }
 
 HItem QUEUEheadExtract(Queue queue){
@@ -52,11 +48,11 @@ HItem QUEUEheadExtract(Queue queue){
     t = queue->head;
 
     if(queue->head == NULL)
-        queue->tail = NULL;
-    else
-        queue->head = queue->head->next;
+        return t;
+    queue->head = queue->head->next;
+    if(queue->head == NULL)
+        queue->tail = queue->head;
 
-    queue->size--;
     return t;
 }
 
@@ -71,7 +67,7 @@ void QUEUEprint(Queue queue){
 }
 
 int QUEUEisEmpty(Queue queue){
-    return queue->size == 0;
+    return queue->head == NULL;
 }
 
 
