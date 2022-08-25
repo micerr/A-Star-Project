@@ -6,8 +6,9 @@
 #include "sys/types.h"
 #include <pthread.h>
 #include <unistd.h>
+#include "utility/Timer.h"
 
- #define PARALLEL_SEARCH
+//  #define PARALLEL_SEARCH
 
 
 struct pqueue { 
@@ -264,10 +265,14 @@ contains the index of the node and it's priority
 */
 #ifdef PARALLEL_SEARCH
 static void *thread_search(void* arg){
+  // Timer timer = TIMERinit(1); 
+  // TIMERstart(timer);
   SearchSpec *sp = (SearchSpec*) arg;
 
 
   //  printf("Thread searches target %d from %d to %d, num items: %d\n", *sp->target, sp->start_index, sp->start_index + sp->n_items, sp->n_items);
+  
+  
   for(int i=0; i<sp->n_items; i++){
     pthread_mutex_lock(sp->mutex);
     if(*(sp->found) == 1){
@@ -287,14 +292,15 @@ static void *thread_search(void* arg){
     }
   }
 
-
+  
   //free(sp);
+  // TIMERstopEprint(timer);
   return NULL;
 }
 #endif
 
 
-
+int change_calls = 0, search_calls = 0;
 /*
 Searches for a specific node inside the Item array and returns it's index 
 and the priority value inside the priority pointer
@@ -302,6 +308,8 @@ and the priority value inside the priority pointer
 int PQsearch(PQ pq, int node_index, int *priority){
   // printf("\n\nRequested search for node: %d\n", node_index);
   #ifndef PARALLEL_SEARCH
+    //Timer timer = TIMERinit(1); 
+    //TIMERstart(timer);
     int pos = -1;
     for(int i=0; i<pq->heapsize; i++){
       if(node_index == (pq->A[i]).index){
@@ -312,7 +320,9 @@ int PQsearch(PQ pq, int node_index, int *priority){
         break;
       }
     }
+    //TIMERstopEprint(timer);
     return pos;
+    
   #endif
 
   /*Generates as many thread as the number of processors times 2.
@@ -320,6 +330,17 @@ int PQsearch(PQ pq, int node_index, int *priority){
     the total number of items (pq->heapsize)
   */
   #ifdef PARALLEL_SEARCH
+    
+    
+    if(priority == NULL){
+      change_calls += 1;
+    }
+    else{
+      search_calls += 1;
+    }
+    
+    // Timer timer = TIMERinit(1); 
+    // TIMERstart(timer);
     long number_of_processors = sysconf(_SC_NPROCESSORS_ONLN);
     long max_thread = number_of_processors * 2;
     long actual_threads = max_thread;
@@ -360,7 +381,8 @@ int PQsearch(PQ pq, int node_index, int *priority){
 
     //printf("heapsize: %d, items each: %d\n", pq->heapsize, items_each);
     
-
+    Timer timer = TIMERinit(1); 
+    TIMERstart(timer);
     for(int i=0; i<actual_threads; i++){
       SearchSpec *sp = (SearchSpec*) malloc(sizeof(SearchSpec));
       sp->mutex = mutex;
@@ -377,10 +399,12 @@ int PQsearch(PQ pq, int node_index, int *priority){
 
       int res = pthread_create(&th[i], NULL, thread_search, (void *) sp);
     }
-
+    
+    TIMERstopEprint(timer);
     for(int i=0; i<actual_threads; i++){
       pthread_join(th[i], NULL);
     }
+    
 
     // printf("Search result: index=%d, priority=%d\n", sr->index, sr->priority);
 
@@ -393,6 +417,11 @@ int PQsearch(PQ pq, int node_index, int *priority){
     free(sr);
     //free(sp);
 
+    
+    if(search_calls % 1000 == 0){
+      printf("\nSearch calls: %d, change calls: %d\n", search_calls, change_calls);
+    }
+    
     return index;
 
   #endif
