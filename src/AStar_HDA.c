@@ -16,6 +16,7 @@ typedef struct{
     Queue *queueArr_M2S;
     pthread_mutex_t **meS2M;
     pthread_mutex_t **meM2S;
+    pthread_cond_t **cvM2S;
 } masterArg_t;
 
 typedef struct{
@@ -27,7 +28,8 @@ typedef struct{
     int *bCost, *n;
     int *path;
     Queue S2M, M2S;
-    pthread_mutex_t *meS2M, *meM2S;
+    pthread_mutex_t *meS2M, *meM2S, *meCost;
+    pthread_cond_t *cvM2S;
     Graph G;
 } slaveArg_t;
 
@@ -41,6 +43,8 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     Queue *queueArr_M2S;
     pthread_mutex_t **meS2M;
     pthread_mutex_t **meM2S;
+    pthread_mutex_t *meCost;
+    pthread_cond_t **cvM2S;
     
     masterArg_t masterArg;
     slaveArg_t *slaveArgArr;
@@ -100,6 +104,13 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
         pthread_mutex_init(meS2M[i], NULL);
     }
 
+    //allocate the array of conditional variables
+    cvM2S = malloc(numTH * sizeof(pthread_cond_t*));
+    for(i=0; i<numTH; i++){
+        cvM2S[i] = malloc(sizeof(pthread_cond_t));
+        pthread_cond_init(cvM2S[i], NULL);
+    }
+
     //create the arg-structure of the master
     masterArg.numTH = numTH;
     masterArg.start = start;
@@ -122,6 +133,8 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
         slaveArgArr[i].G = G;
         slaveArgArr[i].meM2S = meM2S[i];
         slaveArgArr[i].meS2M = meS2M[i];
+        slaveArgArr[i].meCost = meCost;
+        slaveArgArr[i].cvM2S = cvM2S[i];
     }
 
     //start the master
@@ -153,6 +166,27 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     for(i=0; i<numTH; i++)
         QUEUEfree(queueArr_M2S[i]);
     free(queueArr_M2S);
+
+    //free the array of M2S mutexes
+    for(i=0; i<numTH; i++){
+        pthread_destroy(meM2S[i]);
+        free(meM2S[i]);
+    }
+    free(meM2S);
+
+    //free the array of S2M mutexes
+    for(i=0; i<numTH; i++){
+        pthread_destroy(meS2M[i]);
+        free(meS2M[i]);
+    }
+    free(meS2M);
+
+    //allocate the array of conditional variables
+    for(i=0; i<numTH; i++){
+        pthread_mutex_destroy(cvM2S[i]);
+        free(cvM2S[i]);
+    }
+    free(cvM2S);
 
     //free the array of slaves' arg-struct
     free(slaveArgArr);
@@ -189,8 +223,10 @@ static void *masterTH(void *par){
                     owner = multiplicativeHashing(message->index);
                     pthread_mutex_lock(arg->meM2S[owner]);
                     QUEUEtailInsert(arg->queueArr_M2S[owner], message);
+                    pthread_cond_signal(arg->cvM2S[owner]);
                     pthread_mutex_unlock(arg->meM2S[owner]);
                 }
+                pthread_mutex_unlock(arg->meS2M[i]);
             }
         }            
     }
@@ -234,12 +270,10 @@ static void *slaveTH(void *par){
         //      risveglio il singolo thread dovrebbe controllare una condizione per capire se deve 
         //      terminare).
 
-        pthread_mutex_lock(arg->M2S);
-        while(!QUEUEisEmpty(arg->meM2S)){
-            pthread_cond_wait(arg->M2Scv, arg->M2S)
-        }
+        pthread_mutex_lock(arg->meM2S);
+        while(QUEUEisEmpty(arg->M2S) && PQempty(openSet))
+            pthread_cond_wait(arg->cvM2S, arg->meM2S);
 
-        pthread_mutex_lock(arg->M2S);
         while(!QUEUEisEmpty(arg->M2S)){
             //extract a message from the queue
             message = QUEUEheadExtract(arg->M2S);
@@ -326,8 +360,8 @@ static void *slaveTH(void *par){
     pthread_exit(NULL);
 }
 
-static int multiplicativeHashing(int s){
-    return 1;
+static int hashing(int s, int numTH){
+    return s%numTH;
 }
 
 static int terminateDetection(){
