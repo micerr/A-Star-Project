@@ -19,9 +19,8 @@ typedef struct{
     int *nMsgRcv;
     Queue *queueArr_S2M;
     Queue *queueArr_M2S;
-    pthread_mutex_t **meS2M;
-    pthread_mutex_t **meM2S;
-    pthread_cond_t **cvM2S;
+    sem_t **semS;
+    sem_t *semM;
 } masterArg_t;
 
 typedef struct{
@@ -36,12 +35,11 @@ typedef struct{
     int *nMsgRcv;
     int *stop;
     Queue S2M, M2S;
-    pthread_mutex_t *meS2M, *meM2S, *meCost;
-    pthread_cond_t *cvM2S;
+    pthread_mutex_t *meCost;
+    sem_t *semToDo;
+    sem_t *semM;
     Graph G;
 } slaveArg_t;
-
-sem_t sem, sem1;
 
 static void *masterTH(void *par);
 static void *slaveTH(void *par);
@@ -50,13 +48,12 @@ static int hashing(int s, int numTH);
 void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     Queue *queueArr_S2M;
     Queue *queueArr_M2S;
-    pthread_mutex_t **meS2M;
-    pthread_mutex_t **meM2S;
     pthread_mutex_t *meCost;
-    pthread_cond_t **cvM2S;
     masterArg_t masterArg;
     slaveArg_t *slaveArgArr;
     Coord coord, dest_coord;
+    sem_t **semS;
+    sem_t *semM;
     int i, *hScores, *path, bCost = INT_MAX, stop = 0;
     int *nMsgSnt, *nMsgRcv;
 
@@ -99,32 +96,29 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     for(i=0; i<numTH; i++)
         queueArr_M2S[i] = QUEUEinit();
 
-    //allocate and init the array of M2S mutexes
-    meM2S = malloc(numTH * sizeof(pthread_mutex_t*));
-    for(i=0; i<numTH; i++){
-        meM2S[i] = malloc(sizeof(pthread_mutex_t));
-        pthread_mutex_init(meM2S[i], NULL);
-    }
-
-    //allocate and init the array of M2S mutexes
-    meS2M = malloc(numTH * sizeof(pthread_mutex_t*));
-    for(i=0; i<numTH; i++){
-        meS2M[i] = malloc(sizeof(pthread_mutex_t));
-        pthread_mutex_init(meS2M[i], NULL);
-    }
-
     meCost = malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(meCost, NULL);
 
-    //allocate the array of conditional variables
-    cvM2S = malloc(numTH * sizeof(pthread_cond_t*));
+    //init the array of slaves' semaphores
+    semS = malloc(numTH * sizeof(sem_t *));
+    if(semS == NULL){
+        perror("Error trying to allocate semaphores for slaves: ");
+        exit(1);
+    }
     for(i=0; i<numTH; i++){
-        cvM2S[i] = malloc(sizeof(pthread_cond_t));
-        pthread_cond_init(cvM2S[i], NULL);
+        semS[i] = malloc(sizeof(sem_t));
+        sem_init(semS[i], 0, 0);
     }
 
-    sem_init(&sem, 0, 0); sem_init(&sem1, 0, 0);
+    //init master's semaphore
+    semM = malloc(sizeof(sem_t));
+    if(semM == NULL){
+        perror("Error trying to allocate master's semaphore: ");
+        exit(1);
+    }
+    sem_init(semM, 0, 0);
 
+    // init the array of messages
     nMsgRcv = malloc(numTH * sizeof(int));
     nMsgSnt = malloc(numTH * sizeof(int));
     for(i = 0; i<numTH; i++)
@@ -136,12 +130,11 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     masterArg.end = end;
     masterArg.queueArr_M2S = queueArr_M2S;
     masterArg.queueArr_S2M = queueArr_S2M;
-    masterArg.meM2S = meM2S;
-    masterArg.meS2M = meS2M;
-    masterArg.cvM2S = cvM2S;
     masterArg.stop = &stop;
     masterArg.nMsgRcv = nMsgRcv;
     masterArg.nMsgSnt = nMsgSnt;
+    masterArg.semM = semM;
+    masterArg.semS = semS;
 
     //create the array of slaves' arg-struct
     slaveArgArr = malloc(numTH * sizeof(slaveArg_t));
@@ -154,15 +147,14 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
         slaveArgArr[i].bCost = &bCost;
         slaveArgArr[i].id = i;
         slaveArgArr[i].G = G;
-        slaveArgArr[i].meM2S = meM2S[i];
-        slaveArgArr[i].meS2M = meS2M[i];
         slaveArgArr[i].meCost = meCost;
-        slaveArgArr[i].cvM2S = cvM2S[i];
         slaveArgArr[i].stop = &stop;
         slaveArgArr[i].start = start;
         slaveArgArr[i].end = end;
-        slaveArgArr[i].nMsgRcv = nMsgRcv;
-        slaveArgArr[i].nMsgSnt = nMsgSnt;
+        slaveArgArr[i].nMsgRcv = &(nMsgRcv[i]);
+        slaveArgArr[i].nMsgSnt = &(nMsgSnt[i]);
+        slaveArgArr[i].semM = semM;
+        slaveArgArr[i].semToDo = semS[i];
     }
 
     //start the master
@@ -192,7 +184,19 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
         printf("%d\nHops: %d\n", start, hops);
     }
 
+    // free the array of messages
     free(nMsgRcv); free(nMsgSnt);
+
+    //free the array of slaves' semaphores
+    for(i=0; i<numTH; i++){
+        sem_destroy(semS[i]);
+        free(semS[i]);
+    }
+    free(semS);
+
+    //free master's semaphore
+    sem_destroy(semM);
+    free(semM);
 
     //free the array of Slave-to-Master queues
     for(i=0; i<numTH; i++)
@@ -207,27 +211,6 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     //free meCost mutex
     pthread_mutex_destroy(meCost);
     free(meCost);
-
-    //free the array of M2S mutexes
-    for(i=0; i<numTH; i++){
-        pthread_mutex_destroy(meM2S[i]);
-        free(meM2S[i]);
-    }
-    free(meM2S);
-
-    //free the array of S2M mutexes
-    for(i=0; i<numTH; i++){
-        pthread_mutex_destroy(meS2M[i]);
-        free(meS2M[i]);
-    }
-    free(meS2M);
-
-    //allocate the array of conditional variables
-    for(i=0; i<numTH; i++){
-        pthread_cond_destroy(cvM2S[i]);
-        free(cvM2S[i]);
-    }
-    free(cvM2S);
 
     //free the array of slaves' arg-struct
     free(slaveArgArr);
@@ -255,31 +238,25 @@ static void *masterTH(void *par){
 
     //insert the node in the owner's queue
     QUEUEtailInsert(arg->queueArr_M2S[owner], HITEMinit(arg->start, 0, arg->start, NULL));
-    pthread_cond_signal(arg->cvM2S[owner]); // If the slave starts before the master, we need to signal to it the insertion in the queue
+    sem_post(arg->semS[owner]); // If the slave starts before the master, we need to signal to it the insertion in the queue
 
     while(1){
         // special trick used to stop the master if the is no elements in the queues
-        sem_wait(&sem); // wait for some element to be in the queue
-        sem_post(&sem); // Reset to the previous valute, becuse in the loop we count, how many elements we read.
+        sem_wait(arg->semM); // wait for some element to be in the queue
+        sem_post(arg->semM); // Reset to the previous valute, becuse in the loop we count, how many elements we read.
 
         for(i=0; i<arg->numTH; i++){
-            if(pthread_mutex_trylock(arg->meS2M[i]) == 0){
                 while(!QUEUEisEmpty(arg->queueArr_S2M[i])){
                     message = QUEUEheadExtract(arg->queueArr_S2M[i]);
-                    pthread_mutex_unlock(arg->meS2M[i]); // unlock otherwise there will be a deadlock for the following sem_wait
 
                     owner = hashing(message->index, arg->numTH);
-                    sem_wait(&sem);     // decrement the number of elementes in the queues
-                    pthread_mutex_lock(arg->meM2S[owner]);
+                    sem_wait(arg->semM);  // decrement the number of elementes in the queues, must be non-blocking, since his construction
+
                     //printf("M: send from %d to %d message(n=%d, n'=%d)\n", i, owner, message->father, message->index);
                     QUEUEtailInsert(arg->queueArr_M2S[owner], message);
-                    pthread_cond_signal(arg->cvM2S[owner]);
-                    pthread_mutex_unlock(arg->meM2S[owner]);
+                    sem_post(arg->semS[owner]);
 
-                    pthread_mutex_lock(arg->meS2M[i]);
                 }
-                pthread_mutex_unlock(arg->meS2M[i]);
-            }
         }
 
         // termination detection Mattern's Method
@@ -298,7 +275,7 @@ static void *masterTH(void *par){
         if(pR-1 == S && S != 0){
             *(arg->stop) = 1;
             for(i=0; i<arg->numTH; i++)
-                pthread_cond_signal(arg->cvM2S[i]);
+                sem_post(arg->semS[i]);
             pthread_exit(NULL);
         }
     }
@@ -341,24 +318,28 @@ static void *slaveTH(void *par){
         //      terminare).
 
         // update the values of messages sent and received
-        arg->nMsgSnt[arg->id] += nSnt;
-        arg->nMsgRcv[arg->id] += nRcv;
+        *(arg->nMsgSnt) += nSnt;
+        *(arg->nMsgRcv) += nRcv;
         nRcv = nSnt = 0;  // Zero the counter of received and sent message of this wave
 
-        pthread_mutex_lock(arg->meM2S);
-        while(QUEUEisEmpty(arg->M2S) && PQempty(openSet) && !*(arg->stop)){
-            sem_post(&sem); // wake up the master because I'm empty, Mattern's Method need a last loop without messages
-            pthread_cond_wait(arg->cvM2S, arg->meM2S);
-            sem_wait(&sem); // if it wasn't the last lap => Everything must be put as before
+        // special trick used to stop the slave if the is no things to do
+        if(sem_trywait(arg->semToDo) != 0){
+            // enter here only when we have to wait, that it means that we don't have any work to do => (We have to ask to the Master if the algorithm is ended)
+            sem_post(arg->semM); // wake up the master because I'm empty, Mattern's Method need a last loop without messages
+            sem_wait(arg->semToDo); // go to sleep
+            sem_wait(arg->semM); // if it wasn't the last lap => Everything must be put as before
         }
+        sem_post(arg->semToDo); // Reset to the previous valute, because in the loops we count the number of elements in the queue through the semaphores.
+        
         if(*(arg->stop))
             pthread_exit(NULL);
 
         while(!QUEUEisEmpty(arg->M2S)){
             //extract a message from the queue
             message = QUEUEheadExtract(arg->M2S);
-            pthread_mutex_unlock(arg->meM2S);
 
+            // decrement the number of thing that we have to do
+            sem_wait(arg->semToDo); // must be non-blocking, since his construction
             nRcv++; // increment the received messages
 
             newGscore = message->priority;
@@ -374,11 +355,12 @@ static void *slaveTH(void *par){
                     newFscore = newGscore + arg->hScores[message->index];
                     //remove it from the closed set
                     closedSet[message->index] = -1;
-                    //add it to the openSet
+                    //add it to the openSet1
                     PQinsert(openSet, message->index, newFscore);
+                    // increment the number of thing that we have to do
+                    sem_post(arg->semToDo); 
                 }
                 else{
-                    pthread_mutex_lock(arg->meM2S);
                     continue;
                 }
                     
@@ -389,6 +371,8 @@ static void *slaveTH(void *par){
                 if(PQsearch(openSet, message->index, &fScore) < 0){
                     newFscore = newGscore + arg->hScores[message->index];
                     PQinsert(openSet, message->index, newFscore);
+                    // increment the number of thing that we have to do
+                    sem_post(arg->semToDo); 
                 }
                 else{
                     gScore = fScore - arg->hScores[message->index];
@@ -397,7 +381,6 @@ static void *slaveTH(void *par){
                     if(newGscore < gScore)
                         PQchange(openSet, message->index, newFscore);
                     else{
-                        pthread_mutex_lock(arg->meM2S);
                         continue;
                     }
                         
@@ -405,15 +388,15 @@ static void *slaveTH(void *par){
             }
             arg->path[message->index] = message->father;
             //TODO free(message); a message is never freedzed, so we have to find where put it
-            pthread_mutex_lock(arg->meM2S);
         }
-        pthread_mutex_unlock(arg->meM2S);
 
         if(PQempty(openSet))
             continue;
         
         extrNode = PQextractMin(openSet);
         closedSet[extrNode.index] = extrNode.priority;
+        // decrement the number of thing that we have to do
+        sem_wait(arg->semToDo); // must be non-blocking, since his construction
 
         //printf("%d: Extracted %d\n", arg->id, extrNode.index);
 
@@ -429,7 +412,7 @@ static void *slaveTH(void *par){
             if(extrNode.priority < *(arg->bCost)){     
                 // save the cost
                 *(arg->bCost) = extrNode.priority;
-                printf("%d: best %d\n", arg->id, *(arg->bCost));
+                // printf("%d: best %d\n", arg->id, *(arg->bCost));
             }
             pthread_mutex_unlock(arg->meCost);    
             continue;
@@ -442,10 +425,8 @@ static void *slaveTH(void *par){
             // TODO fare if che skippa il nodo di provenienza fare fare hash agli slave
             newGscore = gScore + t->wt;
             //printf("%d: expanded node %d->%d\n", arg->id, extrNode.index, t->v);
-            pthread_mutex_lock(arg->meS2M);
             QUEUEtailInsert(arg->S2M, HITEMinit(t->v, newGscore, extrNode.index, NULL));
-            pthread_mutex_unlock(arg->meS2M);
-            sem_post(&sem); // tells the master that there is a message in the queue
+            sem_post(arg->semM); // tells the master that there is a message in the queue
             nSnt++; // inrement the number of message sent
         }
     }
