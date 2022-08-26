@@ -246,7 +246,7 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
 */
 static void *masterTH(void *par){
     int i, owner;
-    int R=-1, S=1, pR; // termination detection Mattern's Method
+    int R=-1, S, pR; // termination detection Mattern's Method
     HItem message;
     masterArg_t *arg = (masterArg_t *)par;
 
@@ -294,7 +294,7 @@ static void *masterTH(void *par){
             S != 0  := if there are no message sent, the algorithm is not started yet   
             pR-1 because the first message is sent by the Master, and the master is not in the game
         */
-        //printf("R: %d, R': %d, S':%d\n", pR-1, R, S);
+        //printf("R: %d, R': %d, S': %d\n", pR-1, R-1, S);
         if(pR-1 == S && S != 0){
             *(arg->stop) = 1;
             for(i=0; i<arg->numTH; i++)
@@ -309,7 +309,7 @@ static void *slaveTH(void *par){
 
     PQ openSet;
     int *closedSet;
-
+    int nRcv=0, nSnt=0;
     HItem message;
     Item extrNode;
     ptr_node t;
@@ -340,6 +340,11 @@ static void *slaveTH(void *par){
         //      risveglio il singolo thread dovrebbe controllare una condizione per capire se deve 
         //      terminare).
 
+        // update the values of messages sent and received
+        arg->nMsgSnt[arg->id] += nSnt;
+        arg->nMsgRcv[arg->id] += nRcv;
+        nRcv = nSnt = 0;  // Zero the counter of received and sent message of this wave
+
         pthread_mutex_lock(arg->meM2S);
         while(QUEUEisEmpty(arg->M2S) && PQempty(openSet) && !*(arg->stop)){
             sem_post(&sem); // wake up the master because I'm empty, Mattern's Method need a last loop without messages
@@ -354,7 +359,7 @@ static void *slaveTH(void *par){
             message = QUEUEheadExtract(arg->M2S);
             pthread_mutex_unlock(arg->meM2S);
 
-            arg->nMsgRcv[arg->id]++; // increment the received messages
+            nRcv++; // increment the received messages
 
             newGscore = message->priority;
 
@@ -399,7 +404,7 @@ static void *slaveTH(void *par){
                 }
             }
             arg->path[message->index] = message->father;
-            //free(message); a message is never freedzed, so we have to find where put it
+            //TODO free(message); a message is never freedzed, so we have to find where put it
             pthread_mutex_lock(arg->meM2S);
         }
         pthread_mutex_unlock(arg->meM2S);
@@ -415,7 +420,6 @@ static void *slaveTH(void *par){
         pthread_mutex_lock(arg->meCost);
         if(extrNode.priority >= *(arg->bCost)){
             pthread_mutex_unlock(arg->meCost);
-            //printf("%d: %d skip!\n", arg->id, extrNode.index);
             continue;
         }
         pthread_mutex_unlock(arg->meCost);
@@ -435,13 +439,14 @@ static void *slaveTH(void *par){
         gScore = fScore - arg->hScores[extrNode.index];
 
         for(t=arg->G->ladj[extrNode.index]; t!=arg->G->z; t=t->next){
+            // TODO fare if che skippa il nodo di provenienza fare fare hash agli slave
             newGscore = gScore + t->wt;
             //printf("%d: expanded node %d->%d\n", arg->id, extrNode.index, t->v);
             pthread_mutex_lock(arg->meS2M);
             QUEUEtailInsert(arg->S2M, HITEMinit(t->v, newGscore, extrNode.index, NULL));
             pthread_mutex_unlock(arg->meS2M);
             sem_post(&sem); // tells the master that there is a message in the queue
-            arg->nMsgSnt[arg->id]++; // inrement the number of message sent
+            nSnt++; // inrement the number of message sent
         }
     }
 
