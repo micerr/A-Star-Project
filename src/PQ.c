@@ -9,7 +9,7 @@
 #include "utility/Timer.h"
 #include <time.h>
 
-#define PARALLEL_SEARCH
+//#define PARALLEL_SEARCH
 
 
 struct pqueue { 
@@ -92,11 +92,12 @@ static int PARENT(int i) {
   return (i-1)/2;
 }
 
-
+#ifdef PARALLEL_SEARCH
 long max_thread;
 SearchSpec **sp_array;
 SearchRes sr; 
 pthread_t *th;
+#endif
 
 PQ PQinit(int maxN) {
   PQ pq;
@@ -165,13 +166,8 @@ PQ PQinit(int maxN) {
 
       
 
-      // if((pq->heapsize >= max_thread) && (i == (actual_threads-1))){
-      //   sp->n_items += rem;
-      // }
-
       int res = pthread_create(&th[i], NULL, thread_search, (void*) sp_array[i]);
 
-      // printf("Main: %d, Res: %d\n", i, res);
     }
 
   #endif
@@ -179,16 +175,29 @@ PQ PQinit(int maxN) {
   return pq;
 }
 
-
+#ifdef PARALLEL_SEARCH
 void PQterminate(){
-  for(int i=0; i<max_thread; i++){
-      pthread_join(th[i], NULL);
-      free(sp_array[i]);
-      free(sr);
-  }
+  int i=0;
 
+  free(sp_array[i]->found_mutex);
+  free(sp_array[i]->master_wait_cv);
+  free(sp_array[i]->thread_wait_cv);
+  free(sp_array[i]->search_complete);
+  free(sp_array[i]->target);
+  free(sp_array[i]->start_flag);
+  free(sp_array[i]->found);
+  
+  for(i=0; i<max_thread; i++){
+      pthread_cancel(th[i]);
+      free(sp_array[i]);
+      
+  }
+  free(sr);
+  free(th);
+  printf("Everything freed\n");
   
 }
+#endif
 
 /*
   This function frees all memory used by the PQ, that is
@@ -327,29 +336,36 @@ static void Heapify(PQ pq, int i) {
   //If the root is smaller than the two children it will stop even if some nodes underneath dont respect heap condition
 }
 
-void main(void){
-  PQ set = PQinit(1000000);
-  //PQinsert(set, 2, 10);
-  // PQinsert(set, 4, 12);
-  // PQinsert(set, 6, 14);
+// void main(void){
+//   PQ set = PQinit(25000000);
+//   //PQinsert(set, 2, 10);
+//   // PQinsert(set, 4, 12);
+//   // PQinsert(set, 6, 14);
 
 
-  for(int i=0; i<1000000; i++){
-    PQinsert(set, i, i*2);
-  }
+//   for(int i=0; i<25000000; i++){
+//     PQinsert(set, i, i*2);
+//   }
 
-  int *prio = malloc(sizeof(int));
-  int index;
+//   int *prio = malloc(sizeof(int));
+//   int index;
 
-  //index = PQsearch(set, 1, prio); 
-  //index = PQsearch(set, 3, prio);
+//   //index = PQsearch(set, 1, prio); 
+//   //index = PQsearch(set, 3, prio);
 
-  index = PQsearch(set, 50000, prio);
-  index = PQsearch(set, 123456, prio);
-  index = PQsearch(set, 2000000, prio);
+//   Timer timer = TIMERinit(1); 
 
-  // PQterminate();
-}
+//   TIMERstart(timer);
+//   index = PQsearch(set, 24000000, prio);
+//   TIMERstopEprint(timer);
+
+//   printf("Result: index=%d, priority=%d\n", index, *prio);
+
+//   // index = PQsearch(set, 123456, prio);
+//   // index = PQsearch(set, 2000000, prio);
+
+//   PQterminate();
+// }
 
 
 /*
@@ -367,7 +383,7 @@ static void *thread_search(void* arg){
     //Wait for a search to be scheduled
     pthread_mutex_lock(sp->found_mutex);
     while((sp->thread_finished == 1) || (*(sp->start_flag) == 0)){
-      printf("Thread %d waits for start_flag to be set to 1\n", sp->tid);
+      //printf("Thread %d waits for start_flag to be set to 1\n", sp->tid);
 
       int sc_bound = (sp->pq)->heapsize >= 16 ? max_thread : (sp->pq)->heapsize % 16;
 
@@ -375,65 +391,54 @@ static void *thread_search(void* arg){
         pthread_cond_signal(sp->master_wait_cv);
       }
 
-      printf("Thread %d unlocked found mutex and goes waiting\n", sp->tid);
+      //printf("Thread %d unlocked found mutex and goes waiting\n", sp->tid);
       pthread_cond_wait(sp->thread_wait_cv, sp->found_mutex);
     }
 
     pthread_mutex_unlock(sp->found_mutex);
-    printf("Thread %d is woken up and starts searching, heapsize: %d\n", sp->tid, (sp->pq)->heapsize);
+    //printf("Thread %d is woken up and starts searching, heapsize: %d\n", sp->tid, (sp->pq)->heapsize);
 
     
-    // if(sp->tid >= (sp->pq)->heapsize){
-    //   printf("Thread %d shouldn't search\n", sp->tid);
-    //   pthread_mutex_lock(sp->found_mutex);
-    //   *(sp->search_complete) += 1;
-    //   pthread_mutex_unlock(sp->found_mutex);
-    //   sp->thread_finished = 1;
-    //   continue;
-    // }
-    // else{
-       printf("Thread %d searches target %d from %d to %d, num items: %d\n", sp->tid, *(sp->target), sp->start_index, sp->start_index + sp->n_items, sp->n_items);
-      for(int i=0; i<sp->n_items; i++){
-        pthread_mutex_lock(sp->found_mutex);
-        if(*(sp->found) == 1){
-          printf("Thread %d, result has already been found by another thread\n", sp->tid);
-          pthread_mutex_unlock(sp->found_mutex);
-          break;
-        }
-        pthread_mutex_unlock(sp->found_mutex);
-
-        
-        if(((sp->pq)->A[sp->start_index+i]).index == *sp->target){
-          pthread_mutex_lock(sp->found_mutex);
-
-            sr->index = (sp->start_index+i);
-            sr->priority = ((sp->pq)->A[sp->start_index+i]).priority;
-            *sp->found = 1;
-            *sp->start_flag = 0;
-
-            printf("Thread %d found node, index: %d, priority: %d\n", sp->tid, sr->index, sr->priority);
-            pthread_cond_signal(sp->master_wait_cv);
-
-            
-          pthread_mutex_unlock(sp->found_mutex);
-          break;
-        }
-      }
-
-      
+    //printf("Thread %d searches target %d from %d to %d, num items: %d\n", sp->tid, *(sp->target), sp->start_index, sp->start_index + sp->n_items, sp->n_items);
+    for(int i=0; i<sp->n_items; i++){
       pthread_mutex_lock(sp->found_mutex);
-      if(!(*sp->found)){
-        printf("Thread %d couldn't find the target in it's range\n", sp->tid);
-        *(sp->search_complete) += 1;
+      if(*(sp->found) == 1){
+        //printf("Thread %d, result has already been found by another thread\n", sp->tid);
+        pthread_mutex_unlock(sp->found_mutex);
+        break;
       }
       pthread_mutex_unlock(sp->found_mutex);
-      sp->thread_finished = 1;
-    // }
-    
-    //free(sp);
-    // TIMERstopEprint(timer);
+
+        
+      if(((sp->pq)->A[sp->start_index+i]).index == *sp->target){
+        pthread_mutex_lock(sp->found_mutex);
+
+        sr->index = (sp->start_index+i);
+        sr->priority = ((sp->pq)->A[sp->start_index+i]).priority;
+        *sp->found = 1;
+        *sp->start_flag = 0;
+
+        //printf("Thread %d found node, index: %d, priority: %d\n", sp->tid, sr->index, sr->priority);
+        pthread_cond_signal(sp->master_wait_cv);
+
+            
+        pthread_mutex_unlock(sp->found_mutex);
+        break;
+      }
+    }
+
+      
+    pthread_mutex_lock(sp->found_mutex);
+    if(!(*sp->found)){
+      //printf("Thread %d couldn't find the target in it's range\n", sp->tid);
+      *(sp->search_complete) += 1;
+    }
+    pthread_mutex_unlock(sp->found_mutex);
+    sp->thread_finished = 1;
     
   }
+
+  return NULL;
 }
 #endif
 
@@ -445,8 +450,6 @@ and the priority value inside the priority pointer
 int PQsearch(PQ pq, int node_index, int *priority){
   // printf("\n\nRequested search for node: %d\n", node_index);
   #ifndef PARALLEL_SEARCH
-    //Timer timer = TIMERinit(1); 
-    //TIMERstart(timer);
     int pos = -1;
     for(int i=0; i<pq->heapsize; i++){
       if(node_index == (pq->A[i]).index){
@@ -457,7 +460,7 @@ int PQsearch(PQ pq, int node_index, int *priority){
         break;
       }
     }
-    //TIMERstopEprint(timer);
+
     return pos;
     
   #endif
@@ -467,7 +470,7 @@ int PQsearch(PQ pq, int node_index, int *priority){
     the total number of items (pq->heapsize)
   */
   #ifdef PARALLEL_SEARCH
-    printf("PQ search requested\n");
+    //printf("PQ search requested\n");
     
     long required_threads = max_thread;
     int index;
@@ -475,13 +478,12 @@ int PQsearch(PQ pq, int node_index, int *priority){
     int rem;
 
     if(pq->heapsize == 0){
-      printf("Heapsize is 0, returning. index: %d\n", sr->index);
-      //free(sr);
+      //printf("Heapsize is 0, returning. index: %d\n", sr->index);
 
       return -1;
     }
     else if(pq->heapsize < max_thread){
-      printf("Heap size is less than number of threads, calling %d threads\n", pq->heapsize);
+      //printf("Heap size is less than number of threads, calling %d threads\n", pq->heapsize);
       items_each = 1;
       required_threads = pq->heapsize;
 
@@ -496,20 +498,11 @@ int PQsearch(PQ pq, int node_index, int *priority){
           *(sp_array[i]->start_flag) = 1; 
           *(sp_array[i]->target) = node_index;
           *(sp_array[i]->search_complete) = 0;
-
-          //pthread_mutex_lock(sp_array[i]->found_mutex);
-          // pthread_mutex_lock(sp_array[i]->start_mutex);
-          //   pthread_cond_broadcast(sp_array[i]->thread_wait_cv);
-          //   printf("Master broadcast thread\n");
-          // pthread_mutex_unlock(sp_array[i]->start_mutex);
         }
       }
-
-
-      //printf("Launching %ld threads\n", max_thread);
     }
     else {
-      printf("Heap size is greater than max_thread, calling %ld threads\n", max_thread);
+      //printf("Heap size is greater than max_thread, calling %ld threads\n", max_thread);
       required_threads = max_thread;
       items_each = pq->heapsize / max_thread;
       rem = pq->heapsize % max_thread;
@@ -525,41 +518,20 @@ int PQsearch(PQ pq, int node_index, int *priority){
           *(sp_array[i]->start_flag) = 1; 
           *(sp_array[i]->target) = node_index;
           *(sp_array[i]->search_complete) = 0;
-
-          //pthread_mutex_lock(sp_array[i]->found_mutex);
-          //printf("Master locks found\n");
-          // pthread_mutex_lock(sp_array[i]->start_mutex);
-          //   pthread_cond_broadcast(sp_array[i]->thread_wait_cv);
-          //   printf("Master broadcast thread\n");
-          // pthread_mutex_unlock(sp_array[i]->start_mutex);
         }
       }
     } 
 
-
-
-    //Wait for a thread on a cv!
-    
-    //LOCK TO FOUND_MUTEX BEFORE LOCK TO START MUTEX BRINGS TO DEADLOCK
-    //pthread_mutex_lock(sp_array[required_threads-1]->start_mutex);
     pthread_mutex_lock(sp_array[required_threads-1]->found_mutex);
     while((*(sp_array[required_threads-1]->found) == 0) && (*(sp_array[required_threads-1]->search_complete) < required_threads)){
-      printf("Master broadcasts and awaits for a result\n");
+      //printf("Master broadcasts and awaits for a result\n");
       pthread_cond_broadcast(sp_array[required_threads-1]->thread_wait_cv);
       pthread_cond_wait(sp_array[required_threads-1]->master_wait_cv, sp_array[required_threads-1]->found_mutex);
     }
 
     pthread_mutex_unlock(sp_array[required_threads-1]->found_mutex);
-    //pthread_mutex_unlock(sp_array[required_threads-1]->start_mutex);
 
-
-    //We have the solution here
-
-
-
-    //printf("heapsize: %d, items each: %d\n", pq->heapsize, items_each);
     
-
 
     if(priority != NULL){
       if(sr->index != -1){
@@ -578,7 +550,6 @@ int PQsearch(PQ pq, int node_index, int *priority){
     sr->index = -1;
     *(sp_array[0]->found) = 0;
 
-    //free(sp);
 
 
     
