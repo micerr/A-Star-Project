@@ -105,3 +105,28 @@ int QUEUEisEmpty(Queue queue){
     pthread_mutex_unlock(queue->meh);
     return ret;
 }
+
+int QUEUEsAreEmpty(Queue *queues, int n, int *firstNotEmpty){
+    int i, empty=1;
+    *firstNotEmpty = 0;
+    for(i=0; i<n; i++)
+        if(queues[i] != NULL)
+            if(!QUEUEisEmpty(queues[i])){
+                empty = 0;
+                *firstNotEmpty = i;
+                continue;
+            }
+    return empty;
+}
+
+HItem QUEUEsHeadExtract(Queue *queues, int n, int startFrom){
+    int i, j;
+    HItem t;
+    for(i=startFrom; i<n+startFrom; i++){
+        j = i%n;
+        if(queues[j] != NULL)
+            if((t = QUEUEheadExtract(queues[j])) != NULL)
+                break;
+    }
+    return t;
+}

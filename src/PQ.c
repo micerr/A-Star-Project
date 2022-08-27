@@ -375,9 +375,9 @@ Item PQextractMin(PQ pq) {
   Heapify(pq, 0);
 
   #ifdef DEBUG
-    printf("\n*****AUXILIARY******\n");
-    PQdisplayHeap(pq);
-    printf("\n**************\n");
+    // printf("\n*****AUXILIARY******\n");
+    // PQdisplayHeap(pq);
+    // printf("\n**************\n");
   #endif
 
   return item;

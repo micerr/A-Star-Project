@@ -22,8 +22,9 @@ int main(void) {
     printf("4. Shortest path with sequential A*\n");
     printf("5. Shortest path with SPA*\n");
     printf("6. Shortest path with SPA* Version 2\n");
-    printf("7. Shortest path with HDA\n");
-    printf("8. Free graph and exit\n");
+    printf("7. Shortest path with HDA (Courirer Master)\n");
+    printf("8. Shortest path with HDA (NO Courirer Master)\n");
+    printf("9. Free graph and exit\n");
     printf("===============\n");
     printf("Enter your choice : ");
     if(scanf("%d",&i)<=0) {
@@ -181,13 +182,13 @@ int main(void) {
                           switch (i)
                           {
                           case 1:
-                            ASTARhda(G, id1, id2, numThreads, Hdijkstra);
+                            ASTARhdaMaster(G, id1, id2, numThreads, Hdijkstra);
                             break;
                           case 2:
-                            ASTARhda(G, id1, id2, numThreads, Hcoord);
+                            ASTARhdaMaster(G, id1, id2, numThreads, Hcoord);
                             break;
                           case 3:
-                            ASTARhda(G, id1, id2, numThreads, Hhaver);
+                            ASTARhdaMaster(G, id1, id2, numThreads, Hhaver);
                             break;
                           default:
                             printf("\nInvalid option\n");
@@ -196,7 +197,44 @@ int main(void) {
                         }                        
                         break;
 
-            case 8:    cont = 0;
+            case 8:     if(G == NULL){
+                          printf("No Graph inserted yet.\n");
+                          break;
+                        }
+                        printf("\nInsert starting node = ");
+                        scanf("%d", &id1);
+                        printf("Insert destination node = ");
+                        scanf("%d", &id2);
+                        printf("Insert number of threads: ");
+                        scanf("%d", &numThreads);
+                        printf("Insert the heuristic function h(x) to use:\n");
+                        printf("\t1: Dijkstra emulator\n");
+                        printf("\t2: Euclidean distance\n");
+                        printf("\t3: Haversine formula\n");
+                        printf("\tEnter your choice : ");
+                        if(scanf("%d",&i)<=0) {
+                          printf("Integers only!\n");
+                          exit(0);
+                        }else{
+                          switch (i)
+                          {
+                          case 1:
+                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hdijkstra);
+                            break;
+                          case 2:
+                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hcoord);
+                            break;
+                          case 3:
+                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hhaver);
+                            break;
+                          default:
+                            printf("\nInvalid option\n");
+                            break;
+                          }
+                        }                        
+                        break;
+
+            case 9:    cont = 0;
                         break;
             default:    printf("\nInvalid option\n");
           }

@@ -15,11 +15,13 @@ typedef struct{
     pthread_t tid;
     int numTH;
     int start, end;
+    int isMaster;
     int *stop;
     int *nMsgSnt;
     int *nMsgRcv;
     Queue *queueArr_S2M;
     Queue *queueArr_M2S;
+    Queue **queueMat_S2S;
     sem_t **semS;
     sem_t *semM;
     #ifdef TIME
@@ -32,6 +34,7 @@ typedef struct{
     int numTH;
     int id;
     int start, end;
+    int isMaster;
     int *hScores;
     int *bCost;
     int *path;
@@ -39,8 +42,10 @@ typedef struct{
     int *nMsgRcv;
     int *stop;
     Queue S2M, M2S;
+    Queue **S2S;
     pthread_mutex_t *meCost;
     sem_t *semToDo;
+    sem_t **semS;
     sem_t *semM;
     Graph G;
     #ifdef TIME
@@ -48,20 +53,33 @@ typedef struct{
     #endif 
 } slaveArg_t;
 
+static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster);
 static void *masterTH(void *par);
 static void *slaveTH(void *par);
 static int hashing(int s, int numTH);
+static void analyzeNode(slaveArg_t *arg, PQ openSet, int *closedSet, HItem message);
 
-void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
+// Wrapper for HDA* with deliver Master
+void ASTARhdaMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
+    return ASTARhda(G, start, end, numTH, h, 1);
+}
+
+// Wrapper for HDA* withOUT deliver Master
+void ASTARhdaNoMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
+    return ASTARhda(G, start, end, numTH, h, 0);
+}
+
+static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster){
     Queue *queueArr_S2M;
     Queue *queueArr_M2S;
+    Queue **queueMat_S2S;
     pthread_mutex_t *meCost;
     masterArg_t masterArg;
     slaveArg_t *slaveArgArr;
     Coord coord, dest_coord;
     sem_t **semS;
     sem_t *semM;
-    int i, *hScores, *path, bCost = INT_MAX, stop = 0;
+    int i, j, *hScores, *path, bCost = INT_MAX, stop = 0;
     int *nMsgSnt, *nMsgRcv;
     #ifdef TIME
         Timer timer;
@@ -87,24 +105,45 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     }
     for(int i=0; i<G->V; i++)
         path[i] = -1;
-
-    // allocate the array of Slave-to-Master queues
-    queueArr_S2M = malloc(numTH * sizeof(Queue));
-    if(queueArr_S2M == NULL){
-        perror("Error allocating queueArr_S2M: ");
-        exit(1);
-    }
-    for(i=0; i<numTH; i++)
-        queueArr_S2M[i] = QUEUEinit();
     
-    // allocate the array of Master-to-Slave queues
-    queueArr_M2S = malloc(numTH * sizeof(Queue));
-    if(queueArr_M2S == NULL){
-        perror("Error allocating queueArr_M2S: ");
-        exit(1);
+    if(isMaster){
+
+        // allocate the array of Slave-to-Master queues
+        queueArr_S2M = malloc(numTH * sizeof(Queue));
+        if(queueArr_S2M == NULL){
+            perror("Error allocating queueArr_S2M: ");
+            exit(1);
+        }
+        for(i=0; i<numTH; i++)
+            queueArr_S2M[i] = QUEUEinit();
+
+        // allocate the array of Master-to-Slave queues
+        queueArr_M2S = malloc(numTH * sizeof(Queue));
+        if(queueArr_M2S == NULL){
+            perror("Error allocating queueArr_M2S: ");
+            exit(1);
+        }
+        for(i=0; i<numTH; i++)
+            queueArr_M2S[i] = QUEUEinit();
+
+    }else{
+
+        // allocate the matrix of Slave-to-Salve queues
+        queueMat_S2S = malloc(numTH * sizeof(Queue*));
+        if(queueMat_S2S == NULL){
+            perror("Error allocating queueMat_S2S: ");
+            exit(1);
+        }
+        for(i=0; i<numTH; i++){
+            queueMat_S2S[i] = malloc(numTH * sizeof(Queue));
+            if(queueMat_S2S[i] == NULL){
+                perror("Error allocating queueMat_S2S: ");
+                exit(1);
+            }
+            for(j=0; j<numTH; j++)
+                queueMat_S2S[i][j] = QUEUEinit();
+        }
     }
-    for(i=0; i<numTH; i++)
-        queueArr_M2S[i] = QUEUEinit();
 
     meCost = malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(meCost, NULL);
@@ -139,16 +178,21 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     #endif
 
     //create the arg-structure of the master
+    if(isMaster){
+        masterArg.queueArr_M2S = queueArr_M2S;
+        masterArg.queueArr_S2M = queueArr_S2M;
+    }else{
+        masterArg.queueMat_S2S = queueMat_S2S;
+    }
     masterArg.numTH = numTH;
     masterArg.start = start;
     masterArg.end = end;
-    masterArg.queueArr_M2S = queueArr_M2S;
-    masterArg.queueArr_S2M = queueArr_S2M;
     masterArg.stop = &stop;
     masterArg.nMsgRcv = nMsgRcv;
     masterArg.nMsgSnt = nMsgSnt;
     masterArg.semM = semM;
     masterArg.semS = semS;
+    masterArg.isMaster = isMaster;
     #ifdef TIME
         masterArg.timer = timer;
     #endif
@@ -156,9 +200,13 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     //create the array of slaves' arg-struct
     slaveArgArr = malloc(numTH * sizeof(slaveArg_t));
     for(i=0; i<numTH; i++){
+        if(isMaster){
+            slaveArgArr[i].M2S = queueArr_M2S[i];
+            slaveArgArr[i].S2M = queueArr_S2M[i];
+        }else{
+            slaveArgArr[i].S2S = queueMat_S2S;
+        }
         slaveArgArr[i].numTH = numTH;
-        slaveArgArr[i].M2S = queueArr_M2S[i];
-        slaveArgArr[i].S2M = queueArr_S2M[i];
         slaveArgArr[i].hScores = hScores;
         slaveArgArr[i].path = path;
         slaveArgArr[i].bCost = &bCost;
@@ -172,6 +220,8 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
         slaveArgArr[i].nMsgSnt = &(nMsgSnt[i]);
         slaveArgArr[i].semM = semM;
         slaveArgArr[i].semToDo = semS[i];
+        slaveArgArr[i].semS = semS;
+        slaveArgArr[i].isMaster = isMaster;
         #ifdef TIME
             slaveArgArr[i].timer = timer;
         #endif
@@ -222,15 +272,29 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     sem_destroy(semM);
     free(semM);
 
-    //free the array of Slave-to-Master queues
-    for(i=0; i<numTH; i++)
-        QUEUEfree(queueArr_S2M[i]);
-    free(queueArr_S2M);
+    if(isMaster){
 
-    //free the array of Master-to-Slave queues
-    for(i=0; i<numTH; i++)
-        QUEUEfree(queueArr_M2S[i]);
-    free(queueArr_M2S);
+        //free the array of Slave-to-Master queues
+        for(i=0; i<numTH; i++)
+            QUEUEfree(queueArr_S2M[i]);
+        free(queueArr_S2M);
+
+        //free the array of Master-to-Slave queues
+        for(i=0; i<numTH; i++)
+            QUEUEfree(queueArr_M2S[i]);
+        free(queueArr_M2S);
+
+    }else{
+
+        //free the matrxi of Slave-to-Slave queues
+        for(i=0; i<numTH; i++){
+            for(j=0; j<numTH; j++)
+                QUEUEfree(queueMat_S2S[i][j]);
+            free(queueMat_S2S[i]);
+        }
+        free(queueMat_S2S);
+
+    }
 
     //free meCost mutex
     pthread_mutex_destroy(meCost);
@@ -244,13 +308,6 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
 
 }
 
-/* TODO: condizione di terminazione. 
-        Utilizzando il master forse diventa più semplice. Esso controlla
-        tutte le code: se tutte le code S2M sono vuote, allora vuol dire che 
-        gli slave non stanno più esplorando nodi, e se le code M2S sono vuote
-        vuol dire che tutti i master hanno estratto i nodi.
-        Causa problemi?
-*/
 static void *masterTH(void *par){
     int i, owner;
     int R=-1, S, pR; // termination detection Mattern's Method
@@ -263,17 +320,23 @@ static void *masterTH(void *par){
 
     //compute the owner of the starting thread
     owner = hashing(arg->start, arg->numTH);
+    message = HITEMinit(arg->start, 0, arg->start, owner, NULL);
 
     //insert the node in the owner's queue
-    QUEUEtailInsert(arg->queueArr_M2S[owner], HITEMinit(arg->start, 0, arg->start, owner, NULL));
+    if(arg->isMaster)
+        QUEUEtailInsert(arg->queueArr_M2S[owner], message);
+    else
+        QUEUEtailInsert(arg->queueMat_S2S[owner][owner], message);
+
     sem_post(arg->semS[owner]); // If the slave starts before the master, we need to signal to it the insertion in the queue
 
     while(1){
         // special trick used to stop the master if the is no elements in the queues
         sem_wait(arg->semM); // wait for some element to be in the queue
-        sem_post(arg->semM); // Reset to the previous valute, becuse in the loop we count, how many elements we read.
+        if(arg->isMaster)
+            sem_post(arg->semM); // Reset to the previous valute, becuse in the loop we count, how many elements we read.
 
-        for(i=0; i<arg->numTH; i++){
+        for(i=0; i<arg->numTH && arg->isMaster; i++){
                 while(!QUEUEisEmpty(arg->queueArr_S2M[i])){
                     message = QUEUEheadExtract(arg->queueArr_S2M[i]);
 
@@ -318,11 +381,11 @@ static void *slaveTH(void *par){
     PQ openSet;
     int *closedSet;
     int nRcv=0, nSnt=0;
-    int owner;
+    int i, owner;
     HItem message;
     Item extrNode;
     ptr_node t;
-    int gScore, fScore, newGscore, newFscore;
+    int gScore, fScore, newGscore;
 
     //init the openSet PQ
     openSet = PQinit(5);
@@ -341,13 +404,6 @@ static void *slaveTH(void *par){
         closedSet[i] = -1;
 
     while(1){
-        // TODO: potremmo aggiungere una conditional variable: se sia M2S che openSet sono vuote
-        //      (che è la condizone di terminazione parziale del singolo thread), il thread
-        //      viene messo a dormire e viene svegliato quando il master aggiunge un messaggio
-        //      nella sua coda, oppure quando il master si accorge che tutti i thread sono in
-        //      in quella situazione quindi li sveglia tutti per farli terminare (quindi dopo il
-        //      risveglio il singolo thread dovrebbe controllare una condizione per capire se deve 
-        //      terminare).
 
         // update the values of messages sent and received
         *(arg->nMsgSnt) += nSnt;
@@ -357,9 +413,14 @@ static void *slaveTH(void *par){
         // special trick used to stop the slave if the is no things to do
         if(sem_trywait(arg->semToDo) != 0){
             // enter here only when we have to wait, that it means that we don't have any work to do => (We have to ask to the Master if the algorithm is ended)
-            sem_post(arg->semM); // wake up the master because I'm empty, Mattern's Method need a last loop without messages
-            sem_wait(arg->semToDo); // go to sleep
-            sem_wait(arg->semM); // if it wasn't the last lap => Everything must be put as before
+            if(arg->isMaster){
+                sem_post(arg->semM); // wake up the master because I'm empty, Mattern's Method need a last loop without messages
+                sem_wait(arg->semToDo); // go to sleep
+                sem_wait(arg->semM); // if it wasn't the last lap => Everything must be put as before
+            }else{
+                sem_post(arg->semM); sem_post(arg->semM); // two loops to check the termination condition
+                sem_wait(arg->semToDo); // go to sleep
+            }
         }
         sem_post(arg->semToDo); // Reset to the previous valute, because in the loops we count the number of elements in the queue through the semaphores.
         
@@ -369,60 +430,24 @@ static void *slaveTH(void *par){
             #endif
             pthread_exit(NULL);
         }
-
-        while(!QUEUEisEmpty(arg->M2S)){
-            //extract a message from the queue
-            message = QUEUEheadExtract(arg->M2S);
+        
+        while(!QUEUEsAreEmpty(
+            arg->isMaster ? (&(arg->M2S)) : arg->S2S[arg->id],
+            arg->isMaster ? 1 : arg->numTH, 
+            &i
+        )){
+            message = QUEUEsHeadExtract(
+                arg->isMaster ? &(arg->M2S) : arg->S2S[arg->id],
+                arg->isMaster ? 1 : arg->numTH,
+                i
+            );
 
             // decrement the number of thing that we have to do
             sem_wait(arg->semToDo); // must be non-blocking, since his construction
             nRcv++; // increment the received messages
 
-            newGscore = message->priority;
-            #ifdef DEBUG
-                printf("%d: analyzing %d\n", arg->id, message->index);
-            #endif
-            //if it belongs to the closed set
-            if(closedSet[message->index] >= 0){
-                gScore = closedSet[message->index] - arg->hScores[message->index];
-                
-                //if new gScore is lower than the previous one
-                if(newGscore < gScore){
-                    newFscore = newGscore + arg->hScores[message->index];
-                    //remove it from the closed set
-                    closedSet[message->index] = -1;
-                    //add it to the openSet1
-                    PQinsert(openSet, message->index, newFscore);
-                    // increment the number of thing that we have to do
-                    sem_post(arg->semToDo); 
-                }
-                else{
-                    continue;
-                }
-                    
-            }
-            //if it doesn't belong to the closed set
-            else{
-                //if it doesn't belongs to the open set
-                if(PQsearch(openSet, message->index, &fScore) < 0){
-                    newFscore = newGscore + arg->hScores[message->index];
-                    PQinsert(openSet, message->index, newFscore);
-                    // increment the number of thing that we have to do
-                    sem_post(arg->semToDo); 
-                }
-                else{
-                    gScore = fScore - arg->hScores[message->index];
-                    newFscore = newGscore + arg->hScores[message->index];
-                    //if it belongs to the closed set with an higher gScore, change is priority
-                    if(newGscore < gScore)
-                        PQchange(openSet, message->index, newFscore);
-                    else{
-                        continue;
-                    }
-                        
-                }
-            }
-            arg->path[message->index] = message->father;
+            analyzeNode(arg, openSet, closedSet, message);
+            
             free(message); // a message is never freedzed
         }
 
@@ -469,14 +494,27 @@ static void *slaveTH(void *par){
 
             owner = hashing(t->v, arg->numTH);
             message = HITEMinit(t->v, newGscore, extrNode.index, owner, NULL);
-            if(owner == arg->id){
-                // avoid passing through the master
-                QUEUEtailInsert(arg->M2S, message);
-                sem_post(arg->semToDo);
+
+            if(arg->isMaster){
+
+                if(owner == arg->id){
+                    // avoid passing through the master
+                    QUEUEtailInsert(arg->M2S, message);
+                    sem_post(arg->semToDo);
+                }else{
+                    QUEUEtailInsert(arg->S2M, message);
+                    sem_post(arg->semM); // tells the master that there is a message in the queue
+                }
+
             }else{
-                QUEUEtailInsert(arg->S2M, message);
-                sem_post(arg->semM); // tells the master that there is a message in the queue
+                QUEUEtailInsert(arg->S2S[owner][arg->id], message);
+                sem_post(arg->semS[owner]); // notify the owner that there is a message
+
+                #ifdef DEBUG
+                    printf("send from %d to %d message(n=%d, n'=%d)\n", arg->id, message->owner, message->father, message->index);
+                #endif
             }
+
             nSnt++; // inrement the number of message sent
         }
     }
@@ -493,4 +531,59 @@ static void *slaveTH(void *par){
 
 static int hashing(int s, int numTH){
     return s%numTH;
+}
+
+static void analyzeNode(slaveArg_t *arg, PQ openSet, int *closedSet, HItem message){
+    int newFscore, newGscore;
+    int fScore, gScore;
+
+    #ifdef DEBUG
+        printf("%d: analyzing %d\n", arg->id, message->index);
+    #endif
+
+    newGscore = message->priority;
+
+    //if it belongs to the closed set
+    if(closedSet[message->index] >= 0){
+        gScore = closedSet[message->index] - arg->hScores[message->index];
+        
+        //if new gScore is lower than the previous one
+        if(newGscore < gScore){
+            newFscore = newGscore + arg->hScores[message->index];
+            //remove it from the closed set
+            closedSet[message->index] = -1;
+            //add it to the openSet1
+            PQinsert(openSet, message->index, newFscore);
+            // increment the number of thing that we have to do
+            sem_post(arg->semToDo); 
+        }
+        else{
+            return;
+        }
+            
+    }
+    //if it doesn't belong to the closed set
+    else{
+        //if it doesn't belongs to the open set
+        if(PQsearch(openSet, message->index, &fScore) < 0){
+            newFscore = newGscore + arg->hScores[message->index];
+            PQinsert(openSet, message->index, newFscore);
+            // increment the number of thing that we have to do
+            sem_post(arg->semToDo); 
+        }
+        else{
+            gScore = fScore - arg->hScores[message->index];
+            newFscore = newGscore + arg->hScores[message->index];
+            //if it belongs to the closed set with an higher gScore, change is priority
+            if(newGscore < gScore)
+                PQchange(openSet, message->index, newFscore);
+            else{
+                return;
+            }
+                
+        }
+    }
+    arg->path[message->index] = message->father;
+
+    return;
 }
