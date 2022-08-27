@@ -10,6 +10,9 @@
 #include "PQ.h"
 #include "./utility/BitArray.h"
 
+static char spinner[] = "|/-\\";
+static int spin = 0;
+
 typedef struct{
     pthread_t tid;
     int numTH;
@@ -241,6 +244,8 @@ static void *masterTH(void *par){
     sem_post(arg->semS[owner]); // If the slave starts before the master, we need to signal to it the insertion in the queue
 
     while(1){
+        printf("%c\b",spinner[spin]);
+        spin = (spin + 1)%5;
         // special trick used to stop the master if the is no elements in the queues
         sem_wait(arg->semM); // wait for some element to be in the queue
         sem_post(arg->semM); // Reset to the previous valute, becuse in the loop we count, how many elements we read.
