@@ -11,9 +11,6 @@
 #include "./utility/BitArray.h"
 #include "./utility/Timer.h"
 
-static char spinner[] = "|/-\\";
-static int spin = 0;
-
 typedef struct{
     pthread_t tid;
     int numTH;
@@ -272,8 +269,6 @@ static void *masterTH(void *par){
     sem_post(arg->semS[owner]); // If the slave starts before the master, we need to signal to it the insertion in the queue
 
     while(1){
-        printf("%c\b",spinner[spin>>10]);
-        spin = (spin + 1)%4;
         // special trick used to stop the master if the is no elements in the queues
         sem_wait(arg->semM); // wait for some element to be in the queue
         sem_post(arg->semM); // Reset to the previous valute, becuse in the loop we count, how many elements we read.
@@ -473,9 +468,15 @@ static void *slaveTH(void *par){
             #endif
 
             owner = hashing(t->v, arg->numTH);
-            QUEUEtailInsert(arg->S2M, HITEMinit(t->v, newGscore, extrNode.index, owner, NULL));
-
-            sem_post(arg->semM); // tells the master that there is a message in the queue
+            message = HITEMinit(t->v, newGscore, extrNode.index, owner, NULL);
+            if(owner == arg->id){
+                // avoid passing through the master
+                QUEUEtailInsert(arg->M2S, message);
+                sem_post(arg->semToDo);
+            }else{
+                QUEUEtailInsert(arg->S2M, message);
+                sem_post(arg->semM); // tells the master that there is a message in the queue
+            }
             nSnt++; // inrement the number of message sent
         }
     }

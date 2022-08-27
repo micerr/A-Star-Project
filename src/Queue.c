@@ -61,6 +61,12 @@ HItem QUEUEheadExtract(Queue queue){
     HItem t;
     pthread_mutex_lock(queue->meh);
 
+    if(queue->head->next == NULL){
+        // empty queue
+        pthread_mutex_unlock(queue->meh);
+        return NULL;
+    }
+
     pthread_mutex_lock(queue->met);
     if(queue->head->next == queue->tail){
         // last element in the queue
@@ -76,12 +82,6 @@ HItem QUEUEheadExtract(Queue queue){
 
     t = queue->head->next;
 
-    if(t == NULL){
-        // empty queue
-        pthread_mutex_unlock(queue->met);
-        pthread_mutex_unlock(queue->meh);
-        return t;
-    }
     queue->head->next = t->next;
 
     pthread_mutex_unlock(queue->meh);
