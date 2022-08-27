@@ -268,7 +268,7 @@ static void *masterTH(void *par){
     owner = hashing(arg->start, arg->numTH);
 
     //insert the node in the owner's queue
-    QUEUEtailInsert(arg->queueArr_M2S[owner], HITEMinit(arg->start, 0, arg->start, NULL));
+    QUEUEtailInsert(arg->queueArr_M2S[owner], HITEMinit(arg->start, 0, arg->start, owner, NULL));
     sem_post(arg->semS[owner]); // If the slave starts before the master, we need to signal to it the insertion in the queue
 
     while(1){
@@ -282,10 +282,10 @@ static void *masterTH(void *par){
                 while(!QUEUEisEmpty(arg->queueArr_S2M[i])){
                     message = QUEUEheadExtract(arg->queueArr_S2M[i]);
 
-                    owner = hashing(message->index, arg->numTH);
+                    owner = message->owner;
                     sem_wait(arg->semM);  // decrement the number of elementes in the queues, must be non-blocking, since his construction
                     #ifdef DEBUG
-                        printf("M: send from %d to %d message(n=%d, n'=%d)\n", i, owner, message->father, message->index);
+                        printf("M: send from %d to %d message(n=%d, n'=%d)\n", i, message->owner, message->father, message->index);
                     #endif
                     QUEUEtailInsert(arg->queueArr_M2S[owner], message);
                     sem_post(arg->semS[owner]);
@@ -323,6 +323,7 @@ static void *slaveTH(void *par){
     PQ openSet;
     int *closedSet;
     int nRcv=0, nSnt=0;
+    int owner;
     HItem message;
     Item extrNode;
     ptr_node t;
@@ -466,12 +467,14 @@ static void *slaveTH(void *par){
         gScore = fScore - arg->hScores[extrNode.index];
 
         for(t=arg->G->ladj[extrNode.index]; t!=arg->G->z; t=t->next){
-            // TODO fare if che skippa il nodo di provenienza fare fare hash agli slave
             newGscore = gScore + t->wt;
             #ifdef DEBUG
                 printf("%d: expanded node %d->%d\n", arg->id, extrNode.index, t->v);
             #endif
-            QUEUEtailInsert(arg->S2M, HITEMinit(t->v, newGscore, extrNode.index, NULL));
+
+            owner = hashing(t->v, arg->numTH);
+            QUEUEtailInsert(arg->S2M, HITEMinit(t->v, newGscore, extrNode.index, owner, NULL));
+
             sem_post(arg->semM); // tells the master that there is a message in the queue
             nSnt++; // inrement the number of message sent
         }

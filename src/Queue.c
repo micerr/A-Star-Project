@@ -13,7 +13,7 @@ struct queue{
 
 Queue QUEUEinit(){
     Queue q = (Queue) malloc(sizeof(*q));
-    HItem dummy = HITEMinit(-1, INT_MAX, -1, NULL);
+    HItem dummy = HITEMinit(-1, INT_MAX, -1, -1, NULL);
 
     if(q == NULL){
         perror("Error trying to allocate a queue: ");

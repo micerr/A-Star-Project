@@ -21,7 +21,7 @@ Item* ITEMinit(int node_index, int priority){
   return item;
 }
 
-HItem HITEMinit(int index, int priority, int father, HItem next){
+HItem HITEMinit(int index, int priority, int father, int owner, HItem next){
   HItem tmp = (HItem) malloc(sizeof(*tmp));
 
   if(tmp == NULL){
@@ -32,6 +32,7 @@ HItem HITEMinit(int index, int priority, int father, HItem next){
   tmp->father = father;
   tmp->index = index;
   tmp->next = next;
+  tmp->owner = owner;
   tmp->priority = priority;
 
   return tmp;
