@@ -177,7 +177,7 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
     TIMERfree(timer);
   #endif
   #ifdef PARALLEL_SEARCH
-  PQterminate();
+  //PQterminate();
   #endif
   PQfree(openSet);
   free(path);

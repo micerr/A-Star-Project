@@ -9,7 +9,7 @@
 #include "utility/Timer.h"
 #include <time.h>
 
-//#define PARALLEL_SEARCH
+#define PARALLEL_SEARCH
 
 
 struct pqueue { 
@@ -336,36 +336,59 @@ static void Heapify(PQ pq, int i) {
   //If the root is smaller than the two children it will stop even if some nodes underneath dont respect heap condition
 }
 
-// void main(void){
-//   PQ set = PQinit(25000000);
-//   //PQinsert(set, 2, 10);
-//   // PQinsert(set, 4, 12);
-//   // PQinsert(set, 6, 14);
+void main(void){
+  int correct_searches = 0;
+  int overall = 50000;
+  setbuf(stdout, NULL);
+  PQ set = PQinit(1000000);
+  //PQinsert(set, 2, 10);
+  // PQinsert(set, 4, 12);
+  // PQinsert(set, 6, 14);
 
+  
+  for(int i=0; i<1000000; i++){
+    PQinsert(set, i, i);
+  }
 
-//   for(int i=0; i<25000000; i++){
-//     PQinsert(set, i, i*2);
-//   }
+  int *prio = malloc(sizeof(int));
+  int index;
 
-//   int *prio = malloc(sizeof(int));
-//   int index;
+  //index = PQsearch(set, 1, prio); 
+  //index = PQsearch(set, 3, prio);
 
-//   //index = PQsearch(set, 1, prio); 
-//   //index = PQsearch(set, 3, prio);
+  //Timer timer = TIMERinit(1); 
+  srand(time(NULL));
+  int target;
+  
+  //TIMERstart(timer);
+  for(int i=0; i<overall; i++){
+    target = rand() % 2000000;
+    index = PQsearch(set, target, prio);
+    //printf("Result: target=%d index=%d, priority=%d\n",target, index, *prio);
+    printf("%d ", i);
+    if((index == target) && (index == *prio)){
+      correct_searches += 1;
+    }
+    else if((index == -1) && (target > 1000000)){
+      correct_searches += 1;
+    }
 
-//   Timer timer = TIMERinit(1); 
+    
+  }
 
-//   TIMERstart(timer);
-//   index = PQsearch(set, 24000000, prio);
-//   TIMERstopEprint(timer);
+  printf("\nCorrect searches: %d over %d\n", correct_searches, overall);
+  
+  // index = PQsearch(set, 2, prio);
+  // index = PQsearch(set, 2000, prio);
+ // TIMERstopEprint(timer);
 
-//   printf("Result: index=%d, priority=%d\n", index, *prio);
+  
 
-//   // index = PQsearch(set, 123456, prio);
-//   // index = PQsearch(set, 2000000, prio);
+  // index = PQsearch(set, 123456, prio);
+  // index = PQsearch(set, 2000000, prio);
 
-//   PQterminate();
-// }
+  // PQterminate();
+}
 
 
 /*
@@ -545,7 +568,7 @@ int PQsearch(PQ pq, int node_index, int *priority){
     index = sr->index;
 
     
-    printf("Search result: index=%d, priority=%d\n", sr->index, sr->priority);
+    //printf("Search result: index=%d, priority=%d\n", sr->index, sr->priority);
 
     sr->index = -1;
     *(sp_array[0]->found) = 0;
