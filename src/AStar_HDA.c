@@ -9,6 +9,7 @@
 #include "Queue.h"
 #include "PQ.h"
 #include "./utility/BitArray.h"
+#include "./utility/Timer.h"
 
 typedef struct{
     pthread_t tid;
@@ -21,6 +22,9 @@ typedef struct{
     Queue *queueArr_M2S;
     sem_t **semS;
     sem_t *semM;
+    #ifdef TIME
+        Timer timer;
+    #endif
 } masterArg_t;
 
 typedef struct{
@@ -39,6 +43,9 @@ typedef struct{
     sem_t *semToDo;
     sem_t *semM;
     Graph G;
+    #ifdef TIME
+        Timer timer;
+    #endif 
 } slaveArg_t;
 
 static void *masterTH(void *par);
@@ -56,6 +63,9 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     sem_t *semM;
     int i, *hScores, *path, bCost = INT_MAX, stop = 0;
     int *nMsgSnt, *nMsgRcv;
+    #ifdef TIME
+        Timer timer;
+    #endif
 
     //create the array containing all precomputed Hscores
     hScores = malloc(G->V * sizeof(int));
@@ -124,6 +134,10 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     for(i = 0; i<numTH; i++)
         nMsgRcv[i] = nMsgSnt[i] = 0;
 
+    #ifdef TIME
+        timer = TIMERinit(numTH);
+    #endif
+
     //create the arg-structure of the master
     masterArg.numTH = numTH;
     masterArg.start = start;
@@ -135,6 +149,9 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
     masterArg.nMsgSnt = nMsgSnt;
     masterArg.semM = semM;
     masterArg.semS = semS;
+    #ifdef TIME
+        masterArg.timer = timer;
+    #endif
 
     //create the array of slaves' arg-struct
     slaveArgArr = malloc(numTH * sizeof(slaveArg_t));
@@ -155,6 +172,9 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
         slaveArgArr[i].nMsgSnt = &(nMsgSnt[i]);
         slaveArgArr[i].semM = semM;
         slaveArgArr[i].semToDo = semS[i];
+        #ifdef TIME
+            slaveArgArr[i].timer = timer;
+        #endif
     }
 
     //start the master
@@ -183,6 +203,10 @@ void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
         }
         printf("%d\nHops: %d\n", start, hops);
     }
+
+    #ifdef TIME
+        free(timer);
+    #endif
 
     // free the array of messages
     free(nMsgRcv); free(nMsgSnt);
@@ -233,6 +257,10 @@ static void *masterTH(void *par){
     HItem message;
     masterArg_t *arg = (masterArg_t *)par;
 
+    #ifdef TIME
+        TIMERstart(arg->timer);
+    #endif  
+
     //compute the owner of the starting thread
     owner = hashing(arg->start, arg->numTH);
 
@@ -251,8 +279,9 @@ static void *masterTH(void *par){
 
                     owner = hashing(message->index, arg->numTH);
                     sem_wait(arg->semM);  // decrement the number of elementes in the queues, must be non-blocking, since his construction
-
-                    //printf("M: send from %d to %d message(n=%d, n'=%d)\n", i, owner, message->father, message->index);
+                    #ifdef DEBUG
+                        printf("M: send from %d to %d message(n=%d, n'=%d)\n", i, owner, message->father, message->index);
+                    #endif
                     QUEUEtailInsert(arg->queueArr_M2S[owner], message);
                     sem_post(arg->semS[owner]);
 
@@ -271,7 +300,9 @@ static void *masterTH(void *par){
             S != 0  := if there are no message sent, the algorithm is not started yet   
             pR-1 because the first message is sent by the Master, and the master is not in the game
         */
-        //printf("R: %d, R': %d, S': %d\n", pR-1, R-1, S);
+        #ifdef DEBUG
+            printf("R: %d, R': %d, S': %d\n", pR-1, R-1, S);
+        #endif
         if(pR-1 == S && S != 0){
             *(arg->stop) = 1;
             for(i=0; i<arg->numTH; i++)
@@ -331,8 +362,12 @@ static void *slaveTH(void *par){
         }
         sem_post(arg->semToDo); // Reset to the previous valute, because in the loops we count the number of elements in the queue through the semaphores.
         
-        if(*(arg->stop))
+        if(*(arg->stop)){
+            #ifdef TIME
+              TIMERstopEprint(arg->timer);
+            #endif
             pthread_exit(NULL);
+        }
 
         while(!QUEUEisEmpty(arg->M2S)){
             //extract a message from the queue
@@ -343,9 +378,9 @@ static void *slaveTH(void *par){
             nRcv++; // increment the received messages
 
             newGscore = message->priority;
-
-            //printf("%d: analyzing %d\n", arg->id, message->index);
-
+            #ifdef DEBUG
+                printf("%d: analyzing %d\n", arg->id, message->index);
+            #endif
             //if it belongs to the closed set
             if(closedSet[message->index] >= 0){
                 gScore = closedSet[message->index] - arg->hScores[message->index];
@@ -387,7 +422,7 @@ static void *slaveTH(void *par){
                 }
             }
             arg->path[message->index] = message->father;
-            //TODO free(message); a message is never freedzed, so we have to find where put it
+            free(message); // a message is never freedzed
         }
 
         if(PQempty(openSet))
@@ -398,7 +433,9 @@ static void *slaveTH(void *par){
         // decrement the number of thing that we have to do
         sem_wait(arg->semToDo); // must be non-blocking, since his construction
 
-        //printf("%d: Extracted %d\n", arg->id, extrNode.index);
+        #ifdef DEBUG
+            printf("%d: Extracted %d\n", arg->id, extrNode.index);
+        #endif
 
         pthread_mutex_lock(arg->meCost);
         if(extrNode.priority >= *(arg->bCost)){
@@ -412,7 +449,9 @@ static void *slaveTH(void *par){
             if(extrNode.priority < *(arg->bCost)){     
                 // save the cost
                 *(arg->bCost) = extrNode.priority;
-                // printf("%d: best %d\n", arg->id, *(arg->bCost));
+                #ifdef DEBUG
+                    printf("%d: best %d\n", arg->id, *(arg->bCost));
+                #endif
             }
             pthread_mutex_unlock(arg->meCost);    
             continue;
@@ -424,7 +463,9 @@ static void *slaveTH(void *par){
         for(t=arg->G->ladj[extrNode.index]; t!=arg->G->z; t=t->next){
             // TODO fare if che skippa il nodo di provenienza fare fare hash agli slave
             newGscore = gScore + t->wt;
-            //printf("%d: expanded node %d->%d\n", arg->id, extrNode.index, t->v);
+            #ifdef DEBUG
+                printf("%d: expanded node %d->%d\n", arg->id, extrNode.index, t->v);
+            #endif
             QUEUEtailInsert(arg->S2M, HITEMinit(t->v, newGscore, extrNode.index, NULL));
             sem_post(arg->semM); // tells the master that there is a message in the queue
             nSnt++; // inrement the number of message sent
