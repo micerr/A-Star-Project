@@ -10,7 +10,7 @@
 #define LINEAR_SEARCH 1
 #define CONSTANT_SEARCH 2
 #define PARALLEL_SEARCH 3
-
+#define NUM_TH sysconf(_SC_NPROCESSORS_ONLN)
 
 struct pqueue { 
   Item *A; //array of Items.
@@ -36,7 +36,6 @@ typedef struct search_res {
   int target, pos, prio, finished;
   int stop;
   int *id;
-  int NUM_TH;
   int search_type;
 
   pthread_t *slaveTid;
@@ -91,7 +90,6 @@ static int PARENT(int i) {
 PQ PQinit(int maxN, int type) {
   PQ pq;
   search_type = type;
-  NUM_TH = sysconf(_SC_NPROCESSORS_ONLN) * 2;
 
   #ifdef TIME
     Timer timer = TIMERinit(1);
@@ -454,6 +452,7 @@ int PQsearch(PQ pq, int node_index, int *priority){
     }
   }
   else if(search_type == PARALLEL_SEARCH){
+    
     target = node_index;
     pos = -1;
     finished = 0;
