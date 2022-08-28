@@ -7,15 +7,18 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#define LINEAR_SEARCH 1
+#define CONSTANT_SEARCH 2
+#define PARALLEL_SEARCH 3
 
 
 struct pqueue { 
   Item *A; //array of Items.
   int heapsize; // number of elements in the priority queue
   int maxN; // max number of elements
+  int *qp;
 };
 
-#ifdef PARALLEL_SEARCH
 /*This struct contains the result of the search and it is saved 
 as a pointer inside SearchSpec, only the thread with a result will write it's fields*/
 typedef struct search_res {
@@ -34,7 +37,7 @@ typedef struct search_spec {
   int *found;
   SearchRes sr;
 } SearchSpec;
-#endif
+
 
 /*
   Prototype declaration of static functions used.
@@ -81,9 +84,11 @@ static int PARENT(int i) {
   return (i-1)/2;
 }
 
+int search_type;
 
-PQ PQinit(int maxN) {
+PQ PQinit(int maxN, int type) {
   PQ pq;
+  search_type = type;
   
   //allocate space needed for the structure
   pq = malloc(sizeof(*pq));
@@ -100,6 +105,20 @@ PQ PQinit(int maxN) {
   pq->heapsize = 0;
   pq->maxN = maxN;
 
+  //Used for constant search
+  if(search_type == CONSTANT_SEARCH){
+    pq->qp = malloc(maxN * sizeof(int));
+    
+    if(pq->qp == NULL){
+      perror("Error trying to allocate heap array: ");
+      return NULL;
+    }
+
+    for(int i=0; i<maxN; i++){
+      pq->qp[i] = -1;
+    }
+  }
+
   return pq;
 }
 
@@ -112,6 +131,11 @@ PQ PQinit(int maxN) {
 void PQfree(PQ pq) {
 
   free(pq->A);
+
+  if(search_type == CONSTANT_SEARCH){
+    free(pq->qp);
+  }
+  
   free(pq);
 }
 
@@ -160,7 +184,7 @@ int PQmaxSize(PQ pq){
 */
 void PQinsert (PQ pq, int node_index, int priority){
   Item *item = ITEMinit(node_index, priority);
-  int i;
+  int i, j;
   
   if( pq->heapsize >= pq->maxN){
     pq->A = realloc(pq->A, (2*pq->maxN)* sizeof(Item));
@@ -174,15 +198,24 @@ void PQinsert (PQ pq, int node_index, int priority){
   }
 
   //set i equal to the most-right available index. Also update the heap size.
-  i = pq->heapsize++;
+  i = j = pq->heapsize++;
 
   //find the correct position of Item by performing the set of comparison
   while (i>=1 && ((pq->A[PARENT(i)]).priority > item->priority)) {
     pq->A[i] = pq->A[PARENT(i)];
+
+    if(search_type == CONSTANT_SEARCH){
+      pq->qp[pq->A[i].index] = i;
+    }
+
     i = PARENT(i);
   }
 
   pq->A[i] = *item;
+  
+  if(search_type == CONSTANT_SEARCH){
+    pq->qp[j] = i;
+  }
   
   free(item);
   return;
@@ -196,10 +229,21 @@ void PQinsert (PQ pq, int node_index, int priority){
 */
 static void Swap(PQ pq, int n1, int n2){
   Item temp;
+  int temp_index;
 
   temp  = pq->A[n1];
   pq->A[n1] = pq->A[n2];
   pq->A[n2] = temp;
+
+  if(search_type == CONSTANT_SEARCH){
+    n1 = pq->A[n1].index;
+    n2 = pq->A[n2].index;
+
+    temp_index = pq->qp[n1];
+    pq->qp[n1] = pq->qp[n2];
+    pq->qp[n2] = temp_index;
+  }
+
 
   return;
 }
@@ -246,7 +290,6 @@ Each thread performs the search in a portion of the array pq->A,
 if a match is found the thread sets the values in the struct SearchRes that
 contains the index of the node and it's priority
 */
-#ifdef PARALLEL_SEARCH
 static void *thread_search(void* arg){
   SearchSpec *sp = (SearchSpec*) arg;
 
@@ -269,17 +312,21 @@ static void *thread_search(void* arg){
 
   return NULL;
 }
-#endif
 
 
 
 /*
 Searches for a specific node inside the Item array and returns it's index 
 and the priority value inside the priority pointer
+0 -> linear
+1 -> constant
+2 -> parallel
 */
 int PQsearch(PQ pq, int node_index, int *priority){
-  #ifndef PARALLEL_SEARCH
-    int pos = -1;
+  int pos = -1;
+
+  switch (search_type){
+  case LINEAR_SEARCH:
     for(int i=0; i<pq->heapsize; i++){
       if(node_index == (pq->A[i]).index){
         if(priority != NULL){
@@ -289,14 +336,23 @@ int PQsearch(PQ pq, int node_index, int *priority){
         break;
       }
     }
-    return pos;
-  #endif
 
+    break;
+  
+  case CONSTANT_SEARCH:
+    pos = pq->qp[node_index];
+
+    if(priority != NULL){
+      *priority = (pq->A[pos]).priority;
+    }
+    break;
+  
+    
   /*Generates as many thread as the number of processors times 2.
     Each thread is assigned a portion of pq to search according to 
     the total number of items (pq->heapsize)
   */
-  #ifdef PARALLEL_SEARCH
+  case PARALLEL_SEARCH:
     long number_of_processors = sysconf(_SC_NPROCESSORS_ONLN);
     long max_thread = number_of_processors * 2;
     pthread_t th[max_thread];
@@ -339,9 +395,12 @@ int PQsearch(PQ pq, int node_index, int *priority){
     //printf("Search result: index=%d, priority=%d", sr->index, sr->priority);
 
     *priority = sr->priority;
-    return sr->index;
+    pos = sr->index;
 
-  #endif
+    break;
+  }
+
+  return pos;
 }
 
 
@@ -410,17 +469,26 @@ Item PQgetMin(PQ pq){
 */
 void PQchange (PQ pq, int node_index, int priority) {
   // printf("Searching for %d with priority %d\n", node_index, priority);
-
+ 
   int item_index = PQsearch(pq, node_index, NULL);
   Item item = pq->A[item_index];
   item.priority = priority;
 
   while( (item_index>=1) && ((pq->A[PARENT(item_index)]).priority > item.priority)) {
     pq->A[item_index] = pq->A[PARENT(item_index)];
+
+    if(search_type == CONSTANT_SEARCH){
+      pq->qp[pq->A[item_index].index] = item_index;
+    }
+
 	  item_index = PARENT(item_index);
   }
 
   pq->A[item_index] = item;
+  if(search_type == CONSTANT_SEARCH){
+    pq->qp[item.index] = item_index;
+  }
+
   Heapify(pq, item_index);
 
   return;

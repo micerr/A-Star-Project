@@ -26,7 +26,7 @@
 // gScores are obtained starting from the fScores and subtracting the value of the heuristic
 
 //openSet is enlarged gradually (inside PQinsert)
-void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Coord coord2)){
+void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Coord coord2), int search_type){
   if(G == NULL){
     printf("No graph inserted.\n");
     return ;
@@ -53,13 +53,12 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
 
   srand(time(NULL));
 
-  //
 
   #ifdef TIME
     Timer timer = TIMERinit(1);
   #endif
 
-  openSet = PQinit(G->V);
+  openSet = PQinit(G->V, search_type);
   if(openSet == NULL){
     perror("Error trying to create openSet: ");
     exit(1);
@@ -221,7 +220,7 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
 
   Parameters: graph, start node end node.
 */
-int GRAPHspD(Graph G, int id, int end) {
+int GRAPHspD(Graph G, int id, int end, int search_type) {
   if(G == NULL){
     printf("No graph inserted.\n");
     return -1;
@@ -230,7 +229,7 @@ int GRAPHspD(Graph G, int id, int end) {
   int v, hop=0;
   ptr_node t;
   Item min_item;
-  PQ pq = PQinit(G->V);
+  PQ pq = PQinit(G->V, search_type);
   int *path, *mindist;
   #ifdef TIME
     Timer timer = TIMERinit(1);

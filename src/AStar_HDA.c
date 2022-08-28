@@ -11,6 +11,7 @@
 #include "./utility/BitArray.h"
 #include "./utility/Timer.h"
 
+
 typedef struct{
     pthread_t tid;
     int numTH;
@@ -53,23 +54,25 @@ typedef struct{
     #endif 
 } slaveArg_t;
 
-static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster);
+int search_type;
+
+static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster, int type);
 static void *masterTH(void *par);
 static void *slaveTH(void *par);
 static int hashing(int s, int numTH);
 static void analyzeNode(slaveArg_t *arg, PQ openSet, int *closedSet, HItem message);
 
 // Wrapper for HDA* with deliver Master
-void ASTARhdaMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
-    return ASTARhda(G, start, end, numTH, h, 1);
+void ASTARhdaMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type){
+    return ASTARhda(G, start, end, numTH, h, 1, search_type);
 }
 
 // Wrapper for HDA* withOUT deliver Master
-void ASTARhdaNoMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
-    return ASTARhda(G, start, end, numTH, h, 0);
+void ASTARhdaNoMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type){
+    return ASTARhda(G, start, end, numTH, h, 0, search_type);
 }
 
-static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster){
+static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster, int type){
     Queue *queueArr_S2M;
     Queue *queueArr_M2S;
     Queue **queueMat_S2S;
@@ -81,6 +84,8 @@ static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coo
     sem_t *semM;
     int i, j, *hScores, *path, bCost = INT_MAX, stop = 0;
     int *nMsgSnt, *nMsgRcv;
+
+    search_type = type;
     #ifdef TIME
         Timer timer;
     #endif
@@ -388,7 +393,7 @@ static void *slaveTH(void *par){
     int gScore, fScore, newGscore;
 
     //init the openSet PQ
-    openSet = PQinit(5);
+    openSet = PQinit(5, search_type);
     if(openSet == NULL){
         printf("Error initializing openSet (PQ) in thread%d: ", arg->id);
         exit(1);

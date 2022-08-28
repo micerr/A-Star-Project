@@ -6,8 +6,41 @@
 #include "Heuristic.h"
 #define MAXC 11
 
+int select_search_type(){
+  int search_type;
+
+  printf("Which kind of search do you want to perform?\n");
+  printf("1 -> LINEAR SEARCH\n");
+  printf("2 -> CONSTANT SEARCH\n");
+  printf("3 -> PARALLEL SEARCH\n");
+  printf("Enter your choice : ");
+  int res = scanf("%d", &search_type);
+  if((res<=0) || (search_type > 3) || (search_type < 1)) {
+      printf("Wrong input!\n");
+      exit(0);
+    }
+
+  return search_type;
+}
+
+int select_heuristic(){
+  int heuristic;
+
+  printf("Insert the heuristic function h(x) to use:\n");
+  printf("\t1: Dijkstra emulator\n");
+  printf("\t2: Euclidean distance\n");
+  printf("\t3: Haversine formula\n");
+  printf("\tEnter your choice : ");
+  if(scanf("%d",&heuristic)<=0) {
+    printf("Integers only!\n");
+    exit(0);
+  }
+
+  return heuristic;
+}
+
 int main(void) {
-  int i, cont, id1, id2, numThreads;
+  int i, cont, id1, id2, search_type, numThreads;
   char name[MAXC];
   Graph G = NULL;
 
@@ -60,6 +93,7 @@ int main(void) {
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
+                        
                         GRAPHspD(G, id1, id2);
                         break;
 
@@ -67,25 +101,17 @@ int main(void) {
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
-                        printf("Insert the heuristic function h(x) to use:\n");
-                        printf("\t1: Dijkstra emulator\n");
-                        printf("\t2: Euclidean distance\n");
-                        printf("\t3: Haversine formula\n");
-                        printf("\tEnter your choice : ");
-                        if(scanf("%d",&i)<=0) {
-                          printf("Integers only!\n");
-                          exit(0);
-                        }else{
-                          switch (i)
-                          {
+                        i = select_heuristic();
+                        search_type = select_search_type();
+                        switch (i){
                           case 1:
-                            ASTARSequentialAStar(G, id1, id2, Hdijkstra);
+                            ASTARSequentialAStar(G, id1, id2, Hdijkstra, search_type);
                             break;
                           case 2:
-                            ASTARSequentialAStar(G, id1, id2, Hcoord);
+                            ASTARSequentialAStar(G, id1, id2, Hcoord, search_type);
                             break;
                           case 3:
-                            ASTARSequentialAStar(G, id1, id2, Hhaver);
+                            ASTARSequentialAStar(G, id1, id2, Hhaver, search_type);
                             break;
                           default:
                             printf("\nInvalid option\n");
