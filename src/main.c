@@ -14,11 +14,16 @@ int select_search_type(){
   printf("2 -> CONSTANT SEARCH\n");
   printf("3 -> PARALLEL SEARCH\n");
   printf("Enter your choice : ");
-  int res = scanf("%d", &search_type);
-  if((res<=0) || (search_type > 3) || (search_type < 1)) {
+
+  if(scanf("%d", &search_type)<=0) {
       printf("Wrong input!\n");
       exit(0);
-    }
+  }
+
+  if((search_type <= 0) || (search_type > 3)){
+    printf("Invalid option\n");
+    exit(0);
+  }
 
   return search_type;
 }
@@ -93,16 +98,18 @@ int main(void) {
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
-                        
-                        GRAPHspD(G, id1, id2);
+                        search_type = select_search_type();
+                        GRAPHspD(G, id1, id2, search_type);
                         break;
 
             case 4:     printf("\nInsert starting node = ");
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
+
                         i = select_heuristic();
                         search_type = select_search_type();
+
                         switch (i){
                           case 1:
                             ASTARSequentialAStar(G, id1, id2, Hdijkstra, search_type);
@@ -117,73 +124,61 @@ int main(void) {
                             printf("\nInvalid option\n");
                             break;
                           }
-                        }
+
                         break;
 
-            case 5:    printf("\nInsert starting node = ");
+            case 5:     printf("\nInsert starting node = ");
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
                         printf("Insert number of threads: ");
                         scanf("%d", &numThreads);
-                        printf("Insert the heuristic function h(x) to use:\n");
-                        printf("\t1: Dijkstra emulator\n");
-                        printf("\t2: Euclidean distance\n");
-                        printf("\t3: Haversine formula\n");
-                        printf("\tEnter your choice : ");
-                        if(scanf("%d",&i)<=0) {
-                          printf("Integers only!\n");
-                          exit(0);
-                        }else{
-                          switch (i)
-                          {
+
+                        i = select_heuristic();
+                        search_type = select_search_type();
+
+                        switch (i){
                           case 1:
-                            ASTARSimpleParallel(G, id1, id2, numThreads, Hdijkstra);
+                            ASTARSimpleParallel(G, id1, id2, numThreads, Hdijkstra, search_type);
                             break;
                           case 2:
-                            ASTARSimpleParallel(G, id1, id2, numThreads, Hcoord);
+                            ASTARSimpleParallel(G, id1, id2, numThreads, Hcoord, search_type);
                             break;
                           case 3:
-                            ASTARSimpleParallel(G, id1, id2, numThreads, Hhaver);
+                            ASTARSimpleParallel(G, id1, id2, numThreads, Hhaver, search_type);
                             break;
                           default:
                             printf("\nInvalid option\n");
                             break;
                           }
-                        }                        
+                                                
                         break;
 
-            case 6:    printf("\nInsert starting node = ");
+            case 6:     printf("\nInsert starting node = ");
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
                         printf("Insert number of threads: ");
                         scanf("%d", &numThreads);
-                        printf("Insert the heuristic function h(x) to use:\n");
-                        printf("\t1: Dijkstra emulator\n");
-                        printf("\t2: Euclidean distance\n");
-                        printf("\t3: Haversine formula\n");
-                        printf("\tEnter your choice : ");
-                        if(scanf("%d",&i)<=0) {
-                          printf("Integers only!\n");
-                          exit(0);
-                        }else{
-                          switch (i)
-                          {
+                                              
+                        i = select_heuristic();
+                        search_type = select_search_type();
+
+                        switch (i){
                           case 1:
-                            ASTARSimpleParallelV2(G, id1, id2, numThreads, Hdijkstra);
+                            ASTARSimpleParallelV2(G, id1, id2, numThreads, Hdijkstra, search_type);
                             break;
                           case 2:
-                            ASTARSimpleParallelV2(G, id1, id2, numThreads, Hcoord);
+                            ASTARSimpleParallelV2(G, id1, id2, numThreads, Hcoord, search_type);
                             break;
                           case 3:
-                            ASTARSimpleParallelV2(G, id1, id2, numThreads, Hhaver);
+                            ASTARSimpleParallelV2(G, id1, id2, numThreads, Hhaver, search_type);
                             break;
                           default:
                             printf("\nInvalid option\n");
                             break;
                           }
-                        }                        
+                                             
                         break;
 
             case 7:     if(G == NULL){
@@ -196,31 +191,25 @@ int main(void) {
                         scanf("%d", &id2);
                         printf("Insert number of threads: ");
                         scanf("%d", &numThreads);
-                        printf("Insert the heuristic function h(x) to use:\n");
-                        printf("\t1: Dijkstra emulator\n");
-                        printf("\t2: Euclidean distance\n");
-                        printf("\t3: Haversine formula\n");
-                        printf("\tEnter your choice : ");
-                        if(scanf("%d",&i)<=0) {
-                          printf("Integers only!\n");
-                          exit(0);
-                        }else{
-                          switch (i)
-                          {
+                        
+                        i = select_heuristic();
+                        search_type = select_search_type();
+
+                        switch (i){
                           case 1:
-                            ASTARhdaMaster(G, id1, id2, numThreads, Hdijkstra);
+                            ASTARhdaMaster(G, id1, id2, numThreads, Hdijkstra, search_type);
                             break;
                           case 2:
-                            ASTARhdaMaster(G, id1, id2, numThreads, Hcoord);
+                            ASTARhdaMaster(G, id1, id2, numThreads, Hcoord, search_type);
                             break;
                           case 3:
-                            ASTARhdaMaster(G, id1, id2, numThreads, Hhaver);
+                            ASTARhdaMaster(G, id1, id2, numThreads, Hhaver, search_type);
                             break;
                           default:
                             printf("\nInvalid option\n");
                             break;
                           }
-                        }                        
+                                               
                         break;
 
             case 8:     if(G == NULL){
@@ -233,31 +222,25 @@ int main(void) {
                         scanf("%d", &id2);
                         printf("Insert number of threads: ");
                         scanf("%d", &numThreads);
-                        printf("Insert the heuristic function h(x) to use:\n");
-                        printf("\t1: Dijkstra emulator\n");
-                        printf("\t2: Euclidean distance\n");
-                        printf("\t3: Haversine formula\n");
-                        printf("\tEnter your choice : ");
-                        if(scanf("%d",&i)<=0) {
-                          printf("Integers only!\n");
-                          exit(0);
-                        }else{
-                          switch (i)
-                          {
+                        
+                        i = select_heuristic();
+                        search_type = select_search_type();
+
+                        switch (i){
                           case 1:
-                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hdijkstra);
+                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hdijkstra, search_type);
                             break;
                           case 2:
-                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hcoord);
+                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hcoord, search_type);
                             break;
                           case 3:
-                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hhaver);
+                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hhaver, search_type);
                             break;
                           default:
                             printf("\nInvalid option\n");
                             break;
                           }
-                        }                        
+                                               
                         break;
 
             case 9:    cont = 0;
