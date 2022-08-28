@@ -544,7 +544,7 @@ Item PQgetMin(PQ pq){
 void PQchange (PQ pq, int node_index, int priority) {
   // printf("Searching for %d with priority %d\n", node_index, priority);
  
-  int item_index = PQsearch(pq, node_index, NULL);
+  int item_index = pq->qp[node_index];
   Item item = pq->A[item_index];
   item.priority = priority;
 

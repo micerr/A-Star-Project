@@ -92,6 +92,7 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
 
 
   while (!PQempty(openSet)){
+    PQdisplayHeap(openSet);
     //extract node
     extrNode = PQextractMin(openSet);
     //printf("extrNode.index: %d\n", extrNode.index);
