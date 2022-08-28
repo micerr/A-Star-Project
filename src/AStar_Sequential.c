@@ -16,8 +16,6 @@
 #include "./utility/Item.h"
 #include "./utility/Timer.h"
 
-
-
 // Data structures:
 // openSet -> Priority queue containing an heap made of Items (Item has index of node and priority (fScore))
 // closedSet -> Array of int, each cell is the fScore of a node.
@@ -41,10 +39,6 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   int hScore, neighboor_hScore, neighboor_fScore;
   int flag;
   Coord coord, dest_coord;
-
-  #ifdef TIME
-    Timer timer = TIMERinit(1);
-  #endif
 
   openSet = PQinit(G->V);
   if(openSet == NULL){
@@ -86,6 +80,7 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   #endif
 
   #ifdef TIME
+    Timer timer = TIMERinit(1);
     TIMERstart(timer);
   #endif
 
@@ -152,6 +147,7 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   }
 
   #ifdef TIME
+    printf("Bella: ");
     TIMERstopEprint(timer);
     int sizeofPath = sizeof(int)*G->V;
     int sizeofPQ = sizeof(PQ*) + PQmaxSize(openSet)*sizeof(Item);
@@ -176,9 +172,7 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   #ifdef TIME
     TIMERfree(timer);
   #endif
-  #ifdef PARALLEL_SEARCH
-  //PQterminate();
-  #endif
+
   PQfree(openSet);
   free(path);
   free(closedSet);

@@ -6,6 +6,9 @@
 #include "sys/types.h"
 #include <pthread.h>
 #include <unistd.h>
+#include "./utility/Timer.h"
+
+#define PARALLEL_SEARCH 1
 
 struct pqueue { 
   Item *A; //array of Items.
@@ -77,6 +80,11 @@ static int PARENT(int i) {
 
 PQ PQinit(int maxN) {
   PQ pq;
+
+  #ifdef TIME
+    Timer timer = TIMERinit(NUM_TH);
+    TIMERstart(timer);
+  #endif
   
   //allocate space needed for the structure
   pq = malloc(sizeof(*pq));
@@ -92,6 +100,11 @@ PQ PQinit(int maxN) {
   }
   pq->heapsize = 0;
   pq->maxN = maxN;
+
+  #ifndef PARALLEL_SEARCH
+    printf("PQinit for parallel search: ");
+    TIMERstopEprint(timer);
+  #endif
 
   #ifdef PARALLEL_SEARCH
     int id[NUM_TH];
@@ -136,6 +149,11 @@ PQ PQinit(int maxN) {
       id[i] = i;
       pthread_create(&slaveTid[i], NULL, slaveFCN, (void *)&id[i]);
     }
+  #ifdef TIME
+    printf("PQinit for parallel search ");
+    TIMERstopEprint(timer);
+    TIMERfree(timer);
+  #endif
       
   #endif
 
@@ -315,14 +333,11 @@ static void *slaveFCN(void* par){
 
   while(1){
     pthread_barrier_wait(inBarrier);
-    printf("\tTH%d received a job.\n", id);
-
     if(stop)
       pthread_exit(NULL);
 
     nCicles = targetPQ->heapsize / NUM_TH;
     res = targetPQ->heapsize % NUM_TH;
-    printf("\tTH%d -> nCicle:%d, res:%d.\n", id, nCicles, res);
 
     for(i=id; i<nCicles && pos!=-1; i=i+NUM_TH)
       if(targetPQ->A[i].index == target){
