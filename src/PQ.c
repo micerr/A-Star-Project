@@ -325,8 +325,7 @@ and the priority value inside the priority pointer
 int PQsearch(PQ pq, int node_index, int *priority){
   int pos = -1;
 
-  switch (search_type){
-  case LINEAR_SEARCH:
+  if(search_type == LINEAR_SEARCH){
     for(int i=0; i<pq->heapsize; i++){
       if(node_index == (pq->A[i]).index){
         if(priority != NULL){
@@ -336,27 +335,19 @@ int PQsearch(PQ pq, int node_index, int *priority){
         break;
       }
     }
-
-    break;
-  
-  case CONSTANT_SEARCH:
+  }
+  else if(search_type == CONSTANT_SEARCH){
     pos = pq->qp[node_index];
 
     if(priority != NULL){
       *priority = (pq->A[pos]).priority;
     }
-    break;
-  
-    
-  /*Generates as many thread as the number of processors times 2.
-    Each thread is assigned a portion of pq to search according to 
-    the total number of items (pq->heapsize)
-  */
-  case PARALLEL_SEARCH:
+  }
+  else if(search_type == PARALLEL_SEARCH){
+    pthread_mutex_t *mutex = (pthread_mutex_t*) malloc(sizeof(pthread_mutex_t));
     long number_of_processors = sysconf(_SC_NPROCESSORS_ONLN);
     long max_thread = number_of_processors * 2;
     pthread_t th[max_thread];
-    pthread_mutex_t *mutex = (pthread_mutex_t*) malloc(sizeof(pthread_mutex_t));
 
     pthread_mutex_init(mutex, NULL);
 
@@ -392,12 +383,8 @@ int PQsearch(PQ pq, int node_index, int *priority){
       pthread_join(th[i], NULL);
     }
 
-    //printf("Search result: index=%d, priority=%d", sr->index, sr->priority);
-
     *priority = sr->priority;
     pos = sr->index;
-
-    break;
   }
 
   return pos;
