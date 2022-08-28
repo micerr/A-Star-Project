@@ -16,8 +16,6 @@
 #include "./utility/Item.h"
 #include "./utility/Timer.h"
 
-
-
 // Data structures:
 // openSet -> Priority queue containing an heap made of Items (Item has index of node and priority (fScore))
 // closedSet -> Array of int, each cell is the fScore of a node.
@@ -42,23 +40,7 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   int flag;
   Coord coord, dest_coord;
 
-
-  //TO BE REMOVED
-  int proc = sysconf(_SC_NPROCESSORS_ONLN);
-  int occurrences[proc];
-
-  for(int i=0; i<proc; i++){
-        occurrences[i] = 0;
-  }
-
-  srand(time(NULL));
-
-
-  #ifdef TIME
-    Timer timer = TIMERinit(1);
-  #endif
-
-  openSet = PQinit(G->V, search_type);
+  openSet = PQinit(G->V);
   if(openSet == NULL){
     perror("Error trying to create openSet: ");
     exit(1);
@@ -98,6 +80,7 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   #endif
 
   #ifdef TIME
+    Timer timer = TIMERinit(1);
     TIMERstart(timer);
   #endif
 
@@ -159,6 +142,9 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
         else
           continue;
       }else{  //it doesn't belong to closed set
+        // printf("Heap: \n");
+        // PQdisplayHeap(openSet);
+        
         flag = PQsearch(openSet, t->v, &neighboor_fScore);
 
         //if it doesn't belong to the open set
@@ -180,6 +166,7 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   }
 
   #ifdef TIME
+    printf("Algorithm: ");
     TIMERstopEprint(timer);
     int sizeofPath = sizeof(int)*G->V;
     int sizeofPQ = sizeof(PQ*) + PQmaxSize(openSet)*sizeof(Item);
@@ -188,10 +175,10 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   #endif
 
   // Print the found path
-  if(path[v] == -1){
+  if(path[end] == -1){
     printf("No path from %d to %d has been found.\n", start, end);
   }else{
-    printf("Path from %d to %d has been found with cost %.3d.\n", start, end, extrNode.priority);
+    printf("Path from %d to %d has been found with cost %d.\n", start, end, extrNode.priority);
     for(int v=end; v!=start; ){
       printf("%d <- ", v);
       v = path[v];

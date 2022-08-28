@@ -14,9 +14,9 @@
 
 struct pqueue { 
   Item *A; //array of Items.
+  int *qp;
   int heapsize; // number of elements in the priority queue
   int maxN; // max number of elements
-  int *qp;
 };
 
 /*This struct contains the result of the search and it is saved 
@@ -26,18 +26,20 @@ typedef struct search_res {
   float priority;
 } *SearchRes;
 
-/*SearchSpec contains all the information needed by a thread to perform
- a search of a specific node_index inside the priority queue*/
-typedef struct search_spec {
-  int n_items;
-  int start_index;
-  int *target;
-  PQ *pq;
-  pthread_mutex_t *mutex;
-  int *found;
-  SearchRes sr;
-} SearchSpec;
+  static void *slaveFCN(void* par);
 
+  PQ targetPQ;
+  pthread_barrier_t *masterBarrier;
+  pthread_barrier_t *inBarrier;
+  pthread_barrier_t *outBarrier;
+  pthread_mutex_t *lock;
+  int target, pos, prio, finished;
+  int stop;
+  int *id;
+  int NUM_TH;
+  int search_type;
+
+  pthread_t *slaveTid;
 
 /*
   Prototype declaration of static functions used.
@@ -84,11 +86,17 @@ static int PARENT(int i) {
   return (i-1)/2;
 }
 
-int search_type;
+
 
 PQ PQinit(int maxN, int type) {
   PQ pq;
   search_type = type;
+  NUM_TH = sysconf(_SC_NPROCESSORS_ONLN) * 2;
+
+  #ifdef TIME
+    Timer timer = TIMERinit(1);
+    TIMERstart(timer);
+  #endif
   
   //allocate space needed for the structure
   pq = malloc(sizeof(*pq));
@@ -119,6 +127,55 @@ PQ PQinit(int maxN, int type) {
     }
   }
 
+  if(search_type == PARALLEL_SEARCH){
+    id = malloc(NUM_TH * sizeof(int));
+    if(id == NULL){
+      perror("Error allocating id: ");
+      exit(1);
+    }
+
+    stop = 0;
+
+    inBarrier = malloc(sizeof(pthread_barrier_t));
+    if(inBarrier == NULL){
+      perror("Error trying to allocate inBarrier: ");
+      exit(1);
+    }
+    pthread_barrier_init(inBarrier, NULL, NUM_TH+1);    
+    
+    outBarrier = malloc(sizeof(pthread_barrier_t));
+    if(outBarrier == NULL){
+      perror("Error trying to allocate outBarrier: ");
+      exit(1);
+    }
+    pthread_barrier_init(outBarrier, NULL, NUM_TH);
+
+    masterBarrier = malloc(sizeof(pthread_barrier_t));
+    if(masterBarrier == NULL){
+      perror("Error trying to allocate masterBarrier: ");
+      exit(1);
+    }
+    pthread_barrier_init(masterBarrier, NULL, 2);
+
+    lock = malloc(sizeof(*lock));
+    if(lock == NULL){
+      perror("Error trying to allocate lock: ");
+      exit(1);
+    }
+    pthread_mutex_init(lock, NULL);
+
+    slaveTid = malloc(NUM_TH * sizeof(pthread_t));
+    if(slaveTid == NULL){
+      perror("Error trying to allocate slaveTid: ");
+      exit(1);
+    }
+
+    for(int i=0; i<NUM_TH; i++){
+      id[i] = i;
+      pthread_create(&slaveTid[i], NULL, slaveFCN, (void *)&id[i]);
+    }     
+  }
+
   return pq;
 }
 
@@ -129,6 +186,26 @@ PQ PQinit(int maxN, int type) {
   Parameter: PQ to be freed.
 */
 void PQfree(PQ pq) {
+
+  if(search_type == PARALLEL_SEARCH){
+    stop = 1;
+    pthread_barrier_wait(inBarrier);
+    
+    for(int i=0; i<NUM_TH; i++)
+      pthread_join(slaveTid[i], NULL);
+
+    pthread_barrier_destroy(masterBarrier);
+    pthread_barrier_destroy(inBarrier);
+    pthread_barrier_destroy(outBarrier);
+    pthread_mutex_destroy(lock);
+
+    free(masterBarrier);
+    free(inBarrier);
+    free(outBarrier);
+    free(lock);
+    free(slaveTid);
+    free(id);
+  }
 
   free(pq->A);
 
@@ -290,29 +367,57 @@ Each thread performs the search in a portion of the array pq->A,
 if a match is found the thread sets the values in the struct SearchRes that
 contains the index of the node and it's priority
 */
-static void *thread_search(void* arg){
-  SearchSpec *sp = (SearchSpec*) arg;
 
-  for(int i=0; i<sp->n_items; i++){
-    pthread_mutex_lock(sp->mutex);
-    if(*(sp->found) == 1){
-      pthread_mutex_unlock(sp->mutex);
-      return NULL;
-    }
-    pthread_mutex_unlock(sp->mutex);
+static void *slaveFCN(void* par){
+  // int nCicles;
+  // int res;
+  int id, *arg = (int *)par;
+  int i;
+  id = *arg;
 
-    if(((*sp->pq)->A[sp->start_index+i]).index == *sp->target){
-      pthread_mutex_lock(sp->mutex);
-        (sp->sr)->index = ((*sp->pq)->A[sp->start_index+i]).index;
-        (sp->sr)->priority = ((*sp->pq)->A[sp->start_index+i]).priority;
-        *sp->found = 1;
-      pthread_mutex_unlock(sp->mutex);
+  // printf("TH%d - created.\n", id);
+
+  while(1){
+    // printf("\tTH%d - stuck at slaveBarrier.\n", id);
+    pthread_barrier_wait(inBarrier);
+    // printf("\tTH%d - received a job.\n", id);
+    if(stop)
+      pthread_exit(NULL);
+
+    for(i=id; i<targetPQ->heapsize && pos==-1; i=i+NUM_TH){
+      pthread_mutex_lock(lock);
+      if(pos!=-1){
+        pthread_mutex_unlock(lock);
+        break;
+      }
+      pthread_mutex_unlock(lock);
+
+      if(targetPQ->A[i].index == target){
+        pthread_mutex_lock(lock);
+        pos = i;
+        pthread_mutex_unlock(lock);
+        prio = targetPQ->A[i].priority;
+        break;
+        // printf("\tTH%d - stuck at masterBarrier (found).\n", id);
+        // pthread_barrier_wait(masterBarrier);
+        // printf("\tTH%d - passed masterBarrier (found).\n", id);
+      }
     }
+
+
+
+    pthread_mutex_lock(lock);
+    finished++;
+    if(finished == NUM_TH /*&& pos==-1*/){
+      // printf("\tTH%d - stuck at masterBarrier (not found).\n", id);
+      pthread_barrier_wait(masterBarrier);
+      // printf("\tTH%d - passed masterBarrier (not found).\n", id);
+    }
+    pthread_mutex_unlock(lock);
+    pthread_barrier_wait(outBarrier);
   }
-
-  return NULL;
+  pthread_exit(NULL);
 }
-
 
 
 /*
@@ -323,6 +428,11 @@ and the priority value inside the priority pointer
 2 -> parallel
 */
 int PQsearch(PQ pq, int node_index, int *priority){
+  // #ifdef TIME
+  //   Timer timer = TIMERinit(1);
+  //   TIMERstart(timer);
+  // #endif
+
   int pos = -1;
 
   if(search_type == LINEAR_SEARCH){
@@ -344,52 +454,33 @@ int PQsearch(PQ pq, int node_index, int *priority){
     }
   }
   else if(search_type == PARALLEL_SEARCH){
-    pthread_mutex_t *mutex = (pthread_mutex_t*) malloc(sizeof(pthread_mutex_t));
-    long number_of_processors = sysconf(_SC_NPROCESSORS_ONLN);
-    long max_thread = number_of_processors * 2;
-    pthread_t th[max_thread];
+    target = node_index;
+    pos = -1;
+    finished = 0;
 
-    pthread_mutex_init(mutex, NULL);
+    // printf("M - waiting to deliver a job.\n");
+    pthread_barrier_wait(inBarrier);
+    // printf("M - job delivered.\n");
 
-    int *found = (int*) malloc(sizeof(int));
-    *found = 0;
+    // printf("M - is waiting to receive a result.\n");
+    pthread_barrier_wait(masterBarrier);
+    // printf("M - received the result.\n");
 
-    int *target = (int*) malloc(sizeof(int));
-    *target = node_index;
+    // #ifdef TIME
+    //   printf("Parallel search ");
+    //   TIMERstopEprint(timer);
+    // #endif    
 
-    SearchRes sr = (SearchRes) malloc(sizeof(sr));
-
-    int items_each = pq->heapsize / max_thread;
-    int rem = pq->heapsize % max_thread;
-
-    for(int i=0; i<max_thread; i++){
-      SearchSpec *sp = (SearchSpec*) malloc(sizeof(SearchSpec));
-      sp->mutex = mutex;
-      sp->found = found;
-      sp->n_items = items_each;
-      sp->start_index = i*items_each;
-      sp->target = target;
-      sp->sr = sr;
-      sp->pq = &pq;
-
-      if(i == (max_thread-1)){
-        sp->n_items += rem;
-      }
-
-      int res = pthread_create(&th[i], NULL, thread_search, (void *) sp);
+    if(pos == -1){
+      return -1;
+    }else{
+      if(priority!=NULL) 
+        *priority = prio;
+      return pos;
     }
 
-    for(int i=0; i<max_thread; i++){
-      pthread_join(th[i], NULL);
-    }
-
-    *priority = sr->priority;
-    pos = sr->index;
-  }
-
-  return pos;
+  #endif
 }
-
 
 
 /*
