@@ -452,7 +452,7 @@ int PQsearch(PQ pq, int node_index, int *priority){
     }
   }
   else if(search_type == PARALLEL_SEARCH){
-    
+    targetPQ = pq;
     target = node_index;
     pos = -1;
     finished = 0;
@@ -470,15 +470,12 @@ int PQsearch(PQ pq, int node_index, int *priority){
     //   TIMERstopEprint(timer);
     // #endif    
 
-    if(pos == -1){
-      return -1;
-    }else{
-      if(priority!=NULL) 
-        *priority = prio;
-      return pos;
+    if((pos != -1) && (priority != NULL)){
+      *priority = prio;
     }
+  }
 
-  #endif
+  return pos;
 }
 
 
