@@ -147,7 +147,7 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   }
 
   #ifdef TIME
-    printf("Bella: ");
+    printf("Algorithm: ");
     TIMERstopEprint(timer);
     int sizeofPath = sizeof(int)*G->V;
     int sizeofPQ = sizeof(PQ*) + PQmaxSize(openSet)*sizeof(Item);

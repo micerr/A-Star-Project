@@ -13,4 +13,4 @@ time: $(SRCS)
 	$(CC) -o bin/aStar.exe $^ $(CFLAGS) -DTIME
 
 psearch: $(SRCS)
-	$(CC) -o bin/aStar.exe $^ $(CFLAGS) -DPARALLEL_SEARCH 
+	$(CC) -o bin/aStar.exe $^ $(CFLAGS) -DPARALLEL_SEARCH -DTIME

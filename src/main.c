@@ -1,11 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "Graph.h"
 #include "AStar.h"
 #include "Heuristic.h"
+#include "PQ.h"
 #define MAXC 11
 
 int main(void) {
+  setbuf(stdout, NULL);
+  
   int i, cont, id1, id2, numThreads;
   char name[MAXC];
   Graph G = NULL;
@@ -167,3 +171,41 @@ int main(void) {
     GRAPHfree(G);
     return 0;
 }
+
+// int main(void){
+//   int correct_searches = 0;
+//   int overall = 100;
+//   setbuf(stdout, NULL);
+//   PQ set = PQinit(100000000);
+
+
+//   for(int i=0; i<100000000; i++){
+//     PQinsert(set, i, i);
+//   }
+
+//   int prio, index;
+
+//   //Timer timer = TIMERinit(1); 
+//   srand(time(NULL));
+//   int target;
+
+//   //TIMERstart(timer);
+//   for(int i=0; i<overall; i++){
+//     target = rand() % 200000000;
+//     index = PQsearch(set, target, &prio);
+//     if(index == -1)
+//       printf("%d - Target not found: target=%d \n", i, target);
+//     else
+//       printf("%d - Result: target=%d index=%d, priority=%d\n", i, target, index,prio);
+//     if((index == target) && (index == prio)){
+//       correct_searches += 1;
+//     }
+//     else if((index == -1) && (target > 100000000)){
+//       correct_searches += 1;
+//     }
+
+//   }
+
+//   printf("\nCorrect searches: %d over %d\n", correct_searches, overall);
+// }
+
