@@ -470,8 +470,6 @@ int PQsearch(PQ pq, int node_index, int *priority){
   //   TIMERstart(timer);
   // #endif
 
-  int pos = -1;
-
   if(search_type == LINEAR_SEARCH){
     for(int i=0; i<pq->heapsize; i++){
       if(node_index == (pq->A[i]).index){
@@ -627,6 +625,7 @@ void PQdisplayHeap(PQ pq){
       }
     }
   }
+  printf("\n");
 
   //printf("%d position correct over %d\n", pos_correct, pq->heapsize);
   return;
@@ -636,46 +635,6 @@ float PQgetPriority(PQ pq, int index){
   return (pq->A[index]).priority;
 }
 
-
-// int main(){
-//   PQ pq = PQinit(10, CONSTANT_SEARCH);
-//   int val;
-//   srand(time(NULL));
-
-//   for(int i=0; i<10; i++){
-//     val = rand() % 100;
-
-//     PQinsert(pq, i, val*2);
-//   }
-
-//   int res;
-//   int *prio, prio_n;
-//   prio = &prio_n;
-
-//   // for(int i=0; i<10; i++){
-//   //   val = rand() % 10;
-//   //   res = PQsearch(pq, val, prio);
-
-//   //   printf("Node with index %d and prio %d found at %d\n", pq->A[res].index, *prio, res);
-//   // }
-
-//   printf("\n\n");
-//   PQdisplayHeap(pq);
-
-//   PQchange(pq, 3, 1234);
-
-//   printf("\n\n");
-//   PQdisplayHeap(pq);
-
-//   PQchange(pq, 3, 100);
-//   printf("\n\n");
-//   PQdisplayHeap(pq);
-
-//   res = PQsearch(pq, 3, prio);
-//   printf("\nIndex %d, prio %d\n", res, *prio);
-
-//   return 0;
-// }
 
 
 

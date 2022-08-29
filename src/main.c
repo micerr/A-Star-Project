@@ -7,24 +7,43 @@
 #include "Heuristic.h"
 #include "PQ.h"
 #define MAXC 11
+#define SEQUENTIAL 0
+#define PARALLEL 1
 
-int select_search_type(){
+int select_search_type(int algo_type){
   int search_type;
 
-  printf("Which kind of search do you want to perform?\n");
-  printf("1 -> LINEAR SEARCH\n");
-  printf("2 -> CONSTANT SEARCH\n");
-  printf("3 -> PARALLEL SEARCH\n");
-  printf("Enter your choice : ");
+  if(algo_type == SEQUENTIAL){
+    printf("Which kind of search do you want to perform?\n");
+    printf("1 -> LINEAR SEARCH\n");
+    printf("2 -> CONSTANT SEARCH\n");
+    printf("3 -> PARALLEL SEARCH\n");
+    printf("Enter your choice : ");
 
-  if(scanf("%d", &search_type)<=0) {
-      printf("Wrong input!\n");
+    if(scanf("%d", &search_type)<=0) {
+        printf("Wrong input!\n");
+        exit(0);
+    }
+
+    if((search_type <= 0) || (search_type > 3)){
+      printf("Invalid option\n");
       exit(0);
+    }
   }
+  else if(algo_type == PARALLEL){
+    printf("Which kind of search do you want to perform?\n");
+    printf("1 -> LINEAR SEARCH\n");
+    printf("2 -> CONSTANT SEARCH\n");
 
-  if((search_type <= 0) || (search_type > 3)){
-    printf("Invalid option\n");
-    exit(0);
+    if(scanf("%d", &search_type)<=0) {
+        printf("Wrong input!\n");
+        exit(0);
+    }
+
+    if((search_type <= 0) || (search_type > 2)){
+      printf("Invalid option\n");
+      exit(0);
+    }
   }
 
   return search_type;
@@ -102,7 +121,7 @@ int main(void) {
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
-                        search_type = select_search_type();
+                        search_type = select_search_type(SEQUENTIAL);
                         GRAPHspD(G, id1, id2, search_type);
                         break;
 
@@ -112,7 +131,7 @@ int main(void) {
                         scanf("%d", &id2);
 
                         i = select_heuristic();
-                        search_type = select_search_type();
+                        search_type = select_search_type(SEQUENTIAL);
 
                         switch (i){
                           case 1:
@@ -139,7 +158,7 @@ int main(void) {
                         scanf("%d", &numThreads);
 
                         i = select_heuristic();
-                        search_type = select_search_type();
+                        search_type = select_search_type(PARALLEL);
 
                         switch (i){
                           case 1:
@@ -166,7 +185,7 @@ int main(void) {
                         scanf("%d", &numThreads);
                                               
                         i = select_heuristic();
-                        search_type = select_search_type();
+                        search_type = select_search_type(PARALLEL);
 
                         switch (i){
                           case 1:
@@ -197,7 +216,7 @@ int main(void) {
                         scanf("%d", &numThreads);
                         
                         i = select_heuristic();
-                        search_type = select_search_type();
+                        search_type = select_search_type(PARALLEL);
 
                         switch (i){
                           case 1:
@@ -228,7 +247,7 @@ int main(void) {
                         scanf("%d", &numThreads);
                         
                         i = select_heuristic();
-                        search_type = select_search_type();
+                        search_type = select_search_type(PARALLEL);
 
                         switch (i){
                           case 1:
@@ -257,41 +276,4 @@ int main(void) {
     GRAPHfree(G);
     return 0;
 }
-
-// int main(void){
-//   int correct_searches = 0;
-//   int overall = 100;
-//   setbuf(stdout, NULL);
-//   PQ set = PQinit(100000000);
-
-
-//   for(int i=0; i<100000000; i++){
-//     PQinsert(set, i, i);
-//   }
-
-//   int prio, index;
-
-//   //Timer timer = TIMERinit(1); 
-//   srand(time(NULL));
-//   int target;
-
-//   //TIMERstart(timer);
-//   for(int i=0; i<overall; i++){
-//     target = rand() % 200000000;
-//     index = PQsearch(set, target, &prio);
-//     if(index == -1)
-//       printf("%d - Target not found: target=%d \n", i, target);
-//     else
-//       printf("%d - Result: target=%d index=%d, priority=%d\n", i, target, index,prio);
-//     if((index == target) && (index == prio)){
-//       correct_searches += 1;
-//     }
-//     else if((index == -1) && (target > 100000000)){
-//       correct_searches += 1;
-//     }
-
-//   }
-
-//   printf("\nCorrect searches: %d over %d\n", correct_searches, overall);
-// }
 
