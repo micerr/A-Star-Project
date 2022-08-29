@@ -16,7 +16,7 @@ typedef struct{
     int numTH;
     int start, end;
     int isMaster;
-    int *stop;
+    int *stop, *nStops;
     int *nMsgSnt;
     int *nMsgRcv;
     Queue *queueArr_S2M;
@@ -24,6 +24,7 @@ typedef struct{
     Queue **queueMat_S2S;
     sem_t **semS;
     sem_t *semM;
+    pthread_mutex_t *meStop;
     #ifdef TIME
         Timer timer;
     #endif
@@ -40,10 +41,11 @@ typedef struct{
     int *path;
     int *nMsgSnt;
     int *nMsgRcv;
-    int *stop;
+    int *stop, *nStops;
     Queue S2M, M2S;
     Queue **S2S;
     pthread_mutex_t *meCost;
+    pthread_mutex_t *meStop;
     sem_t *semToDo;
     sem_t **semS;
     sem_t *semM;
@@ -73,13 +75,13 @@ static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coo
     Queue *queueArr_S2M;
     Queue *queueArr_M2S;
     Queue **queueMat_S2S;
-    pthread_mutex_t *meCost;
+    pthread_mutex_t *meCost, *meStop;
     masterArg_t masterArg;
     slaveArg_t *slaveArgArr;
     Coord coord, dest_coord;
     sem_t **semS;
     sem_t *semM;
-    int i, j, *hScores, *path, bCost = INT_MAX, stop = 0;
+    int i, j, *hScores, *path, bCost = INT_MAX, stop = 0, nStops=0;
     int *nMsgSnt, *nMsgRcv;
     #ifdef TIME
         Timer timer;
@@ -145,6 +147,10 @@ static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coo
         }
     }
 
+
+    meStop = malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(meStop, NULL);
+
     meCost = malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(meCost, NULL);
 
@@ -188,10 +194,12 @@ static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coo
     masterArg.start = start;
     masterArg.end = end;
     masterArg.stop = &stop;
+    masterArg.nStops = &nStops;
     masterArg.nMsgRcv = nMsgRcv;
     masterArg.nMsgSnt = nMsgSnt;
     masterArg.semM = semM;
     masterArg.semS = semS;
+    masterArg.meStop = meStop;
     masterArg.isMaster = isMaster;
     #ifdef TIME
         masterArg.timer = timer;
@@ -213,7 +221,9 @@ static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coo
         slaveArgArr[i].id = i;
         slaveArgArr[i].G = G;
         slaveArgArr[i].meCost = meCost;
+        slaveArgArr[i].meStop = meStop;
         slaveArgArr[i].stop = &stop;
+        slaveArgArr[i].nStops = &nStops;
         slaveArgArr[i].start = start;
         slaveArgArr[i].end = end;
         slaveArgArr[i].nMsgRcv = &(nMsgRcv[i]);
@@ -295,6 +305,9 @@ static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coo
         free(queueMat_S2S);
 
     }
+    //free meStop
+    pthread_mutex_destroy(meStop);
+    free(meStop);
 
     //free meCost mutex
     pthread_mutex_destroy(meCost);
@@ -333,8 +346,7 @@ static void *masterTH(void *par){
     while(1){
         // special trick used to stop the master if the is no elements in the queues
         sem_wait(arg->semM); // wait for some element to be in the queue
-        if(arg->isMaster)
-            sem_post(arg->semM); // Reset to the previous valute, becuse in the loop we count, how many elements we read.
+        sem_post(arg->semM); // Reset to the previous valute, becuse in the loop we count, how many elements we read.
 
         for(i=0; i<arg->numTH && arg->isMaster; i++){
                 while(!QUEUEisEmpty(arg->queueArr_S2M[i])){
@@ -366,12 +378,16 @@ static void *masterTH(void *par){
         #ifdef DEBUG
             printf("R: %d, R': %d, S': %d\n", pR-1, R-1, S);
         #endif
-        if(pR-1 == S && S != 0){
-            *(arg->stop) = 1;
-            for(i=0; i<arg->numTH; i++)
-                sem_post(arg->semS[i]);
-            pthread_exit(NULL);
-        }
+        pthread_mutex_lock(arg->meStop);
+            if(pR == R && pR-1 == S && S != 0 && *(arg->nStops) == arg->numTH){
+                *(arg->stop) = 1;
+                for(i=0; i<arg->numTH; i++)
+                    sem_post(arg->semS[i]);
+                pthread_mutex_unlock(arg->meStop);
+                pthread_exit(NULL);
+            }
+        pthread_mutex_unlock(arg->meStop);
+
     }
 }
 
@@ -413,14 +429,19 @@ static void *slaveTH(void *par){
         // special trick used to stop the slave if the is no things to do
         if(sem_trywait(arg->semToDo) != 0){
             // enter here only when we have to wait, that it means that we don't have any work to do => (We have to ask to the Master if the algorithm is ended)
-            if(arg->isMaster){
-                sem_post(arg->semM); // wake up the master because I'm empty, Mattern's Method need a last loop without messages
-                sem_wait(arg->semToDo); // go to sleep
-                sem_wait(arg->semM); // if it wasn't the last lap => Everything must be put as before
-            }else{
-                sem_post(arg->semM); sem_post(arg->semM); // two loops to check the termination condition
-                sem_wait(arg->semToDo); // go to sleep
-            }
+            pthread_mutex_lock(arg->meStop);
+                *(arg->nStops)+=1;
+                if(*(arg->nStops) == arg->numTH)
+                    sem_post(arg->semM);
+            pthread_mutex_unlock(arg->meStop);
+
+            sem_wait(arg->semToDo);
+
+            pthread_mutex_lock(arg->meStop);
+                if(*(arg->nStops) == arg->numTH)
+                    sem_wait(arg->semM);
+                *(arg->nStops)-=1;
+            pthread_mutex_unlock(arg->meStop);
         }
         sem_post(arg->semToDo); // Reset to the previous valute, because in the loops we count the number of elements in the queue through the semaphores.
         
@@ -428,9 +449,13 @@ static void *slaveTH(void *par){
             #ifdef TIME
               TIMERstopEprint(arg->timer);
             #endif
+            //destroy openSet PQ
+            PQfree(openSet);
+            //destroy closedSet
+            free(closedSet);
             pthread_exit(NULL);
         }
-        
+
         while(!QUEUEsAreEmpty(
             arg->isMaster ? (&(arg->M2S)) : arg->S2S[arg->id],
             arg->isMaster ? 1 : arg->numTH, 
