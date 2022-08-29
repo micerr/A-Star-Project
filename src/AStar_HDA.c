@@ -8,6 +8,7 @@
 #include "AStar.h"
 #include "Queue.h"
 #include "PQ.h"
+#include "Hash.h"
 #include "./utility/BitArray.h"
 #include "./utility/Timer.h"
 
@@ -25,6 +26,7 @@ typedef struct{
     sem_t **semS;
     sem_t *semM;
     pthread_mutex_t *meStop;
+    Hash hash;
     #ifdef TIME
         Timer timer;
     #endif
@@ -50,28 +52,28 @@ typedef struct{
     sem_t **semS;
     sem_t *semM;
     Graph G;
+    Hash hash;
     #ifdef TIME
         Timer timer;
     #endif 
 } slaveArg_t;
 
-static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster);
+static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster, int (*hfunc)(Hash h, int v));
 static void *masterTH(void *par);
 static void *slaveTH(void *par);
-static int hashing(int s, int numTH);
 static void analyzeNode(slaveArg_t *arg, PQ openSet, int *closedSet, HItem message);
 
 // Wrapper for HDA* with deliver Master
-void ASTARhdaMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
-    return ASTARhda(G, start, end, numTH, h, 1);
+void ASTARhdaMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int (*hfunc)(Hash h, int v)){
+    return ASTARhda(G, start, end, numTH, h, 1, hfunc);
 }
 
 // Wrapper for HDA* withOUT deliver Master
-void ASTARhdaNoMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
-    return ASTARhda(G, start, end, numTH, h, 0);
+void ASTARhdaNoMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int (*hfunc)(Hash h, int v)){
+    return ASTARhda(G, start, end, numTH, h, 0, hfunc);
 }
 
-static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster){
+static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster, int (*hfunc)(Hash h, int v)){
     Queue *queueArr_S2M;
     Queue *queueArr_M2S;
     Queue **queueMat_S2S;
@@ -81,6 +83,7 @@ static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coo
     Coord coord, dest_coord;
     sem_t **semS;
     sem_t *semM;
+    Hash hash;
     int i, j, *hScores, *path, bCost = INT_MAX, stop = 0, nStops=0;
     int *nMsgSnt, *nMsgRcv;
     #ifdef TIME
@@ -179,6 +182,9 @@ static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coo
     for(i = 0; i<numTH; i++)
         nMsgRcv[i] = nMsgSnt[i] = 0;
 
+    // init the hash function
+    hash = HASHinit(G, numTH, hfunc);
+
     #ifdef TIME
         timer = TIMERinit(numTH);
     #endif
@@ -201,6 +207,7 @@ static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coo
     masterArg.semS = semS;
     masterArg.meStop = meStop;
     masterArg.isMaster = isMaster;
+    masterArg.hash = hash;
     #ifdef TIME
         masterArg.timer = timer;
     #endif
@@ -232,6 +239,7 @@ static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coo
         slaveArgArr[i].semToDo = semS[i];
         slaveArgArr[i].semS = semS;
         slaveArgArr[i].isMaster = isMaster;
+        slaveArgArr[i].hash = hash;
         #ifdef TIME
             slaveArgArr[i].timer = timer;
         #endif
@@ -267,6 +275,9 @@ static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coo
     #ifdef TIME
         free(timer);
     #endif
+
+    // free the hash function
+    HASHfree(hash);
 
     // free the array of messages
     free(nMsgRcv); free(nMsgSnt);
@@ -332,7 +343,7 @@ static void *masterTH(void *par){
     #endif  
 
     //compute the owner of the starting thread
-    owner = hashing(arg->start, arg->numTH);
+    owner = hash(arg->hash, arg->start);
     message = HITEMinit(arg->start, 0, arg->start, owner, NULL);
 
     //insert the node in the owner's queue
@@ -372,7 +383,9 @@ static void *masterTH(void *par){
         }
         /* 
             pR == S := Mattern's condition for distributed termination detection
-            S != 0  := if there are no message sent, the algorithm is not started yet   
+            S != 0  := if there are no message sent, the algorithm is not started yet
+            pR = R  := the number of Received message must not be changed
+            nStops = numTH := all the slave must sleep
             pR-1 because the first message is sent by the Master, and the master is not in the game
         */
         #ifdef DEBUG
@@ -451,6 +464,13 @@ static void *slaveTH(void *par){
             #endif
             //destroy openSet PQ
             PQfree(openSet);
+            #ifdef TIME
+                int expandedNodes = 0;
+                for(i=0; i<arg->G->V; i++)
+                    if(closedSet[i] > 0)
+                        expandedNodes++;
+                printf("%d: Expanded nodes: %d\n", arg->id, expandedNodes);
+            #endif
             //destroy closedSet
             free(closedSet);
             pthread_exit(NULL);
@@ -517,7 +537,7 @@ static void *slaveTH(void *par){
                 printf("%d: expanded node %d->%d\n", arg->id, extrNode.index, t->v);
             #endif
 
-            owner = hashing(t->v, arg->numTH);
+            owner = hash(arg->hash, t->v);
             message = HITEMinit(t->v, newGscore, extrNode.index, owner, NULL);
 
             if(arg->isMaster){
@@ -552,10 +572,6 @@ static void *slaveTH(void *par){
     free(closedSet);
 
     pthread_exit(NULL);
-}
-
-static int hashing(int s, int numTH){
-    return s%numTH;
 }
 
 static void analyzeNode(slaveArg_t *arg, PQ openSet, int *closedSet, HItem message){
