@@ -3,6 +3,7 @@
 #include <errno.h>
 #include "PQ.h"
 #include "./utility/Item.h"
+#include "./utility/Timer.h"
 #include "sys/types.h"
 #include <pthread.h>
 #include <unistd.h>
@@ -258,8 +259,46 @@ int PQmaxSize(PQ pq){
   priority of each Item in the heap, Item's index used to retrieve its priority.
 */
 void PQinsert (PQ pq, int node_index, int priority){
+  // Item *item = ITEMinit(node_index, priority);
+  // int i, j;
+  
+  // if( pq->heapsize >= pq->maxN){
+  //   pq->A = realloc(pq->A, (2*pq->maxN)* sizeof(Item));
+  //   if(pq->A == NULL){
+  //     perror("Realloc");
+  //     free(pq->A);
+  //     free(pq);
+  //     exit(1);
+  //   }
+  //   pq->maxN = 2*pq->maxN;
+  // }
+
+  // //set i equal to the most-right available index. Also update the heap size.
+  // i = j = pq->heapsize++;
+  // pq->A[j] = *item;
+
+  // //find the correct position of Item by performing the set of comparison
+  // while (i>=1 && ((pq->A[PARENT(i)]).priority > item->priority)) {
+  //   pq->A[i] = pq->A[PARENT(i)];
+
+  //   if(search_type == CONSTANT_SEARCH){
+  //     pq->qp[pq->A[i].index] = i;
+  //   }
+
+  //   i = PARENT(i);
+  // }
+
+  // pq->A[i] = pq->A[j];
+  
+  // if(search_type == CONSTANT_SEARCH){
+  //   pq->qp[j] = i;
+  // }
+  
+  // free(item);
+  // return;
+
   Item *item = ITEMinit(node_index, priority);
-  int i, j;
+  int i;
   
   if( pq->heapsize >= pq->maxN){
     pq->A = realloc(pq->A, (2*pq->maxN)* sizeof(Item));
@@ -273,7 +312,7 @@ void PQinsert (PQ pq, int node_index, int priority){
   }
 
   //set i equal to the most-right available index. Also update the heap size.
-  i = j = pq->heapsize++;
+  i = pq->heapsize++;
 
   //find the correct position of Item by performing the set of comparison
   while (i>=1 && ((pq->A[PARENT(i)]).priority > item->priority)) {
@@ -287,9 +326,9 @@ void PQinsert (PQ pq, int node_index, int priority){
   }
 
   pq->A[i] = *item;
-  
+
   if(search_type == CONSTANT_SEARCH){
-    pq->qp[j] = i;
+    pq->qp[pq->A[i].index] = i;
   }
   
   free(item);
@@ -543,8 +582,15 @@ Item PQgetMin(PQ pq){
 */
 void PQchange (PQ pq, int node_index, int priority) {
   // printf("Searching for %d with priority %d\n", node_index, priority);
- 
-  int item_index = pq->qp[node_index];
+  int item_index;
+  
+  if(search_type == CONSTANT_SEARCH){
+    item_index = pq->qp[node_index];
+  }
+  else{
+    item_index = PQsearch(pq, node_index, NULL);
+  }
+  
   Item item = pq->A[item_index];
   item.priority = priority;
 
@@ -569,15 +615,67 @@ void PQchange (PQ pq, int node_index, int priority) {
 }
 
 void PQdisplayHeap(PQ pq){
+  int pos_correct = 0;
+  setbuf(stdout, NULL);
+
   for(int i=0; i<pq->heapsize; i++){
-    printf("i = %d, priority = %.3d\n", (pq->A[i]).index, (pq->A[i]).priority);
+    printf("%d -> i = %d, priority = %d\n",i, (pq->A[i]).index, (pq->A[i]).priority);
+    
+    if(search_type == CONSTANT_SEARCH){
+      if(pq->qp[pq->A[i].index] == i){
+        pos_correct += 1;
+      }
+    }
   }
+
+  //printf("%d position correct over %d\n", pos_correct, pq->heapsize);
   return;
 }
 
 float PQgetPriority(PQ pq, int index){
   return (pq->A[index]).priority;
 }
+
+
+// int main(){
+//   PQ pq = PQinit(10, CONSTANT_SEARCH);
+//   int val;
+//   srand(time(NULL));
+
+//   for(int i=0; i<10; i++){
+//     val = rand() % 100;
+
+//     PQinsert(pq, i, val*2);
+//   }
+
+//   int res;
+//   int *prio, prio_n;
+//   prio = &prio_n;
+
+//   // for(int i=0; i<10; i++){
+//   //   val = rand() % 10;
+//   //   res = PQsearch(pq, val, prio);
+
+//   //   printf("Node with index %d and prio %d found at %d\n", pq->A[res].index, *prio, res);
+//   // }
+
+//   printf("\n\n");
+//   PQdisplayHeap(pq);
+
+//   PQchange(pq, 3, 1234);
+
+//   printf("\n\n");
+//   PQdisplayHeap(pq);
+
+//   PQchange(pq, 3, 100);
+//   printf("\n\n");
+//   PQdisplayHeap(pq);
+
+//   res = PQsearch(pq, 3, prio);
+//   printf("\nIndex %d, prio %d\n", res, *prio);
+
+//   return 0;
+// }
 
 
 
