@@ -90,7 +90,6 @@ void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord coord1, Co
   PQinsert(openSet, start, closedSet[start]);
 
 
-
   while (!PQempty(openSet)){
     //extract node
     extrNode = PQextractMin(openSet);
@@ -268,7 +267,7 @@ int GRAPHspD(Graph G, int id, int end, int search_type) {
   #endif
 
   // Print the found path
-  if(path[v] == -1){
+  if(path[end] == -1){
     printf("No path from %d to %d has been found.\n", id, end);
   }else{
     printf("Path from %d to %d has been found with cost %.3d.\n", id, end, min_item.priority);

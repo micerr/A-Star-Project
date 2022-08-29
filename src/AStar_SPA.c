@@ -17,8 +17,6 @@
 #include "./utility/Timer.h"
 
 
-static char spinner[] = "|/-\\";
-static int spin = 0, isNotConsistent;
 
 // Data structures:
 // openSet -> Priority queue containing an heap made of Items (Item has index of node and priority (fScore))
@@ -199,14 +197,12 @@ static void* thFunction(void *par){
   Graph G = arg->G;
   ptr_node t;
 
-  isNotConsistent = 0;
-
   #ifdef TIME
     TIMERstart(timer);
   #endif  
   //until the open set is not empty
   while(1){
-    printf("%c\b", spinner[(spin++)%4]);
+    //printf("%c\b", spinner[(spin++)%4]);
 
     // Termiante Detection
     pthread_mutex_lock(arg->meNodes);
@@ -336,11 +332,6 @@ static void* thFunction(void *par){
 
         //if a lower gScore is found, reopen the vertex
         if(newGscore < neighboor_fScore - neighboor_hScore){
-
-          if(!isNotConsistent){
-            printf("The heuristic function is NOT consistent\n");
-            isNotConsistent = 1;
-          }
 
           //remove it from closed set
           closedSet[t->v] = -1;

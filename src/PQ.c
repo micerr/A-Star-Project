@@ -469,6 +469,7 @@ int PQsearch(PQ pq, int node_index, int *priority){
   //   Timer timer = TIMERinit(1);
   //   TIMERstart(timer);
   // #endif
+  pos = -1;
 
   if(search_type == LINEAR_SEARCH){
     for(int i=0; i<pq->heapsize; i++){
@@ -491,7 +492,6 @@ int PQsearch(PQ pq, int node_index, int *priority){
   else if(search_type == PARALLEL_SEARCH){
     targetPQ = pq;
     target = node_index;
-    pos = -1;
     finished = 0;
 
     // printf("M - waiting to deliver a job.\n");
