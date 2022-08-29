@@ -63,7 +63,7 @@ double TIMERstopEprint(Timer t){
         long int microseconds = t->end.tv_usec - t->begin.tv_usec;
         elapsed = seconds + microseconds*1e-6;
 
-        printf("Time spent: %.3f seconds.\n", elapsed);
+        printf("Time spent: %.6f seconds.\n", elapsed);
       }
     pthread_mutex_unlock(t->me);
     return elapsed;

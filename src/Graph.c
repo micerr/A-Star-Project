@@ -616,3 +616,4 @@ void  GRAPHgetEdge(Graph G, int start, int end){
   printf("Direct edge from %d to %d does not exist\n", start, end);
   return;
 }
+

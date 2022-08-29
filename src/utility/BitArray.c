@@ -34,8 +34,16 @@ void BITARRAYtoggleBit(BitArray ba, int index){
     ba->array[index / 8] ^= 1 << (index % 8);
 }
 
-char BITARRAYgetBit(BitArray ba, int index){
-    return (ba->array[index / 8] >> (index % 8)) & 1;
+void BITARRAYset1(BitArray ba, int index){
+    ba->array[index / 8] |= 1 << (index % 8);
+}
+
+void BITARRAYset0(BitArray ba, int index){
+    ba->array[index / 8] &= ~(1 << (index % 8));
+}
+
+int BITARRAYgetBit(BitArray ba, int index){
+    return (int)((ba->array[index / 8] >> (index % 8)) & 1);
 }
 
 void BITARRAYfree(BitArray ba){
