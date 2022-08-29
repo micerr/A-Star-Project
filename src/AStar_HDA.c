@@ -409,7 +409,7 @@ static void *slaveTH(void *par){
     int gScore, fScore, newGscore;
 
     //init the openSet PQ
-    openSet = PQinit(5, search_type);
+    openSet = PQinit(arg->G->V, search_type);
     if(openSet == NULL){
         printf("Error initializing openSet (PQ) in thread%d: ", arg->id);
         exit(1);
@@ -478,7 +478,7 @@ static void *slaveTH(void *par){
 
             analyzeNode(arg, openSet, closedSet, message);
             
-            free(message); // a message is never freedzed
+            //free(message); // a message is never freedzed
         }
 
         if(PQempty(openSet))

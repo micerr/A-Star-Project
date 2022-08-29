@@ -18,6 +18,7 @@ struct pqueue {
   int *qp;
   int heapsize; // number of elements in the priority queue
   int maxN; // max number of elements
+  int currN;
 };
 
 /*This struct contains the result of the search and it is saved 
@@ -103,8 +104,9 @@ PQ PQinit(int maxN, int type) {
     perror("Error trying to allocate PQ structure: ");
     return NULL;
   }
+  pq->currN = 5;
 
-  pq->A = malloc(maxN * sizeof(Item));
+  pq->A = malloc(pq->currN * sizeof(Item));
     if(pq->A == NULL){
     perror("Error trying to allocate heap array: ");
     return NULL;
@@ -114,14 +116,14 @@ PQ PQinit(int maxN, int type) {
 
   //Used for constant search
   if(search_type == CONSTANT_SEARCH){
-    pq->qp = malloc(maxN * sizeof(int));
+    pq->qp = malloc(pq->maxN * sizeof(int));
     
     if(pq->qp == NULL){
       perror("Error trying to allocate heap array: ");
       return NULL;
     }
 
-    for(int i=0; i<maxN; i++){
+    for(int i=0; i<pq->maxN; i++){
       pq->qp[i] = -1;
     }
   }
@@ -259,57 +261,27 @@ int PQmaxSize(PQ pq){
   priority of each Item in the heap, Item's index used to retrieve its priority.
 */
 void PQinsert (PQ pq, int node_index, int priority){
-  // Item *item = ITEMinit(node_index, priority);
-  // int i, j;
-  
-  // if( pq->heapsize >= pq->maxN){
-  //   pq->A = realloc(pq->A, (2*pq->maxN)* sizeof(Item));
-  //   if(pq->A == NULL){
-  //     perror("Realloc");
-  //     free(pq->A);
-  //     free(pq);
-  //     exit(1);
-  //   }
-  //   pq->maxN = 2*pq->maxN;
-  // }
-
-  // //set i equal to the most-right available index. Also update the heap size.
-  // i = j = pq->heapsize++;
-  // pq->A[j] = *item;
-
-  // //find the correct position of Item by performing the set of comparison
-  // while (i>=1 && ((pq->A[PARENT(i)]).priority > item->priority)) {
-  //   pq->A[i] = pq->A[PARENT(i)];
-
-  //   if(search_type == CONSTANT_SEARCH){
-  //     pq->qp[pq->A[i].index] = i;
-  //   }
-
-  //   i = PARENT(i);
-  // }
-
-  // pq->A[i] = pq->A[j];
-  
-  // if(search_type == CONSTANT_SEARCH){
-  //   pq->qp[j] = i;
-  // }
-  
-  // free(item);
-  // return;
-
   Item *item = ITEMinit(node_index, priority);
   int i;
   
-  if( pq->heapsize >= pq->maxN){
-    pq->A = realloc(pq->A, (2*pq->maxN)* sizeof(Item));
+  if( pq->heapsize >= pq->currN){
+    pq->A = realloc(pq->A, (2*pq->currN) * sizeof(Item));
+
     if(pq->A == NULL){
       perror("Realloc");
       free(pq->A);
+      if(search_type == CONSTANT_SEARCH){
+        free(pq->qp);
+      }
+
       free(pq);
       exit(1);
     }
-    pq->maxN = 2*pq->maxN;
+
+    pq->currN = 2*pq->currN;
   }
+
+
 
   //set i equal to the most-right available index. Also update the heap size.
   i = pq->heapsize++;
