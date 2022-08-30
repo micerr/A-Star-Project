@@ -16,6 +16,6 @@ Item    PQextractMin(PQ pq);
 void    PQchange (PQ pq, int node_index, int priority);
 int     PQsearch(PQ pq, int node_index, int *priority);
 void    PQdisplayHeap(PQ pq);
-float PQgetPriority(PQ pq, int index);
+float   PQgetPriority(PQ pq, int index);
 
 #endif

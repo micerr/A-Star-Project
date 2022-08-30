@@ -1,46 +1,40 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <pthread.h>
+#include <unistd.h>
+
 #include "PQ.h"
 #include "./utility/Item.h"
 #include "./utility/Timer.h"
-#include "sys/types.h"
-#include <pthread.h>
-#include <unistd.h>
+
 
 #define LINEAR_SEARCH 1
 #define CONSTANT_SEARCH 2
 #define PARALLEL_SEARCH 3
 #define NUM_TH sysconf(_SC_NPROCESSORS_ONLN)
 
+typedef struct threadArg_s {
+  pthread_t tid;
+  int id;
+  PQ pq;
+}threadArg_t;
+
 struct pqueue { 
   Item *A; //array of Items.
   int *qp;
-  int heapsize; // number of elements in the priority queue
-  int maxN; // max number of elements
+  int heapsize; // number of elements in the priority queues
   int currN;
+  int search_type;
+  // thread global paramiters
+  int pos, target, prio, finished, stop;
+  pthread_barrier_t *masterBarrier, *inBarrier, *outBarrier;
+  pthread_mutex_t *lock;
+  threadArg_t *thArgArray;
 };
 
-/*This struct contains the result of the search and it is saved 
-as a pointer inside SearchSpec, only the thread with a result will write it's fields*/
-typedef struct search_res {
-  int index;
-  float priority;
-} *SearchRes;
-
-  static void *slaveFCN(void* par);
-
-  PQ targetPQ;
-  pthread_barrier_t *masterBarrier;
-  pthread_barrier_t *inBarrier;
-  pthread_barrier_t *outBarrier;
-  pthread_mutex_t *lock;
-  int target, pos, prio, finished;
-  int stop;
-  int *id;
-  int search_type;
-
-  pthread_t *slaveTid;
+static void *slaveFCN(void* par);
 
 /*
   Prototype declaration of static functions used.
@@ -91,7 +85,6 @@ static int PARENT(int i) {
 
 PQ PQinit(int maxN, int type) {
   PQ pq;
-  search_type = type;
 
   //allocate space needed for the structure
   pq = malloc(sizeof(*pq));
@@ -99,7 +92,9 @@ PQ PQinit(int maxN, int type) {
     perror("Error trying to allocate PQ structure: ");
     return NULL;
   }
+  
   pq->currN = 5;
+  pq->search_type = type;
 
   pq->A = malloc(pq->currN * sizeof(Item));
   if(pq->A == NULL){
@@ -107,30 +102,30 @@ PQ PQinit(int maxN, int type) {
     return NULL;
   }
   pq->heapsize = 0;
-  pq->maxN = maxN;
 
   //Used for constant search
-  if(search_type == CONSTANT_SEARCH){
-    pq->qp = malloc(pq->maxN * sizeof(int));
+  if(type == CONSTANT_SEARCH){
+    pq->qp = malloc(maxN * sizeof(int));
     
     if(pq->qp == NULL){
       perror("Error trying to allocate heap array: ");
       return NULL;
     }
 
-    for(int i=0; i<pq->maxN; i++){
+    for(int i=0; i<maxN; i++){
       pq->qp[i] = -1;
     }
   }
 
-  if(search_type == PARALLEL_SEARCH){
-    id = malloc(NUM_TH * sizeof(int));
-    if(id == NULL){
+  if(type == PARALLEL_SEARCH){
+    pthread_barrier_t *masterBarrier, *inBarrier, *outBarrier;
+    pthread_mutex_t *lock;
+
+    pq->thArgArray = malloc(NUM_TH * sizeof(threadArg_t));
+    if(pq->thArgArray == NULL){
       perror("Error allocating id: ");
       exit(1);
     }
-
-    stop = 0;
 
     inBarrier = malloc(sizeof(pthread_barrier_t));
     if(inBarrier == NULL){
@@ -160,15 +155,16 @@ PQ PQinit(int maxN, int type) {
     }
     pthread_mutex_init(lock, NULL);
 
-    slaveTid = malloc(NUM_TH * sizeof(pthread_t));
-    if(slaveTid == NULL){
-      perror("Error trying to allocate slaveTid: ");
-      exit(1);
-    }
+    pq->stop = 0;
+    pq->inBarrier = inBarrier;
+    pq->outBarrier = outBarrier;
+    pq->masterBarrier = masterBarrier;
+    pq->lock = lock;
 
     for(int i=0; i<NUM_TH; i++){
-      id[i] = i;
-      pthread_create(&slaveTid[i], NULL, slaveFCN, (void *)&id[i]);
+      pq->thArgArray[i].id = i;
+      pq->thArgArray[i].pq = pq;
+      pthread_create(&(pq->thArgArray[i].tid), NULL, slaveFCN, (void *)&(pq->thArgArray[i]));
     }     
   }
 
@@ -183,29 +179,29 @@ PQ PQinit(int maxN, int type) {
 */
 void PQfree(PQ pq) {
 
-  if(search_type == PARALLEL_SEARCH){
-    stop = 1;
-    pthread_barrier_wait(inBarrier);
+  if(pq->search_type == PARALLEL_SEARCH){
+    pq->stop = 1;
+    pthread_barrier_wait(pq->inBarrier);
     
     for(int i=0; i<NUM_TH; i++)
-      pthread_join(slaveTid[i], NULL);
+      pthread_join(pq->thArgArray[i].tid, NULL);
 
-    pthread_barrier_destroy(masterBarrier);
-    pthread_barrier_destroy(inBarrier);
-    pthread_barrier_destroy(outBarrier);
-    pthread_mutex_destroy(lock);
+    pthread_barrier_destroy(pq->masterBarrier);
+    pthread_barrier_destroy(pq->inBarrier);
+    pthread_barrier_destroy(pq->outBarrier);
+    pthread_mutex_destroy(pq->lock);
 
-    free(masterBarrier);
-    free(inBarrier);
-    free(outBarrier);
-    free(lock);
-    free(slaveTid);
-    free(id);
+    free(pq->masterBarrier);
+    free(pq->inBarrier);
+    free(pq->outBarrier);
+    free(pq->lock);
+    free(pq->thArgArray);
+
   }
 
   free(pq->A);
 
-  if(search_type == CONSTANT_SEARCH){
+  if(pq->search_type == CONSTANT_SEARCH){
     free(pq->qp);
   }
   
@@ -265,7 +261,7 @@ void PQinsert (PQ pq, int node_index, int priority){
     if(pq->A == NULL){
       perror("Realloc");
       free(pq->A);
-      if(search_type == CONSTANT_SEARCH){
+      if(pq->search_type == CONSTANT_SEARCH){
         free(pq->qp);
       }
 
@@ -285,7 +281,7 @@ void PQinsert (PQ pq, int node_index, int priority){
   while (i>=1 && ((pq->A[PARENT(i)]).priority > item->priority)) {
     pq->A[i] = pq->A[PARENT(i)];
 
-    if(search_type == CONSTANT_SEARCH){
+    if(pq->search_type == CONSTANT_SEARCH){
       pq->qp[pq->A[i].index] = i;
     }
 
@@ -294,11 +290,11 @@ void PQinsert (PQ pq, int node_index, int priority){
 
   pq->A[i] = *item;
 
-  if(search_type == CONSTANT_SEARCH){
+  if(pq->search_type == CONSTANT_SEARCH){
     pq->qp[pq->A[i].index] = i;
   }
   
-  //free(item);
+  free(item);
   return;
 }
 
@@ -316,7 +312,7 @@ static void Swap(PQ pq, int n1, int n2){
   pq->A[n1] = pq->A[n2];
   pq->A[n2] = temp;
 
-  if(search_type == CONSTANT_SEARCH){
+  if(pq->search_type == CONSTANT_SEARCH){
     n1 = pq->A[n1].index;
     n2 = pq->A[n2].index;
 
@@ -373,34 +369,32 @@ contains the index of the node and it's priority
 */
 
 static void *slaveFCN(void* par){
-  // int nCicles;
-  // int res;
-  int id, *arg = (int *)par;
+  threadArg_t *arg = (threadArg_t*) par; 
+  PQ pq = arg->pq;
   int i;
-  id = *arg;
 
   // printf("TH%d - created.\n", id);
 
   while(1){
     // printf("\tTH%d - stuck at slaveBarrier.\n", id);
-    pthread_barrier_wait(inBarrier);
+    pthread_barrier_wait(pq->inBarrier);
     // printf("\tTH%d - received a job.\n", id);
-    if(stop)
+    if(pq->stop)
       pthread_exit(NULL);
 
-    for(i=id; i<targetPQ->heapsize && pos==-1; i=i+NUM_TH){
-      pthread_mutex_lock(lock);
-      if(pos!=-1){
-        pthread_mutex_unlock(lock);
+    for(i=arg->id; i<pq->heapsize && pq->pos==-1; i=i+NUM_TH){
+      pthread_mutex_lock(pq->lock);
+      if(pq->pos!=-1){
+        pthread_mutex_unlock(pq->lock);
         break;
       }
-      pthread_mutex_unlock(lock);
+      pthread_mutex_unlock(pq->lock);
 
-      if(targetPQ->A[i].index == target){
-        pthread_mutex_lock(lock);
-        pos = i;
-        pthread_mutex_unlock(lock);
-        prio = targetPQ->A[i].priority;
+      if(pq->A[i].index == pq->target){
+        pthread_mutex_lock(pq->lock);
+        pq->pos = i;
+        pthread_mutex_unlock(pq->lock);
+        pq->prio = pq->A[i].priority;
         break;
         // printf("\tTH%d - stuck at masterBarrier (found).\n", id);
         // pthread_barrier_wait(masterBarrier);
@@ -410,15 +404,15 @@ static void *slaveFCN(void* par){
 
 
 
-    pthread_mutex_lock(lock);
-    finished++;
-    if(finished == NUM_TH /*&& pos==-1*/){
+    pthread_mutex_lock(pq->lock);
+    pq->finished++;
+    if(pq->finished == NUM_TH /*&& pos==-1*/){
       // printf("\tTH%d - stuck at masterBarrier (not found).\n", id);
-      pthread_barrier_wait(masterBarrier);
+      pthread_barrier_wait(pq->masterBarrier);
       // printf("\tTH%d - passed masterBarrier (not found).\n", id);
     }
-    pthread_mutex_unlock(lock);
-    pthread_barrier_wait(outBarrier);
+    pthread_mutex_unlock(pq->lock);
+    pthread_barrier_wait(pq->outBarrier);
   }
   pthread_exit(NULL);
 }
@@ -432,9 +426,9 @@ and the priority value inside the priority pointer
 2 -> parallel
 */
 int PQsearch(PQ pq, int node_index, int *priority){
-  pos = -1;
+  int pos = -1;
 
-  if(search_type == LINEAR_SEARCH){
+  if(pq->search_type == LINEAR_SEARCH){
     for(int i=0; i<pq->heapsize; i++){
       if(node_index == (pq->A[i]).index){
         if(priority != NULL){
@@ -445,30 +439,31 @@ int PQsearch(PQ pq, int node_index, int *priority){
       }
     }
   }
-  else if(search_type == CONSTANT_SEARCH){
+  else if(pq->search_type == CONSTANT_SEARCH){
     pos = pq->qp[node_index];
 
     if(priority != NULL){
       *priority = (pq->A[pos]).priority;
     }
   }
-  else if(search_type == PARALLEL_SEARCH){
-    targetPQ = pq;
-    target = node_index;
-    finished = 0;
+  else if(pq->search_type == PARALLEL_SEARCH){
+    pq->target = node_index;
+    pq->finished = 0;
+    pq->pos = -1;
 
     // printf("M - waiting to deliver a job.\n");
-    pthread_barrier_wait(inBarrier);
+    pthread_barrier_wait(pq->inBarrier);
     // printf("M - job delivered.\n");
 
     // printf("M - is waiting to receive a result.\n");
-    pthread_barrier_wait(masterBarrier);
+    pthread_barrier_wait(pq->masterBarrier);
     // printf("M - received the result.\n");  
   
 
-    if((pos != -1) && (priority != NULL)){
-      *priority = prio;
+    if((pq->pos != -1) && (priority != NULL)){
+      *priority = pq->prio;
     }
+    pos = pq->pos;
   }
 
   return pos;
@@ -541,7 +536,7 @@ void PQchange (PQ pq, int node_index, int priority) {
   // printf("Searching for %d with priority %d\n", node_index, priority);
   int item_index;
   
-  if(search_type == CONSTANT_SEARCH){
+  if(pq->search_type == CONSTANT_SEARCH){
     item_index = pq->qp[node_index];
   }
   else{
@@ -554,7 +549,7 @@ void PQchange (PQ pq, int node_index, int priority) {
   while( (item_index>=1) && ((pq->A[PARENT(item_index)]).priority > item.priority)) {
     pq->A[item_index] = pq->A[PARENT(item_index)];
 
-    if(search_type == CONSTANT_SEARCH){
+    if(pq->search_type == CONSTANT_SEARCH){
       pq->qp[pq->A[item_index].index] = item_index;
     }
 
@@ -562,7 +557,7 @@ void PQchange (PQ pq, int node_index, int priority) {
   }
 
   pq->A[item_index] = item;
-  if(search_type == CONSTANT_SEARCH){
+  if(pq->search_type == CONSTANT_SEARCH){
     pq->qp[item.index] = item_index;
   }
 
@@ -578,7 +573,7 @@ void PQdisplayHeap(PQ pq){
   for(int i=0; i<pq->heapsize; i++){
     printf("%d -> i = %d, priority = %d\n",i, (pq->A[i]).index, (pq->A[i]).priority);
     
-    if(search_type == CONSTANT_SEARCH){
+    if(pq->search_type == CONSTANT_SEARCH){
       if(pq->qp[pq->A[i].index] == i){
         pos_correct += 1;
       }
