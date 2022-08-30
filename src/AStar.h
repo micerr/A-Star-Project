@@ -20,11 +20,11 @@ typedef struct thArg_s {
 
 
 // A-star implementations
-void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord, Coord));
-void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord));
-void ASTARSimpleParallelV2(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord));
-void ASTARhdaMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord));
-void ASTARhdaNoMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord));
-int  GRAPHspD(Graph G, int id, int end); 
+void ASTARSequentialAStar(Graph G, int start, int end, int (*h)(Coord, Coord), int search_type);
+void ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type);
+void ASTARSimpleParallelV2(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type);
+void ASTARhdaMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type, int (*hfunc)(Hash h, int v));
+void ASTARhdaNoMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type, int (*hfunc)(Hash h, int v));
+int  GRAPHspD(Graph G, int id, int end, int search_type); 
 
 #endif

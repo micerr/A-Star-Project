@@ -14,5 +14,8 @@ debug: $(SRCNOSSL)
 time: $(SRCNOSSL)
 	$(CC) -o bin/aStar.exe $^ $(CFLAGS) -DTIME
 
+psearch: $(SRCNOSSL)
+	$(CC) -o bin/aStar.exe $^ $(CFLAGS) -DPARALLEL_SEARCH -DTIME
+
 kdf: $(SRCS)
-	$(CC) -o bin/aStar.exe $^ $(CRYPTO_FLAGS) 
+	$(CC) -o bin/aStar.exe $^ $(CRYPTO_FLAGS)

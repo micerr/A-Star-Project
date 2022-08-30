@@ -4,10 +4,9 @@
 #include "./utility/Item.h"
 
 typedef struct pqueue *PQ;
-// typedef struct item Item;
 
 
-PQ      PQinit(int maxN);
+PQ      PQinit(int maxN, int type);
 void    PQfree(PQ pq);
 int     PQempty(PQ pq);
 int     PQmaxSize(PQ pq);

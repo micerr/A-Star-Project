@@ -12,6 +12,7 @@
 #include "./utility/BitArray.h"
 #include "./utility/Timer.h"
 
+
 typedef struct{
     pthread_t tid;
     int numTH;
@@ -58,22 +59,24 @@ typedef struct{
     #endif 
 } slaveArg_t;
 
-static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster, int (*hfunc)(Hash h, int v));
+int search_type;
+
+static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster, int type, int (*hfunc)(Hash h, int v));
 static void *masterTH(void *par);
 static void *slaveTH(void *par);
 static void analyzeNode(slaveArg_t *arg, PQ openSet, int *closedSet, HItem message);
 
 // Wrapper for HDA* with deliver Master
-void ASTARhdaMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int (*hfunc)(Hash h, int v)){
-    return ASTARhda(G, start, end, numTH, h, 1, hfunc);
+void ASTARhdaMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type, int (*hfunc)(Hash h, int v)){
+    return ASTARhda(G, start, end, numTH, h, 1, search_type, hfunc);
 }
 
 // Wrapper for HDA* withOUT deliver Master
-void ASTARhdaNoMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int (*hfunc)(Hash h, int v)){
-    return ASTARhda(G, start, end, numTH, h, 0, hfunc);
+void ASTARhdaNoMaster(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type, int (*hfunc)(Hash h, int v)){
+    return ASTARhda(G, start, end, numTH, h, 0, search_type, hfunc);
 }
 
-static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster, int (*hfunc)(Hash h, int v)){
+static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster, int type, int (*hfunc)(Hash h, int v)){
     Queue *queueArr_S2M;
     Queue *queueArr_M2S;
     Queue **queueMat_S2S;
@@ -86,6 +89,8 @@ static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coo
     Hash hash;
     int i, j, *hScores, *path, bCost = INT_MAX, stop = 0, nStops=0;
     int *nMsgSnt, *nMsgRcv;
+
+    search_type = type;
     #ifdef TIME
         Timer timer;
     #endif
@@ -417,7 +422,7 @@ static void *slaveTH(void *par){
     int gScore, fScore, newGscore;
 
     //init the openSet PQ
-    openSet = PQinit(5);
+    openSet = PQinit(arg->G->V, search_type);
     if(openSet == NULL){
         printf("Error initializing openSet (PQ) in thread%d: ", arg->id);
         exit(1);
@@ -493,7 +498,7 @@ static void *slaveTH(void *par){
 
             analyzeNode(arg, openSet, closedSet, message);
             
-            free(message); // a message is never freedzed
+            //free(message); // a message is never freedzed
         }
 
         if(PQempty(openSet))
