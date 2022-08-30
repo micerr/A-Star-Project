@@ -120,10 +120,11 @@ int abstractFeatureZobristHashing(Hash h, int v){
 
 int abstractStateZobristHashing(Hash h, int v){
     unsigned int x = getState(h->G, v);
+    x = abstraction(x);
 
     unsigned int res = 0; // sizeof(res) = 32 bit
     for(int i=0; i<h->t; i++){
-        res ^=abstraction((h->T)[i][(unsigned char)(x >> (h->r * i))]);
+        res ^=(h->T)[i][(unsigned char)(x >> (h->r * i))];
     }
 
     return mulHash(res, h->numTh);
