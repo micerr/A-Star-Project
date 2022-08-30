@@ -93,11 +93,6 @@ PQ PQinit(int maxN, int type) {
   PQ pq;
   search_type = type;
 
-  #ifdef TIME
-    Timer timer = TIMERinit(1);
-    TIMERstart(timer);
-  #endif
-  
   //allocate space needed for the structure
   pq = malloc(sizeof(*pq));
   if(pq == NULL){
@@ -107,7 +102,7 @@ PQ PQinit(int maxN, int type) {
   pq->currN = 5;
 
   pq->A = malloc(pq->currN * sizeof(Item));
-    if(pq->A == NULL){
+  if(pq->A == NULL){
     perror("Error trying to allocate heap array: ");
     return NULL;
   }
@@ -237,7 +232,7 @@ int PQempty(PQ pq) {
   Return: the dimension of array pq->A
 */
 int PQmaxSize(PQ pq){
-  return pq->maxN;
+  return pq->currN;
 }
 
 // Inside the while loop, the position of two nodes in the heap is exchanged
@@ -303,7 +298,7 @@ void PQinsert (PQ pq, int node_index, int priority){
     pq->qp[pq->A[i].index] = i;
   }
   
-  free(item);
+  //free(item);
   return;
 }
 
@@ -437,10 +432,6 @@ and the priority value inside the priority pointer
 2 -> parallel
 */
 int PQsearch(PQ pq, int node_index, int *priority){
-  // #ifdef TIME
-  //   Timer timer = TIMERinit(1);
-  //   TIMERstart(timer);
-  // #endif
   pos = -1;
 
   if(search_type == LINEAR_SEARCH){
@@ -472,12 +463,8 @@ int PQsearch(PQ pq, int node_index, int *priority){
 
     // printf("M - is waiting to receive a result.\n");
     pthread_barrier_wait(masterBarrier);
-    // printf("M - received the result.\n");
-
-    // #ifdef TIME
-    //   printf("Parallel search ");
-    //   TIMERstopEprint(timer);
-    // #endif    
+    // printf("M - received the result.\n");  
+  
 
     if((pos != -1) && (priority != NULL)){
       *priority = prio;
