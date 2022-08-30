@@ -20,7 +20,7 @@ typedef struct thArg_s {
 
 
 // A-star implementations
-Analytics GRAPHspD(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type); 
+Analytics GRAPHspD(Graph G, int start, int end, int search_type); 
 Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type);
 Analytics ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type);
 Analytics ASTARSimpleParallelV2(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type);

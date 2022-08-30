@@ -28,7 +28,7 @@ typedef struct{
     sem_t *semM;
     pthread_mutex_t *meStop;
     Hash hash;
-    #ifdef TIME
+    #if defined TIME || defined ANALYTICS
         Timer timer;
     #endif
 } masterArg_t;
@@ -54,8 +54,10 @@ typedef struct{
     sem_t *semM;
     Graph G;
     Hash hash;
-    #ifdef TIME
+    #if defined TIME || defined ANALYTICS
         Timer timer;
+        int *nExtractions;
+        pthread_mutex_t *meNExtractions;
     #endif 
 } slaveArg_t;
 
@@ -91,9 +93,6 @@ static Analytics ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord
     int *nMsgSnt, *nMsgRcv;
 
     search_type = type;
-    #ifdef TIME
-        Timer timer;
-    #endif
 
     //create the array containing all precomputed Hscores
     hScores = malloc(G->V * sizeof(int));
@@ -190,8 +189,11 @@ static Analytics ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord
     // init the hash function
     hash = HASHinit(G, numTH, hfunc);
 
-    #ifdef TIME
+    #if defined TIME || defined ANALYTICS
+        Timer timer;
         timer = TIMERinit(numTH);
+        int nExtractions = 0;
+        pthread_mutex_t meNExtractions = PTHREAD_MUTEX_INITIALIZER;
     #endif
 
     //create the arg-structure of the master
@@ -213,7 +215,7 @@ static Analytics ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord
     masterArg.meStop = meStop;
     masterArg.isMaster = isMaster;
     masterArg.hash = hash;
-    #ifdef TIME
+    #if defined TIME || defined ANALYTICS
         masterArg.timer = timer;
     #endif
 
@@ -245,8 +247,10 @@ static Analytics ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord
         slaveArgArr[i].semS = semS;
         slaveArgArr[i].isMaster = isMaster;
         slaveArgArr[i].hash = hash;
-        #ifdef TIME
+        #if defined TIME || defined ANALYTICS
             slaveArgArr[i].timer = timer;
+            slaveArgArr[i].nExtractions = &nExtractions;
+            slaveArgArr[i].meNExtractions = &meNExtractions;
         #endif
     }
 
@@ -265,6 +269,12 @@ static Analytics ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord
     //wait termination of the master
     pthread_join(masterArg.tid, NULL);
 
+    Analytics stats = NULL;
+    #ifdef ANALYTICS
+      stats = ANALYTICSsave(G, start, end, path, bCost, nExtractions, TIMERgetElapsed(timer));
+    #endif
+
+    #ifndef ANALYTICS
     if(path[end]==-1)
         printf("No path from %d to %d has been found.\n", start, end);
     else{
@@ -276,9 +286,10 @@ static Analytics ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord
         }
         printf("%d\nHops: %d\n", start, hops);
     }
+    #endif
 
-    #ifdef TIME
-        free(timer);
+    #if defined TIME || defined ANALYTICS
+        TIMERfree(timer);
     #endif
 
     // free the hash function
@@ -335,6 +346,7 @@ static Analytics ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord
     free(hScores);
     free(path);
 
+    return stats;
 }
 
 static void *masterTH(void *par){
@@ -343,7 +355,7 @@ static void *masterTH(void *par){
     HItem message;
     masterArg_t *arg = (masterArg_t *)par;
 
-    #ifdef TIME
+    #if defined TIME || defined ANALYTICS
         TIMERstart(arg->timer);
     #endif  
 
@@ -464,6 +476,9 @@ static void *slaveTH(void *par){
         sem_post(arg->semToDo); // Reset to the previous valute, because in the loops we count the number of elements in the queue through the semaphores.
         
         if(*(arg->stop)){
+            #ifdef ANALYTICS 
+                TIMERstop(arg->timer);
+            #endif
             #ifdef TIME
               TIMERstopEprint(arg->timer);
             #endif
@@ -508,6 +523,12 @@ static void *slaveTH(void *par){
         closedSet[extrNode.index] = extrNode.priority;
         // decrement the number of thing that we have to do
         sem_wait(arg->semToDo); // must be non-blocking, since his construction
+
+        #ifdef ANALYTICS
+            pthread_mutex_lock(arg->meNExtractions);
+                (*arg->nExtractions)++;
+            pthread_mutex_unlock(arg->meNExtractions);
+        #endif
 
         #ifdef DEBUG
             printf("%d: Extracted %d\n", arg->id, extrNode.index);

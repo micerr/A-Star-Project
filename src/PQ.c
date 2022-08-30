@@ -10,9 +10,6 @@
 #include "./utility/Timer.h"
 
 
-#define LINEAR_SEARCH 1
-#define CONSTANT_SEARCH 2
-#define PARALLEL_SEARCH 3
 #define NUM_TH sysconf(_SC_NPROCESSORS_ONLN)
 
 typedef struct threadArg_s {

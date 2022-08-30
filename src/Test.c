@@ -8,10 +8,12 @@
 #include "Graph.h"
 #include "AStar.h"
 #include "Heuristic.h"
+#include "PQ.h"
 #include "./utility/Timer.h"
 
 #define P 10
-#define maxC 20
+#define maxNameAlg 20
+#define maxNameHash 12
 #define nSeq 2
 
 struct analytics_s{
@@ -22,19 +24,32 @@ struct analytics_s{
 
 struct algorithms_s{
     Analytics (*algorithm)(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type);
-    char name[maxC];
+    Analytics (*hda)(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type, int (*hfunc)(Hash h, int v));
+    char name[maxNameAlg];
     int isConcurrent;
 } algorithms[] = {
-    {GRAPHspD, "Dijkstra", 0},
-    {ASTARSequentialAStar, "A* Dijkstra", 0},
-    {ASTARSequentialAStar, "A*", 0},
-    {ASTARSimpleParallel, "SPA* single-mutex", 1},
-    {ASTARSimpleParallelV2, "SPA* multiple-mutex", 1},
-    {NULL, "", 0}
+    {ASTARSequentialAStar, NULL, "A* Dijkstra", 0},
+    {ASTARSequentialAStar, NULL, "A*", 0},
+    {ASTARSimpleParallel, NULL, "SPA* single-mutex", 1},
+    {ASTARSimpleParallelV2, NULL, "SPA* multiple-mutex", 1},
+    {NULL, ASTARhdaMaster, "HDA w Master", 2},
+    {NULL, ASTARhdaNoMaster, "HDA", 2},
+    {NULL, NULL, "", -1}
+};
+
+struct hashF_s{
+    void* hash;
+    char name[maxNameHash];
+} hashF[] = {
+    {abstractFeatureZobristHashing, "A{feature}Z"},
+    {abstractStateZobristHashing, "A{state}Z"},
+    {zobristHashing, "Z"},
+    {multiplicativeHashing, "mult"},
+    {NULL, ""}
 };
 
 int threads[]={
-    1, 2, 4, 8, 16, 32, 64, 128, -1
+    1, 2, 3, 4, 5, 6, 8, 12, 16, -1
 };
 
 typedef struct point_s{
@@ -45,17 +60,17 @@ static void* genPoint(Point* points, int n, int maxV);
 static void printAnalytics(char *name, int numTh, Analytics, int **correctPath, int *lenCorrect);
 
 int main(int argc, char **argv){
-    // if(argc != 2){
-    //     fprintf(stderr, "Error: no file inserted\n");
-    //     exit(1);
-    // }
+    if(argc != 2){
+        fprintf(stderr, "Error: no file inserted. <filePath>\n");
+        exit(1);
+    }
 
     Analytics stats;
     struct timeval begin;
 
-    // TODO:  ha senso fare confronti sui tempi delle load?
     // Loading graph
-    Graph G = GRAPHSequentialLoad(argv[1]);
+    //Graph G = GRAPHSequentialLoad(argv[1]);
+    Graph G = GRAPHParallelLoad(argv[1], 8);
     //Graph G = GRAPHSequentialLoad("../examples/00-EASY/00-EASY-distanceWeight.bin");
 
     // Allocate 10 points, in which we will do tests
@@ -64,11 +79,21 @@ int main(int argc, char **argv){
     genPoint(points, P, G->V);
 
     for(int i=0; i<P; i++){
-        printf("Test on path (%d, %d)\n", points[i].src, points[i].dst);
-        printf("%-20s%-10s%-10s%-13s%-17s%-17s%-18s%-6s\n","Algorithm","Threads","Cost","Total Time", "Algorithm Time", "Expanded Nodes", "Extracted Nodes", "PASSED");
-        printf("---------------------------------------------------------------------------------------------\n");
         int *correctPath = NULL, correctLen = -1;
-        for(int j=0; algorithms[j].algorithm != NULL; j++){
+
+        begin = TIMERgetTime();
+
+        stats = GRAPHspD(G, points[i].src, points[i].dst, CONSTANT_SEARCH);
+        stats->totTime = computeTime(begin, stats->endTotTime);
+
+        int distance = Hhaver(STsearchByIndex(G->coords, points[i].src), STsearchByIndex(G->coords, points[i].dst));
+        printf("Test on path (%d, %d), cost: %d, hops: %d, crow flies distance: %dm\n", points[i].src, points[i].dst, stats->len != 0 ? stats->cost : -1, stats->len-1, distance);
+        printf("%-26s%-10s%-10s%-7s%-13s%-17s%-17s%-18s%-6s\n","Algorithm","Threads","Cost", "Hops","Total Time", "Algorithm Time", "Expanded Nodes", "Extracted Nodes", "PASSED");
+        printf("---------------------------------------------------------------------------------------------\n");
+
+        printAnalytics("Dijkstra", 1, stats, &correctPath, &correctLen);
+
+        for(int j=0; algorithms[j].isConcurrent != -1; j++){
             if(!algorithms[j].isConcurrent){
                 // sequential algorithm
                 begin = TIMERgetTime();
@@ -80,8 +105,10 @@ int main(int argc, char **argv){
                 printAnalytics(algorithms[j].name, 1, stats, &correctPath, &correctLen);
                 ANALYTICSfree(stats);
             }else{
-                // concurrent algorithm
-                for(int k=0; threads[k]!=-1; k++){
+                // concurrent algorithms SPA
+                for(int k=0; threads[k]!=-1 && algorithms[j].isConcurrent == 1; k++){
+                    if(threads[k]>10)
+                        break;
                     begin = TIMERgetTime();
 
                     stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, threads[k], Hhaver, 2);
@@ -90,6 +117,24 @@ int main(int argc, char **argv){
                     printAnalytics(algorithms[j].name, threads[k], stats, &correctPath, &correctLen);
                     ANALYTICSfree(stats);
                 }
+                // concurrent algorithms HDA
+                for(int n=0; hashF[n].hash!=NULL && algorithms[j].isConcurrent == 2; n++){
+                    for(int k=0; threads[k]!=-1; k++){
+                        if(hashF[n].hash == randomHashing && threads[k]>4)
+                            break;
+                        begin = TIMERgetTime();
+
+                        stats = algorithms[j].hda(G, points[i].src, points[i].dst, threads[k], Hhaver, 2, hashF[n].hash);
+                        stats->totTime = computeTime(begin, stats->endTotTime);
+
+                        char name[maxNameAlg+maxNameHash];
+                        sprintf(name,"%s%s", hashF[n].name, algorithms[j].name);
+
+                        printAnalytics(name, threads[k], stats, &correctPath, &correctLen);
+                        ANALYTICSfree(stats);
+                    }
+                }
+
             }
         }
         if(correctPath != NULL)
@@ -135,11 +180,12 @@ static void printAnalytics(char *name, int numTh, Analytics stats, int **correct
             }
 		}
 
-    printf("%-20s%-10d", numTh==1 ? name : "", numTh);
+    printf("%-26s%-10d", numTh==1 ? name : "", numTh);
     if(stats->len != 0)
         printf("%-10d", stats->cost);
     else
         printf("%-10s", "no path");
+    printf("%-7d", stats->len-1);
     if(stats->algorithmTime < 0.010)
         printf("%-13.6f%-17.6f",stats->totTime, stats->algorithmTime);
     else

@@ -3,6 +3,10 @@
 
 #include "./utility/Item.h"
 
+#define LINEAR_SEARCH 1
+#define CONSTANT_SEARCH 2
+#define PARALLEL_SEARCH 3
+
 typedef struct pqueue *PQ;
 
 

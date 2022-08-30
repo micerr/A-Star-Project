@@ -210,7 +210,7 @@ Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(
 
   Parameters: graph, start node end node.
 */
-Analytics GRAPHspD(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type) {
+Analytics GRAPHspD(Graph G, int start, int end, int search_type){
   if(G == NULL){
     printf("No graph inserted.\n");
     return NULL;

@@ -161,7 +161,7 @@ int main(void) {
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
                         search_type = select_search_type(SEQUENTIAL);
-                        GRAPHspD(G, id1, id2, 1, NULL, search_type);
+                        GRAPHspD(G, id1, id2, search_type);
                         break;
 
             case 4:     printf("\nInsert starting node = ");
