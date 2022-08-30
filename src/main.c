@@ -6,6 +6,7 @@
 #include "AStar.h"
 #include "Heuristic.h"
 #include "PQ.h"
+#include "Hash.h"
 #define MAXC 11
 #define SEQUENTIAL 0
 #define PARALLEL 1
@@ -34,6 +35,7 @@ int select_search_type(int algo_type){
     printf("Which kind of search do you want to perform?\n");
     printf("1 -> LINEAR SEARCH\n");
     printf("2 -> CONSTANT SEARCH\n");
+    printf("Enter your choice : ");
 
     if(scanf("%d", &search_type)<=0) {
         printf("Wrong input!\n");
@@ -65,10 +67,47 @@ int select_heuristic(){
   return heuristic;
 }
 
+void* select_hash(){
+  int hash;
+
+  printf("Insert the hash function hash(x) to use:\n");
+  printf("\t1: Random Hash\n");
+  printf("\t2: Multiplicative Hash\n");
+  printf("\t3: Zobrist Hash\n");
+  printf("\t4: Abstract (State) Zobrist Hash\n");
+  printf("\t5: Abstract (Feature) Zobrist Hash\n");
+  printf("\tEnter your choice : ");  
+  if(scanf("%d",&hash)<=0) {
+    printf("Integers only!\n");
+    exit(0);
+  }
+  switch (hash)
+  {
+  case 1:
+    return randomHashing;
+
+  case 2:
+    return multiplicativeHashing;
+
+  case 3:
+    return zobristHashing;
+
+  case 4:
+    return abstractStateZobristHashing;
+  
+  case 5:
+    return abstractFeatureZobristHashing;
+  
+  default:
+    return NULL;
+  }
+}
+
 int main(void) {
   setbuf(stdout, NULL);
   
   int i, cont, id1, id2, search_type, numThreads;
+  void *hash;
   char name[MAXC];
   Graph G = NULL;
 
@@ -217,16 +256,17 @@ int main(void) {
                         
                         i = select_heuristic();
                         search_type = select_search_type(PARALLEL);
+                        hash = select_hash();
 
                         switch (i){
                           case 1:
-                            ASTARhdaMaster(G, id1, id2, numThreads, Hdijkstra, search_type);
+                            ASTARhdaMaster(G, id1, id2, numThreads, Hdijkstra, search_type, hash);
                             break;
                           case 2:
-                            ASTARhdaMaster(G, id1, id2, numThreads, Hcoord, search_type);
+                            ASTARhdaMaster(G, id1, id2, numThreads, Hcoord, search_type, hash);
                             break;
                           case 3:
-                            ASTARhdaMaster(G, id1, id2, numThreads, Hhaver, search_type);
+                            ASTARhdaMaster(G, id1, id2, numThreads, Hhaver, search_type, hash);
                             break;
                           default:
                             printf("\nInvalid option\n");
@@ -248,16 +288,17 @@ int main(void) {
                         
                         i = select_heuristic();
                         search_type = select_search_type(PARALLEL);
+                        hash = select_hash();
 
                         switch (i){
                           case 1:
-                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hdijkstra, search_type);
+                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hdijkstra, search_type, hash);
                             break;
                           case 2:
-                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hcoord, search_type);
+                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hcoord, search_type, hash);
                             break;
                           case 3:
-                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hhaver, search_type);
+                            ASTARhdaNoMaster(G, id1, id2, numThreads, Hhaver, search_type, hash);
                             break;
                           default:
                             printf("\nInvalid option\n");

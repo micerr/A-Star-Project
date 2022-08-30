@@ -4,6 +4,7 @@
 #define maxWT INT_MAX
 
 #include "Graph.h"
+#include "Hash.h"
 
 
 typedef struct thArg_s {

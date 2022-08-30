@@ -59,7 +59,7 @@ typedef struct{
     #endif 
 } slaveArg_t;
 
-int search_type;
+static int search_type;
 
 static void ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int isMaster, int type, int (*hfunc)(Hash h, int v));
 static void *masterTH(void *par);
@@ -498,7 +498,7 @@ static void *slaveTH(void *par){
 
             analyzeNode(arg, openSet, closedSet, message);
             
-            //free(message); // a message is never freedzed
+            free(message); // a message is never freedzed
         }
 
         if(PQempty(openSet))
