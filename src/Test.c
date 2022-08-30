@@ -21,7 +21,7 @@ struct analytics_s{
 };
 
 struct algorithms_s{
-    Analytics (*algorithm)(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord));
+    Analytics (*algorithm)(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type);
     char name[maxC];
     int isConcurrent;
 } algorithms[] = {
@@ -74,7 +74,7 @@ int main(int argc, char **argv){
                 begin = TIMERgetTime();
                 
 
-                stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, 1, strcmp(algorithms[i].name, "A* Dijkstra")==0 ? Hdijkstra : Hhaver);
+                stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, 1, strcmp(algorithms[i].name, "A* Dijkstra")==0 ? Hdijkstra : Hhaver, 2);
                 stats->totTime = computeTime(begin, stats->endTotTime);
                 
                 printAnalytics(algorithms[j].name, 1, stats, &correctPath, &correctLen);
@@ -84,7 +84,7 @@ int main(int argc, char **argv){
                 for(int k=0; threads[k]!=-1; k++){
                     begin = TIMERgetTime();
 
-                    stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, threads[k], Hhaver);
+                    stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, threads[k], Hhaver, 2);
                     stats->totTime = computeTime(begin, stats->endTotTime);
 
                     printAnalytics(algorithms[j].name, threads[k], stats, &correctPath, &correctLen);

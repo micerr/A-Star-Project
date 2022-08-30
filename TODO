@@ -3,3 +3,11 @@ Solve the "stack smashing" problem when trying deallocating frome the main
 Add more comments for each function
 Problem with A* solution: Dijkstra and A* found different solutions
 Implementing SPA* try a good way to implemet TerminateDetection()
+
+
+
+
+ERRORS:
+HDA master, path 0->2 NY13, Haversine, Constant search -> Segmentation Fault
+HDA no master, path 0->2 NY13, Haversine, Constant search -> Segmentation Fault
+HDA no master, path 0->2 NY13 Haversine, Linear search -> free() invalid next size (fast), Aborted

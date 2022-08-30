@@ -40,7 +40,7 @@ static int *path, n;
 
 static void* thFunction(void *par);
 
-Analytics ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
+Analytics ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type){
 
   setbuf(stdout, NULL);
 
@@ -60,7 +60,7 @@ Analytics ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(C
   #endif
 
   //init the open set (priority queue)
-  openSet_PQ = PQinit(G->V);
+  openSet_PQ = PQinit(G->V, search_type);
   if(openSet_PQ == NULL){
     perror("Error trying to create openSet_PQ: ");
     exit(1);

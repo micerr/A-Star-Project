@@ -17,7 +17,6 @@
 #include "./utility/Item.h"
 #include "./utility/Timer.h"
 
-
 // Data structures:
 // openSet -> Priority queue containing an heap made of Items (Item has index of node and priority (fScore))
 // closedSet -> Array of int, each cell is the fScore of a node.
@@ -26,7 +25,7 @@
 // gScores are obtained starting from the fScores and subtracting the value of the heuristic
 
 //openSet is enlarged gradually (inside PQinsert)
-Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)){
+Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type){
   if(G == NULL){
     printf("No graph inserted.\n");
     return NULL;
@@ -42,12 +41,7 @@ Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(
   int flag;
   Coord coord, dest_coord;
 
-  #if defined TIME || defined ANALYTICS
-    Timer timer = TIMERinit(1);
-    int nExtractions = 0;
-  #endif
-
-  openSet = PQinit(G->V);
+  openSet = PQinit(G->V, search_type);
   if(openSet == NULL){
     perror("Error trying to create openSet: ");
     exit(1);
@@ -87,6 +81,8 @@ Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(
   #endif
 
   #if defined TIME || defined ANALYTICS
+    Timer timer = TIMERinit(1);
+    int nExtractions = 0;
     TIMERstart(timer);
   #endif
 
@@ -94,6 +90,7 @@ Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(
   closedSet[start] = 0 + hScores[start];
 
   PQinsert(openSet, start, closedSet[start]);
+
 
   while (!PQempty(openSet)){
 
@@ -134,6 +131,9 @@ Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(
         else
           continue;
       }else{  //it doesn't belong to closed set
+        // printf("Heap: \n");
+        // PQdisplayHeap(openSet);
+        
         flag = PQsearch(openSet, t->v, &neighboor_fScore);
 
         //if it doesn't belong to the open set
@@ -159,6 +159,7 @@ Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(
     stats = ANALYTICSsave(G, start, end, path, extrNode.priority, nExtractions, TIMERstop(timer));
   #endif
   #ifdef TIME
+    printf("Algorithm: ");
     TIMERstopEprint(timer);
     int sizeofPath = sizeof(int)*G->V;
     int sizeofPQ = sizeof(PQ*) + PQmaxSize(openSet)*sizeof(Item);
@@ -179,7 +180,7 @@ Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(
     printf("No path from %d to %d has been found.\n", start, end);
   }else{
     int hop=0;
-    printf("Path from %d to %d has been found with cost %.3d.\n", start, end, extrNode.priority);
+    printf("Path from %d to %d has been found with cost %d.\n", start, end, extrNode.priority);
     for(int v=end; v!=start; ){
       printf("%d <- ", v);
       v = path[v];
@@ -209,7 +210,7 @@ Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(
 
   Parameters: graph, start node end node.
 */
-Analytics GRAPHspD(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord)) {
+Analytics GRAPHspD(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type) {
   if(G == NULL){
     printf("No graph inserted.\n");
     return NULL;
@@ -218,7 +219,7 @@ Analytics GRAPHspD(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord
   int v;
   ptr_node t;
   Item min_item;
-  PQ pq = PQinit(G->V);
+  PQ pq = PQinit(G->V, search_type);
   int *path, *mindist;
   #if defined TIME || defined ANALYTICS
     Timer timer = TIMERinit(1);

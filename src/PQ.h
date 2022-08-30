@@ -4,10 +4,9 @@
 #include "./utility/Item.h"
 
 typedef struct pqueue *PQ;
-// typedef struct item Item;
 
 
-PQ      PQinit(int maxN);
+PQ      PQinit(int maxN, int type);
 void    PQfree(PQ pq);
 int     PQempty(PQ pq);
 int     PQmaxSize(PQ pq);
@@ -17,6 +16,6 @@ Item    PQextractMin(PQ pq);
 void    PQchange (PQ pq, int node_index, int priority);
 int     PQsearch(PQ pq, int node_index, int *priority);
 void    PQdisplayHeap(PQ pq);
-float PQgetPriority(PQ pq, int index);
+float   PQgetPriority(PQ pq, int index);
 
 #endif
