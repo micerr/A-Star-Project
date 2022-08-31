@@ -31,10 +31,10 @@ struct algorithms_s{
 } algorithms[] = {
     {ASTARSequentialAStar, NULL, "A* Dijkstra", 0},
     {ASTARSequentialAStar, NULL, "A*", 0},
+    {NULL, ASTARhdaNoMaster, "HDA", 2},
+    {NULL, ASTARhdaMaster, "HDA w Master", 2},
     {ASTARSimpleParallel, NULL, "SPA* single-mutex", 1},
     {ASTARSimpleParallelV2, NULL, "SPA* multiple-mutex", 1},
-    {NULL, ASTARhdaMaster, "HDA w Master", 2},
-    {NULL, ASTARhdaNoMaster, "HDA", 2},
     {NULL, NULL, "", -1}
 };
 
@@ -62,10 +62,10 @@ static void printAnalytics(char *name, int isConcurrent, int numTh, Analytics, i
 static void* select_heuristic();
 
 int main(int argc, char **argv){
-    if(argc != 2){
-        fprintf(stderr, "Error: no file inserted. <filePath>\n");
-        exit(1);
-    }
+    //if(argc != 2){
+    //    fprintf(stderr, "Error: no file inserted. <filePath>\n");
+    //    exit(1);
+    //}
 
     Analytics stats;
     struct timeval begin;
@@ -80,8 +80,9 @@ int main(int argc, char **argv){
     }
 
     // Loading graph
-    printf("1. Load graph from file (sequential)\n");
-    printf("2. Load graph from file (parallel)\n");
+    printf("1. Sequential\n");
+    printf("2. Parallel\n");
+    printf("Enter your choice: ");
     if(scanf("%d",&i)<=0) {
       printf("Integers only!\n");
       exit(0);
@@ -92,7 +93,8 @@ int main(int argc, char **argv){
     }else if(i==2){
         printf("Insert number of threads: ");
         scanf("%d", &numThreads);
-        G = GRAPHParallelLoad(argv[1], numThreads, startFrom);
+        //G = GRAPHParallelLoad(argv[1], numThreads, startFrom);
+        G = GRAPHParallelLoad("../examples/12-USA/12-USA-distanceWeight.bin", numThreads, 1);
     }else{
         printf("\nInvalid option\n");
         exit(1);
