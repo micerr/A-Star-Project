@@ -17,13 +17,13 @@ typedef struct {
 } par_t;
 
 typedef struct{
-    int coord1;
-    int coord2;
+    float coord1;
+    float coord2;
 } vert_t;
 
-typedef struct __attribute__((__packed__)) edge_s{
+typedef struct edge_s{
     int vert1, vert2;
-    unsigned short wt;
+    float wt;
 } edge_t;
 
 long maxThread;
@@ -32,6 +32,7 @@ void parseFiles(char *name, char *path);
 void *parseFCN(void *arg);
 
 int main(int argc, char *argv[]){
+    setbuf(stdout, NULL);
 
     DIR *dirHandler;
     struct dirent *dirEntry;
@@ -118,11 +119,12 @@ void parseFiles(char *name, char *path){
 void *parseFCN(void *arg){
     char *outFilePath, prefix[4], buf[1024];
     char *coordinatesFile, *inFile;
-    char type;
+    char line;
     vert_t vert;
     edge_t edge;
     int outFd, num, totVert=0;
     FILE *coordinatesFd, *inFd;
+    int type;
 
     char *name, *path;
     par_t *par = (par_t *)arg;
@@ -143,6 +145,7 @@ void *parseFCN(void *arg){
     
     //retrieve the prefix of all input files
     sscanf(name,"%d-%s", &num, prefix);
+    type = num < 13 ? 0 : 1;
 
     //create the path of the file containing all coordinates
     coordinatesFile = (char *)malloc(100 * sizeof(char));
@@ -171,7 +174,7 @@ void *parseFCN(void *arg){
     if(inFd == NULL){
         printf("Error opening %s: ", inFile);
         perror("");
-        exit(1);
+        pthread_exit(NULL);
     }
 
     //skip first 4 bytes of the out file. They will store the number of vertex
@@ -179,11 +182,8 @@ void *parseFCN(void *arg){
 
     //start reading all nodes
     while(fgets(buf, 1024, coordinatesFd) != NULL){
-        sscanf(buf,"%c",&type);
-
-        //check if a vertex has been found
-        if(type=='v'){
-            sscanf(buf,"%c %d %d %d", &type, &num, &vert.coord1, &vert.coord2);
+        if(type == 1){  //Quer's files
+            sscanf(buf,"%d %f %f", &num, &vert.coord1, &vert.coord2);
             //write the new vertex on the output file
             if(write(outFd, &vert, sizeof(vert_t)) < sizeof(vert_t)){
                 perror("Error writing a vertex on the output file: ");
@@ -192,28 +192,47 @@ void *parseFCN(void *arg){
 
             //update the total number of nodes
             totVert++;
+
+        }else{      //other files
+            sscanf(buf,"%c",&line);
+            //check if a vertex has been found
+            if(line=='v'){
+                sscanf(buf,"%c %d %f %f", &line, &num, &vert.coord1, &vert.coord2);
+                //write the new vertex on the output file
+                if(write(outFd, &vert, sizeof(vert_t)) < sizeof(vert_t)){
+                    perror("Error writing a vertex on the output file: ");
+                    exit(1);
+                }
+
+                //update the total number of nodes
+                totVert++;
+            }
         }
+
     }
     
-    int wt;
-
     //start reading all edges
     while(fgets(buf, 1024, inFd) != NULL){
-        sscanf(buf,"%c",&type);
-        
-        //check if an edge has been found
-        if(type=='a'){
-            sscanf(buf,"%c %d %d %d", &type, &edge.vert1, &edge.vert2, &wt);
-
-            if(wt >= 65535)
-                edge.wt = 65535;
-            else
-                edge.wt = wt;
+        if(type == 1){  //Quer's files
+            sscanf(buf,"%d %d %d %f", &num, &edge.vert1, &edge.vert2, &edge.wt);
             
             //write the new edge on the output file
             if(write(outFd, &edge, sizeof(edge_t)) < sizeof(edge_t)){
                 perror("(Dist) Error writing an edge on the output file: ");
                 exit(1);
+            }
+        }else{
+            sscanf(buf,"%c",&line);
+            
+            //check if an edge has been found
+            if(line=='a'){
+                sscanf(buf,"%c %d %d %f", &line, &edge.vert1, &edge.vert2, &edge.wt);
+                
+                //write the new edge on the output file
+                if(write(outFd, &edge, sizeof(edge_t)) < sizeof(edge_t)){
+                    perror("(Dist) Error writing an edge on the output file: ");
+                    exit(1);
+                }
             }
         }
     }
