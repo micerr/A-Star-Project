@@ -62,10 +62,10 @@ static void printAnalytics(char *name, int isConcurrent, int numTh, Analytics, i
 static void* select_heuristic();
 
 int main(int argc, char **argv){
-    //if(argc != 2){
-    //    fprintf(stderr, "Error: no file inserted. <filePath>\n");
-    //    exit(1);
-    //}
+    if(argc != 2){
+        fprintf(stderr, "Error: no file inserted. <filePath>\n");
+        exit(1);
+    }
 
     Analytics stats;
     struct timeval begin;
@@ -93,8 +93,8 @@ int main(int argc, char **argv){
     }else if(i==2){
         printf("Insert number of threads: ");
         scanf("%d", &numThreads);
-        //G = GRAPHParallelLoad(argv[1], numThreads, startFrom);
-        G = GRAPHParallelLoad("../examples/12-USA/12-USA-distanceWeight.bin", numThreads, 1);
+        G = GRAPHParallelLoad(argv[1], numThreads, startFrom);
+        //G = GRAPHParallelLoad("../examples/12-USA/12-USA-distanceWeight.bin", numThreads, 1);
     }else{
         printf("\nInvalid option\n");
         exit(1);
