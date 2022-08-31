@@ -24,6 +24,7 @@ char err[64];
 typedef struct{   //contains all parameters a thread needs
   pthread_t tid;
   short int id;
+  int startFrom;
   Graph G;
 } pthread_par;
 
@@ -38,8 +39,8 @@ Timer timerLoad;
 /*
     Prototypes of static functions
 */
-static Edge EDGEcreate(int v, int w, unsigned short int wt);
-static ptr_node NEW(int v, unsigned short int wt, ptr_node next);
+static Edge EDGEcreate(int v, int w, float wt);
+static ptr_node NEW(int v, float wt, ptr_node next);
 static void insertE(Graph G, Edge e);
 static void removeE(Graph G, Edge e);
 static void *loadThread(void *);
@@ -54,7 +55,7 @@ static void *loadThread(void *);
   
   Return value: the structure representing the edge.
 */
-static Edge EDGEcreate(int v, int w,unsigned short int wt) {
+static Edge EDGEcreate(int v, int w,float wt) {
   Edge e;
   e.vert1 = v;
   e.vert2 = w;
@@ -74,7 +75,7 @@ static Edge EDGEcreate(int v, int w,unsigned short int wt) {
 
   Return value: pointer to the new node.
 */
-static ptr_node NEW(int v, unsigned short int wt, ptr_node next) {
+static ptr_node NEW(int v, float wt, ptr_node next) {
   //allocate the space for the node and check for success
   ptr_node x = malloc(sizeof *x);
   if (x == NULL)
@@ -245,7 +246,7 @@ static void *loadThread(void *vpars){
         //printf("%d %d %d\n", e.vert1, e.vert2, e.wt);
       #endif
       if (e.vert1 >= 0 && e.vert2 >=0)
-        GRAPHinsertE(G, e.vert1-1, e.vert2-1, e.wt); // nodes into file starts from 1
+        GRAPHinsertE(G, e.vert1-(pars->startFrom), e.vert2-(pars->startFrom), e.wt); // nodes into file starts from 1
     }
   }
   
@@ -265,7 +266,7 @@ static void *loadThread(void *vpars){
    | 4 byte |  => n. nodes
    | 4 byte | 4 byte | => cord1, cord2 node i-esimo
    ... x num nodes
-   | 4 byte | 4 byte | 2 byte | => v1, v2, w
+   | 4 byte | 4 byte | 4 byte | => v1, v2, w
    ... x num edges
 
   Threads > 1, will load the graph in parallel fashion.
@@ -276,7 +277,7 @@ static void *loadThread(void *vpars){
   Return value: the newly loaded graph.   
 */
 
-Graph GRAPHSequentialLoad(char *fin) {
+Graph GRAPHSequentialLoad(char *fin, int startFrom) {
   int V, nr;
   Graph G;
   Edge e;
@@ -358,7 +359,7 @@ Graph GRAPHSequentialLoad(char *fin) {
     //will be inserted.
 
     if (e.vert1 >= 0 && e.vert2 >=0)
-      GRAPHinsertE(G, e.vert1-1, e.vert2-1, e.wt); // nodes into file starts from 1
+      GRAPHinsertE(G, e.vert1-startFrom, e.vert2-startFrom, e.wt); // nodes into file starts from 1
   }
   #ifdef TIME
     TIMERstopEprint(timer);
@@ -378,7 +379,7 @@ Graph GRAPHSequentialLoad(char *fin) {
 /*  
   ##### PARALLEL LOAD #####
 */
-Graph GRAPHParallelLoad(char *fin, int numThreads){
+Graph GRAPHParallelLoad(char *fin, int numThreads, int startFrom){
   // int V, i, nr;
   int V, i;
   Graph G;
@@ -430,6 +431,7 @@ Graph GRAPHParallelLoad(char *fin, int numThreads){
     #endif
     parameters[i].id = i;
     parameters[i].G = G;
+    parameters[i].startFrom = startFrom; 
     pthread_create(&(parameters[i].tid), NULL, loadThread, (void *)&(parameters[i]));
   }
 
@@ -490,7 +492,7 @@ void GRAPHedges(Graph G, Edge *a) {
   Parameters: graph in wich to insert the edge, source and destination
   vertices of the edge, weight of the edge.
 */
-void GRAPHinsertE(Graph G, int id1, int id2, unsigned short int wt) {
+void GRAPHinsertE(Graph G, int id1, int id2, float wt) {
   if(G == NULL){
     printf("No graph inserted.\n");
     return;
@@ -526,7 +528,8 @@ void GRAPHremoveE(Graph G, int id1, int id2) {
   Parameters: graph and edge to be inserted.
 */
 static void  insertE(Graph G, Edge e) {
-  int v = e.vert1, w = e.vert2, wt = e.wt;
+  int v = e.vert1, w = e.vert2;
+  float wt = e.wt;
 
   pthread_mutex_lock(G->meAdj);
     G->ladj[v] = NEW(w, wt, G->ladj[v]);
@@ -584,7 +587,7 @@ void GRAPHstats(Graph G){
 
 void GRAPHgetCoordinates(Graph G, int v){
   Coord coord = STsearchByIndex(G->coords, v);
-  printf("Coordinates of vertex %d: c1: %d - c2: %d\n", v, coord->c1, coord->c2);
+  printf("Coordinates of vertex %d: c1: %f - c2: %f\n", v, coord->c1, coord->c2);
 }
 
 void  GRAPHcomputeDistance(Graph G, int v1, int v2){
@@ -610,7 +613,7 @@ void  GRAPHgetEdge(Graph G, int start, int end){
 
   for(t=G->ladj[start]; t!=G->z; t=t->next)
     if(t->v == end){
-      printf("Weight of edge from %d to %d: %d\n", start, end, t->wt);
+      printf("Weight of edge from %d to %d: %f\n", start, end, t->wt);
       return;
     }
 

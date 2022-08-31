@@ -156,7 +156,7 @@ Analytics ASTARSequentialAStar(Graph G, int start, int end, int numTH, int (*h)(
 
   Analytics stats = NULL;
   #ifdef ANALYTICS
-    stats = ANALYTICSsave(G, start, end, path, extrNode.priority, nExtractions, TIMERstop(timer));
+    stats = ANALYTICSsave(G, start, end, path, extrNode.priority, nExtractions,0,0,0, TIMERstop(timer));
   #endif
   #ifdef TIME
     printf("Algorithm: ");
@@ -288,7 +288,7 @@ Analytics GRAPHspD(Graph G, int start, int end, int search_type){
 
   Analytics stats = NULL;
   #ifdef ANALYTICS
-    stats = ANALYTICSsave(G, start, end, path, min_item.priority, nExtractions, TIMERstop(timer));
+    stats = ANALYTICSsave(G, start, end, path, min_item.priority, nExtractions,0,0,0,TIMERstop(timer));
   #endif
   #ifdef TIME
     TIMERstopEprint(timer);

@@ -56,8 +56,8 @@ typedef struct{
     Hash hash;
     #if defined TIME || defined ANALYTICS
         Timer timer;
-        int *nExtractions;
-        pthread_mutex_t *meNExtractions;
+        int *nExtractions, *maxNodeAssigned, *avgNodeAssigned, *sent2Other;
+        pthread_mutex_t *meStats;
     #endif 
 } slaveArg_t;
 
@@ -192,8 +192,8 @@ static Analytics ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord
     #if defined TIME || defined ANALYTICS
         Timer timer;
         timer = TIMERinit(numTH);
-        int nExtractions = 0;
-        pthread_mutex_t meNExtractions = PTHREAD_MUTEX_INITIALIZER;
+        int nExtractions = 0, maxNodeAssigned=0, avgNodeAssigned=0, sent2Other=0;
+        pthread_mutex_t meStats = PTHREAD_MUTEX_INITIALIZER;
     #endif
 
     //create the arg-structure of the master
@@ -249,8 +249,11 @@ static Analytics ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord
         slaveArgArr[i].hash = hash;
         #if defined TIME || defined ANALYTICS
             slaveArgArr[i].timer = timer;
+            slaveArgArr[i].maxNodeAssigned = &maxNodeAssigned;
+            slaveArgArr[i].avgNodeAssigned = &avgNodeAssigned;
             slaveArgArr[i].nExtractions = &nExtractions;
-            slaveArgArr[i].meNExtractions = &meNExtractions;
+            slaveArgArr[i].meStats = &meStats;
+            slaveArgArr[i].sent2Other = &sent2Other;
         #endif
     }
 
@@ -271,7 +274,7 @@ static Analytics ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord
 
     Analytics stats = NULL;
     #ifdef ANALYTICS
-      stats = ANALYTICSsave(G, start, end, path, bCost, nExtractions, TIMERgetElapsed(timer));
+      stats = ANALYTICSsave(G, start, end, path, bCost, nExtractions, maxNodeAssigned, avgNodeAssigned/numTH, sent2Other/nExtractions, TIMERgetElapsed(timer));
     #endif
 
     #ifndef ANALYTICS
@@ -432,6 +435,9 @@ static void *slaveTH(void *par){
     Item extrNode;
     ptr_node t;
     int gScore, fScore, newGscore;
+    #ifdef ANALYTICS
+        int nExtractions=0, sent2Other=0;
+    #endif
 
     //init the openSet PQ
     openSet = PQinit(arg->G->V, search_type);
@@ -480,16 +486,27 @@ static void *slaveTH(void *par){
                 TIMERstop(arg->timer);
             #endif
             #ifdef TIME
-              TIMERstopEprint(arg->timer);
+                TIMERstopEprint(arg->timer);
             #endif
             //destroy openSet PQ
             PQfree(openSet);
-            #ifdef TIME
+            #if defined TIME || defined ANALYTICS
                 int expandedNodes = 0;
                 for(i=0; i<arg->G->V; i++)
                     if(closedSet[i] > 0)
                         expandedNodes++;
+            #endif
+            #ifdef TIME
                 printf("%d: Expanded nodes: %d\n", arg->id, expandedNodes);
+            #endif
+            #ifdef ANALYTICS
+                pthread_mutex_lock(arg->meStats);
+                if(expandedNodes > *(arg->maxNodeAssigned))
+                    *(arg->maxNodeAssigned) = expandedNodes;
+                *(arg->avgNodeAssigned) += expandedNodes;
+                *arg->nExtractions += nExtractions;
+                *arg->sent2Other += sent2Other;
+                pthread_mutex_unlock(arg->meStats);
             #endif
             //destroy closedSet
             free(closedSet);
@@ -525,9 +542,7 @@ static void *slaveTH(void *par){
         sem_wait(arg->semToDo); // must be non-blocking, since his construction
 
         #ifdef ANALYTICS
-            pthread_mutex_lock(arg->meNExtractions);
-                (*arg->nExtractions)++;
-            pthread_mutex_unlock(arg->meNExtractions);
+            nExtractions++;
         #endif
 
         #ifdef DEBUG
@@ -575,6 +590,9 @@ static void *slaveTH(void *par){
                 }else{
                     QUEUEtailInsert(arg->S2M, message);
                     sem_post(arg->semM); // tells the master that there is a message in the queue
+                    #ifdef ANALYTICS
+                        sent2Other++;
+                    #endif
                 }
 
             }else{

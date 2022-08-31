@@ -106,7 +106,7 @@ void* select_hash(){
 int main(void) {
   setbuf(stdout, NULL);
   
-  int i, cont, id1, id2, search_type, numThreads;
+  int i, cont, id1, id2, search_type, numThreads, startFrom;
   void *hash;
   char name[MAXC];
   Graph G = NULL;
@@ -136,11 +136,17 @@ int main(void) {
             case 1:     //take path of the input file
                         printf("\nInput file name: ");
                         scanf("%s", name);
+                        printf("Do the nodes start from 0 or 1?\n");
+                        printf("Enter your choice: ");
+                        if(scanf("%d", &startFrom)<=0) {
+                            printf("Wrong input!\n");
+                            exit(0);
+                        }
                         //if another graph already exists, free it before
                         if(G != NULL)
                           GRAPHfree(G);
                         //call function to sequentially load the graph
-                        G = GRAPHSequentialLoad(name);
+                        G = GRAPHSequentialLoad(name, startFrom);
                         break;
                 
             case 2:     //take path of the input file
@@ -149,11 +155,17 @@ int main(void) {
                         //take number of thread to launch
                         printf("Insert number of threads: ");
                         scanf("%d", &numThreads);
+                        printf("Do the nodes start from 0 or 1?\n");
+                        printf("Enter your choice: ");
+                        if(scanf("%d", &startFrom)<=0) {
+                            printf("Wrong input!\n");
+                            exit(0);
+                        }
                         //if another graph already exists, free it before
                         if(G != NULL)
                           GRAPHfree(G);
                         //call the function to load the graph in a parallel fashion
-                        G = GRAPHParallelLoad(name, numThreads);
+                        G = GRAPHParallelLoad(name, numThreads, startFrom);
                         break;
 
             case 3:     printf("\nInsert first node = ");

@@ -6,20 +6,20 @@
 
 //struct representing a vertex
 typedef struct{
-  int coord1;
-  int coord2;
+  float coord1;
+  float coord2;
 } Vert;
 
 //struct representing an edge
-typedef struct __attribute__((__packed__)) edge_s{
+typedef struct edge_s{
   int vert1, vert2;
-  unsigned short int wt;
+  float wt;
 } Edge;
 
 typedef struct node *ptr_node;
 struct node {     //element of the adjacency list
   int v;          //edge's destination vertex
-  unsigned short int wt;         //weight of the edge
+  float wt;         //weight of the edge
   ptr_node next;  //pointer to the next node
 };
 
@@ -36,9 +36,9 @@ typedef struct graph *Graph;
 
 Graph GRAPHinit(int V);
 void  GRAPHfree(Graph G);
-Graph GRAPHSequentialLoad(char *fin);
-Graph GRAPHParallelLoad(char *fin, int numThreads);
-void  GRAPHinsertE(Graph G, int id1, int id2, unsigned short int wt);
+Graph GRAPHSequentialLoad(char *fin, int startFrom);
+Graph GRAPHParallelLoad(char *fin, int numThreads, int startFrom);
+void  GRAPHinsertE(Graph G, int id1, int id2, float wt);
 void  GRAPHremoveE(Graph G, int id1, int id2);
 void  GRAPHedges(Graph G, Edge *a);
 void  GRAPHstats(Graph G);

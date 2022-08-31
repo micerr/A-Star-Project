@@ -18,6 +18,7 @@
 
 struct analytics_s{
     int *path, len, cost, expandedNodes, numExtr;
+    double loadBalance, co;
     double totTime, algorithmTime;
     struct timeval endTotTime;
 };
@@ -25,7 +26,7 @@ struct analytics_s{
 struct algorithms_s{
     Analytics (*algorithm)(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type);
     Analytics (*hda)(Graph G, int start, int end, int numTH, int (*h)(Coord, Coord), int search_type, int (*hfunc)(Hash h, int v));
-    char name[maxNameAlg];
+    char name[maxNameAlg+maxNameHash];
     int isConcurrent;
 } algorithms[] = {
     {ASTARSequentialAStar, NULL, "A* Dijkstra", 0},
@@ -57,7 +58,8 @@ typedef struct point_s{
 }Point;
 
 static void* genPoint(Point* points, int n, int maxV);
-static void printAnalytics(char *name, int numTh, Analytics, int **correctPath, int *lenCorrect);
+static void printAnalytics(char *name, int isConcurrent, int numTh, Analytics, int **correctPath, int *lenCorrect, int *expandedSeq);
+static void* select_heuristic();
 
 int main(int argc, char **argv){
     if(argc != 2){
@@ -67,11 +69,37 @@ int main(int argc, char **argv){
 
     Analytics stats;
     struct timeval begin;
+    int startFrom, i, numThreads;
+    Graph G;
+
+    printf("Do the nodes start from 0 or 1?\n");
+    printf("Enter your choice: ");
+    if(scanf("%d", &startFrom)<=0) {
+        printf("Wrong input!\n");
+        exit(0);
+    }
 
     // Loading graph
-    //Graph G = GRAPHSequentialLoad(argv[1]);
-    Graph G = GRAPHParallelLoad(argv[1], 8);
-    //Graph G = GRAPHSequentialLoad("../examples/00-EASY/00-EASY-distanceWeight.bin");
+    printf("1. Load graph from file (sequential)\n");
+    printf("2. Load graph from file (parallel)\n");
+    if(scanf("%d",&i)<=0) {
+      printf("Integers only!\n");
+      exit(0);
+    }
+    if(i==1){
+        G = GRAPHSequentialLoad(argv[1], startFrom);
+        //G = GRAPHSequentialLoad("../examples/01-NY/01-NY-distanceWeight-new.bin", 1);
+    }else if(i==2){
+        printf("Insert number of threads: ");
+        scanf("%d", &numThreads);
+        G = GRAPHParallelLoad(argv[1], numThreads, startFrom);
+    }else{
+        printf("\nInvalid option\n");
+        exit(1);
+    }
+
+    int (*heuristic)(Coord, Coord) = select_heuristic();
+
 
     // Allocate 10 points, in which we will do tests
     Point *points =(Point *) malloc(P*sizeof(Point));
@@ -79,7 +107,7 @@ int main(int argc, char **argv){
     genPoint(points, P, G->V);
 
     for(int i=0; i<P; i++){
-        int *correctPath = NULL, correctLen = -1;
+        int *correctPath = NULL, correctLen = -1, expandedSeq = -1;
 
         begin = TIMERgetTime();
 
@@ -88,10 +116,10 @@ int main(int argc, char **argv){
 
         int distance = Hhaver(STsearchByIndex(G->coords, points[i].src), STsearchByIndex(G->coords, points[i].dst));
         printf("Test on path (%d, %d), cost: %d, hops: %d, crow flies distance: %dm\n", points[i].src, points[i].dst, stats->len != 0 ? stats->cost : -1, stats->len-1, distance);
-        printf("%-26s%-10s%-10s%-7s%-13s%-17s%-17s%-18s%-6s\n","Algorithm","Threads","Cost", "Hops","Total Time", "Algorithm Time", "Expanded Nodes", "Extracted Nodes", "PASSED");
+        printf("%-26s%-10s%-10s%-7s%-13s%-17s%-17s%-18s%-25s%-18s%-15s%-6s\n","Algorithm","Threads","Cost", "Hops","Total Time", "Algorithm Time", "Expanded Nodes", "Extracted Nodes","Communication Overhead", "Search Overhead", "Load Balance", "PASSED");
         printf("---------------------------------------------------------------------------------------------\n");
 
-        printAnalytics("Dijkstra", 1, stats, &correctPath, &correctLen);
+        printAnalytics("Dijkstra", 0, 1, stats, &correctPath, &correctLen, &expandedSeq);
 
         for(int j=0; algorithms[j].isConcurrent != -1; j++){
             if(!algorithms[j].isConcurrent){
@@ -99,10 +127,10 @@ int main(int argc, char **argv){
                 begin = TIMERgetTime();
                 
 
-                stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, 1, strcmp(algorithms[i].name, "A* Dijkstra")==0 ? Hdijkstra : Hhaver, 2);
+                stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, 1, strcmp(algorithms[j].name, "A* Dijkstra")==0 ? Hdijkstra : heuristic, 2);
                 stats->totTime = computeTime(begin, stats->endTotTime);
                 
-                printAnalytics(algorithms[j].name, 1, stats, &correctPath, &correctLen);
+                printAnalytics(algorithms[j].name, algorithms[j].isConcurrent, 1, stats, &correctPath, &correctLen, &expandedSeq);
                 ANALYTICSfree(stats);
             }else{
                 // concurrent algorithms SPA
@@ -111,10 +139,10 @@ int main(int argc, char **argv){
                         break;
                     begin = TIMERgetTime();
 
-                    stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, threads[k], Hhaver, 2);
+                    stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, threads[k], heuristic, 2);
                     stats->totTime = computeTime(begin, stats->endTotTime);
 
-                    printAnalytics(algorithms[j].name, threads[k], stats, &correctPath, &correctLen);
+                    printAnalytics(algorithms[j].name, algorithms[j].isConcurrent, threads[k], stats, &correctPath, &correctLen, &expandedSeq);
                     ANALYTICSfree(stats);
                 }
                 // concurrent algorithms HDA
@@ -124,13 +152,13 @@ int main(int argc, char **argv){
                             break;
                         begin = TIMERgetTime();
 
-                        stats = algorithms[j].hda(G, points[i].src, points[i].dst, threads[k], Hhaver, 2, hashF[n].hash);
+                        stats = algorithms[j].hda(G, points[i].src, points[i].dst, threads[k], heuristic, 2, hashF[n].hash);
                         stats->totTime = computeTime(begin, stats->endTotTime);
 
-                        char name[maxNameAlg+maxNameHash];
+                        char name[64];
                         sprintf(name,"%s%s", hashF[n].name, algorithms[j].name);
 
-                        printAnalytics(name, threads[k], stats, &correctPath, &correctLen);
+                        printAnalytics(name, algorithms[j].isConcurrent, threads[k], stats, &correctPath, &correctLen, &expandedSeq);
                         ANALYTICSfree(stats);
                     }
                 }
@@ -153,7 +181,7 @@ int main(int argc, char **argv){
 /*
     Print all the statistics
 */
-static void printAnalytics(char *name, int numTh, Analytics stats, int **correctPath, int *lenCorrect){
+static void printAnalytics(char *name, int isConcurrent, int numTh, Analytics stats, int **correctPath, int *lenCorrect, int *expandedSeq){
 		int ok = 1;
 
         //checks if passed or not
@@ -166,6 +194,9 @@ static void printAnalytics(char *name, int numTh, Analytics stats, int **correct
 			    }
             }
 		}else if(*correctPath != NULL){
+            if(strcmp(name, "A*")==0){
+                *expandedSeq = stats->expandedNodes;
+            }
             // checks the lenght of the path
             if(stats->len != *lenCorrect){
                 ok = 0;
@@ -190,7 +221,14 @@ static void printAnalytics(char *name, int numTh, Analytics stats, int **correct
         printf("%-13.6f%-17.6f",stats->totTime, stats->algorithmTime);
     else
         printf("%-13.3f%-17.3f",stats->totTime, stats->algorithmTime);
-    printf("%-17d%-18d%-6s\n", stats->expandedNodes, stats->numExtr, ok ? "OK" : "NO");
+    printf("%-17d%-18d", stats->expandedNodes, stats->numExtr);
+    if(isConcurrent > 0){
+        printf("%-25.3f",stats->co);
+        printf("%-18.3f",(stats->expandedNodes/(*expandedSeq))-1.0);
+        printf("%-15.3f",stats->loadBalance);
+    }else
+        printf("%-25s%-18s%-15s","-","-","-");
+    printf("%-6s\n",ok ? "OK" : "NO");
     return;
 }
 
@@ -213,7 +251,7 @@ static void* genPoint(Point* points, int n, int maxV){
     return points;
 }
 
-Analytics ANALYTICSsave(Graph G, int start, int end, int *path, int cost, int numExtr, double algorithmTime){
+Analytics ANALYTICSsave(Graph G, int start, int end, int *path, int cost, int numExtr, int maxNodeAssigned, float avgNodeAssigned, float comOverhead, double algorithmTime){
     struct timeval now = TIMERgetTime();
 
     Analytics stats = malloc(sizeof(struct analytics_s));
@@ -223,6 +261,9 @@ Analytics ANALYTICSsave(Graph G, int start, int end, int *path, int cost, int nu
     stats->cost = cost;
     stats->algorithmTime = algorithmTime;
     stats->len = 0;
+    stats->co = comOverhead;
+    if(avgNodeAssigned != 0)
+        stats->loadBalance = maxNodeAssigned/avgNodeAssigned;
     // compute number of expanded nodes
 	stats->expandedNodes = 0;
 	for(int i=0; i<G->V; i++)
@@ -251,4 +292,27 @@ void ANALYTICSfree(Analytics stats){
     if(stats != NULL)
         free(stats);
     return;
+}
+
+static void* select_heuristic(){
+  int heuristic;
+
+  printf("Insert the heuristic function h(x) to use:\n");
+  printf("\t1: Euclidean distance\n");
+  printf("\t2: Haversine formula\n");
+  printf("\tEnter your choice : ");
+  if(scanf("%d",&heuristic)<=0) {
+    printf("Integers only!\n");
+    exit(0);
+  }
+
+  switch (heuristic){
+    case 1:
+        return Hcoord;
+    case 2:
+        return Hhaver;
+    default:
+        printf("\nInvalid option\n");
+        exit(1);
+  }
 }

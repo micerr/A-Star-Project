@@ -150,7 +150,7 @@ Analytics ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(C
 
   Analytics stats = NULL;
   #ifdef ANALYTICS
-    stats = ANALYTICSsave(G, start, end, path, bCost, nExtractions, TIMERgetElapsed(timer));
+    stats = ANALYTICSsave(G, start, end, path, bCost, nExtractions,0,0,0, TIMERgetElapsed(timer));
   #endif
   #ifdef TIME
     int sizeofPath = sizeof(int)*G->V;

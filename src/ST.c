@@ -63,7 +63,7 @@ int STmaxSize(ST st) {
   return n;
 }
 
-void  STinsert(ST st, int coord1, int coord2, int i){
+void  STinsert(ST st, float coord1, float coord2, int i){
   pthread_mutex_lock(st->me);
   if (i >= st->maxN) {
     st->coord = realloc(st->coord, (2*st->maxN)*sizeof(Coord));

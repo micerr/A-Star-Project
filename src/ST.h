@@ -2,8 +2,8 @@
 #define ST_H
 
 typedef struct coord{
-  int c1;
-  int c2;
+  float c1;
+  float c2;
 } *Coord;
 
 typedef struct symboltable *ST;
@@ -12,8 +12,7 @@ ST    STinit(int maxN);
 void  STfree(ST st);
 int   STsize(ST st);
 int   STmaxSize(ST st);
-void  STinsert(ST st, int coord1, int coord2, int i);
-int   STsearch(ST st, int coord1, int coord2);
+void  STinsert(ST st, float coord1, float coord2, int i);
 Coord STsearchByIndex(ST st, int i);
 
 #endif
