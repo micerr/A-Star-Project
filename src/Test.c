@@ -88,7 +88,7 @@ int main(int argc, char **argv){
     }
     if(i==1){
         G = GRAPHSequentialLoad(argv[1], startFrom);
-        //G = GRAPHSequentialLoad("../examples/01-NY/01-NY-distanceWeight-new.bin", 1);
+        //G = GRAPHSequentialLoad("../examples/01-NY/01-NY-distanceWeight.bin", 1);
     }else if(i==2){
         printf("Insert number of threads: ");
         scanf("%d", &numThreads);
@@ -222,10 +222,12 @@ static void printAnalytics(char *name, int isConcurrent, int numTh, Analytics st
     else
         printf("%-13.3f%-17.3f",stats->totTime, stats->algorithmTime);
     printf("%-17d%-18d", stats->expandedNodes, stats->numExtr);
-    if(isConcurrent > 0){
-        printf("%-25.3f",stats->co);
-        printf("%-18.3f",(stats->expandedNodes/(*expandedSeq))-1.0);
-        printf("%-15.3f",stats->loadBalance);
+    
+    double so = ((float)stats->expandedNodes/(*expandedSeq))-1.0;
+    if(isConcurrent == 2){
+        printf(stats->co < 0.01 ? (stats->co == 0 ? "%-25.0f" :"%-25.6f") : "%-25.3f", stats->co);
+        printf(so < 0.01 ? (so == 0 ? "%-18.0f" : "%-18.6f") : "%-18.3f",so);
+        printf(stats->loadBalance < 0.01 ? (stats->loadBalance == 0 ? "%-15.0f" : "%-15.6f") : "%-15.3f",stats->loadBalance);
     }else
         printf("%-25s%-18s%-15s","-","-","-");
     printf("%-6s\n",ok ? "OK" : "NO");

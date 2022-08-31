@@ -274,7 +274,10 @@ static Analytics ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord
 
     Analytics stats = NULL;
     #ifdef ANALYTICS
-      stats = ANALYTICSsave(G, start, end, path, bCost, nExtractions, maxNodeAssigned, avgNodeAssigned/numTH, sent2Other/nExtractions, TIMERgetElapsed(timer));
+        int R = 0;
+        for(i=0; i<numTH; i++)
+            R += nMsgRcv[i];
+        stats = ANALYTICSsave(G, start, end, path, bCost, nExtractions, maxNodeAssigned, avgNodeAssigned/numTH, (float)sent2Other/R, TIMERgetElapsed(timer));
     #endif
 
     #ifndef ANALYTICS
@@ -598,6 +601,11 @@ static void *slaveTH(void *par){
             }else{
                 QUEUEtailInsert(arg->S2S[owner][arg->id], message);
                 sem_post(arg->semS[owner]); // notify the owner that there is a message
+
+                #ifdef ANALYTICS
+                    if(owner != arg->id)
+                        sent2Other++;
+                #endif
 
                 #ifdef DEBUG
                     printf("send from %d to %d message(n=%d, n'=%d)\n", arg->id, message->owner, message->father, message->index);
