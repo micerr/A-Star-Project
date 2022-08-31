@@ -118,13 +118,12 @@ int main(void) {
     printf("1. Load graph from file (sequential)\n");
     printf("2. Load graph from file (parallel)\n");
     printf("---\n");
-    printf("3. Shortest path with Dijkstra algorithm\n");
-    printf("4. Shortest path with sequential A*\n");
-    printf("5. Shortest path with SPA*\n");
-    printf("6. Shortest path with SPA* Version 2\n");
-    printf("7. Shortest path with HDA (Courirer Master)\n");
-    printf("8. Shortest path with HDA (NO Courirer Master)\n");
-    printf("9. Free graph and exit\n");
+    printf("3. Shortest path with sequential A*\n");
+    printf("4. Shortest path with SPA*\n");
+    printf("5. Shortest path with SPA* Version 2\n");
+    printf("6. Shortest path with HDA (Courirer Master)\n");
+    printf("7. Shortest path with HDA (NO Courirer Master)\n");
+    printf("8. Free graph and exit\n");
     printf("===============\n");
     printf("Enter your choice : ");
     if(scanf("%d",&i)<=0) {
@@ -168,15 +167,7 @@ int main(void) {
                         G = GRAPHParallelLoad(name, numThreads, startFrom);
                         break;
 
-            case 3:     printf("\nInsert first node = ");
-                        scanf("%d", &id1);
-                        printf("Insert destination node = ");
-                        scanf("%d", &id2);
-                        search_type = select_search_type(SEQUENTIAL);
-                        GRAPHspD(G, id1, id2, search_type);
-                        break;
-
-            case 4:     printf("\nInsert starting node = ");
+            case 3:     printf("\nInsert starting node = ");
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
@@ -201,7 +192,7 @@ int main(void) {
 
                         break;
 
-            case 5:     printf("\nInsert starting node = ");
+            case 4:     printf("\nInsert starting node = ");
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
@@ -228,7 +219,7 @@ int main(void) {
                                                 
                         break;
 
-            case 6:     printf("\nInsert starting node = ");
+            case 5:     printf("\nInsert starting node = ");
                         scanf("%d", &id1);
                         printf("Insert destination node = ");
                         scanf("%d", &id2);
@@ -255,7 +246,7 @@ int main(void) {
                                              
                         break;
 
-            case 7:     if(G == NULL){
+            case 6:     if(G == NULL){
                           printf("No Graph inserted yet.\n");
                           break;
                         }
@@ -287,7 +278,7 @@ int main(void) {
                                                
                         break;
 
-            case 8:     if(G == NULL){
+            case 7:     if(G == NULL){
                           printf("No Graph inserted yet.\n");
                           break;
                         }
@@ -319,7 +310,7 @@ int main(void) {
                                                
                         break;
 
-            case 9:    cont = 0;
+            case 8:    cont = 0;
                         break;
             default:    printf("\nInvalid option\n");
           }

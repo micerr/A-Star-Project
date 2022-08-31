@@ -1,23 +1,20 @@
 CC=gcc
 CFLAGS=-I. -Wall -lpthread -lm
-CRYPTO_FLAGS=-I/usr/local/ssl/include -L/usr/local/ssl/lib64 -Wall -lpthread -lm -lcrypto
+CRYPTO_FLAGS= -Wall -lpthread -lm
 SDIR = src
 SRCS := $(wildcard $(SDIR)/*.c $(SDIR)/utility/*.c)
 
-SRCSBASE := $(filter-out $(SDIR)/Test.c $(SDIR)/utility/Balancer.c, $(SRCS))
-SRCSTEST := $(filter-out $(SDIR)/main.c $(SDIR)/utility/Balancer.c, $(SRCS))
+SRCSBASE := $(filter-out $(SDIR)/Test.c, $(SRCS))
+SRCSTEST := $(filter-out $(SDIR)/main.c, $(SRCS))
 
-bin/aStar.exe: $(SRCSBASE)
+bin/AStar: $(SRCSBASE)
 	$(CC) -o $@ $^ $(CFLAGS)
 
 debug: $(SRCSBASE)
-	$(CC) -o bin/aStar.exe $^ $(CFLAGS) -DDEBUG
+	$(CC) -o bin/AStar_debug $^ $(CFLAGS) -DDEBUG
 
 time: $(SRCSBASE)
-	$(CC) -o bin/aStar.exe $^ $(CFLAGS) -DTIME
-
-kdf: $(SRCS)
-	$(CC) -o bin/aStar.exe $^ $(CRYPTO_FLAGS)
+	$(CC) -o bin/AStar_time $^ $(CFLAGS) -DTIME
 
 test: $(SRCSTEST)
-	$(CC) -o bin/test.exe $^ $(CFLAGS) -DANALYTICS
+	$(CC) -o bin/Test $^ $(CFLAGS) -DANALYTICS
