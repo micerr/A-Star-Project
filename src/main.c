@@ -33,9 +33,9 @@ int select_search_type(int algo_type){
   }
   else if(algo_type == PARALLEL){
     printf("Which kind of search do you want to perform?\n");
-    printf("1 -> LINEAR SEARCH\n");
-    printf("2 -> CONSTANT SEARCH\n");
-    printf("Enter your choice : ");
+    printf("\t1 -> LINEAR SEARCH\n");
+    printf("\t2 -> CONSTANT SEARCH\n");
+    printf("\tEnter your choice : ");
 
     if(scanf("%d", &search_type)<=0) {
         printf("Wrong input!\n");
@@ -54,7 +54,7 @@ int select_search_type(int algo_type){
 int select_heuristic(){
   int heuristic;
 
-  printf("Insert the heuristic function h(x) to use:\n");
+  printf("Insert the heuristic function h(x) to be used:\n");
   printf("\t1: Dijkstra emulator\n");
   printf("\t2: Euclidean distance\n");
   printf("\t3: Haversine formula\n");
@@ -70,7 +70,7 @@ int select_heuristic(){
 void* select_hash(){
   int hash;
 
-  printf("Insert the hash function hash(x) to use:\n");
+  printf("Insert the hash function hash(x) to be used:\n");
   printf("\t1: Random Hash\n");
   printf("\t2: Multiplicative Hash\n");
   printf("\t3: Zobrist Hash\n");
@@ -103,6 +103,27 @@ void* select_hash(){
   }
 }
 
+int checkNodeValidity(Graph G, int node){
+  if(node > G->V){
+    printf("Node is invalid, try inserting another one\n");
+    return 0;
+  }
+  else{
+    return 1;
+  }
+}
+
+int checkLoadedGraph(Graph G){
+  if(G == NULL){
+    printf("No Graph inserted yet.\n");
+    return 0;
+  }   
+  else{
+    return 1;
+  }
+
+}
+
 int main(void) {
   setbuf(stdout, NULL);
   
@@ -121,8 +142,8 @@ int main(void) {
     printf("3. Shortest path with sequential A*\n");
     printf("4. Shortest path with SPA*\n");
     printf("5. Shortest path with SPA* Version 2\n");
-    printf("6. Shortest path with HDA (Courirer Master)\n");
-    printf("7. Shortest path with HDA (NO Courirer Master)\n");
+    printf("6. Shortest path with HDA (Courier Master)\n");
+    printf("7. Shortest path with HDA (NO Courier Master)\n");
     printf("8. Free graph and exit\n");
     printf("===============\n");
     printf("Enter your choice : ");
@@ -167,10 +188,19 @@ int main(void) {
                         G = GRAPHParallelLoad(name, numThreads, startFrom);
                         break;
 
-            case 3:     printf("\nInsert starting node = ");
-                        scanf("%d", &id1);
-                        printf("Insert destination node = ");
-                        scanf("%d", &id2);
+            case 3:     if(!checkLoadedGraph(G)){
+                          break;
+                        }
+
+                        do {
+                          printf("\nInsert starting node = ");
+                          scanf("%d", &id1);
+                        } while(!checkNodeValidity(G, id1));
+                        
+                        do {
+                          printf("Insert destination node = ");
+                          scanf("%d", &id2);
+                        } while(!checkNodeValidity(G, id2));
 
                         i = select_heuristic();
                         search_type = select_search_type(SEQUENTIAL);
@@ -192,10 +222,21 @@ int main(void) {
 
                         break;
 
-            case 4:     printf("\nInsert starting node = ");
-                        scanf("%d", &id1);
-                        printf("Insert destination node = ");
-                        scanf("%d", &id2);
+            case 4:     if(!checkLoadedGraph(G)){
+                          break;
+                        }
+
+                        do {
+                          printf("\nInsert starting node = ");
+                          scanf("%d", &id1);
+                        } while(!checkNodeValidity(G, id1));
+
+                        do {
+                          printf("Insert destination node = ");
+                          scanf("%d", &id2);
+                        } while(!checkNodeValidity(G, id2));
+
+
                         printf("Insert number of threads: ");
                         scanf("%d", &numThreads);
 
@@ -219,10 +260,21 @@ int main(void) {
                                                 
                         break;
 
-            case 5:     printf("\nInsert starting node = ");
-                        scanf("%d", &id1);
-                        printf("Insert destination node = ");
-                        scanf("%d", &id2);
+            case 5:     if(!checkLoadedGraph(G)){
+                          break;
+                        }
+
+                        do {
+                          printf("\nInsert starting node = ");
+                          scanf("%d", &id1);
+                        } while(!checkNodeValidity(G, id1));
+
+                        do {
+                          printf("Insert destination node = ");
+                          scanf("%d", &id2);
+                        } while(!checkNodeValidity(G, id2));
+
+
                         printf("Insert number of threads: ");
                         scanf("%d", &numThreads);
                                               
@@ -246,14 +298,20 @@ int main(void) {
                                              
                         break;
 
-            case 6:     if(G == NULL){
-                          printf("No Graph inserted yet.\n");
+            case 6:     if(!checkLoadedGraph(G)){
                           break;
                         }
-                        printf("\nInsert starting node = ");
-                        scanf("%d", &id1);
-                        printf("Insert destination node = ");
-                        scanf("%d", &id2);
+
+                        do {
+                          printf("\nInsert starting node = ");
+                          scanf("%d", &id1);
+                        } while(!checkNodeValidity(G, id1));
+
+                        do {
+                          printf("Insert destination node = ");
+                          scanf("%d", &id2);
+                        } while(!checkNodeValidity(G, id2));
+
                         printf("Insert number of threads: ");
                         scanf("%d", &numThreads);
                         
@@ -278,14 +336,20 @@ int main(void) {
                                                
                         break;
 
-            case 7:     if(G == NULL){
-                          printf("No Graph inserted yet.\n");
+            case 7:     if(!checkLoadedGraph(G)){
                           break;
                         }
-                        printf("\nInsert starting node = ");
-                        scanf("%d", &id1);
-                        printf("Insert destination node = ");
-                        scanf("%d", &id2);
+
+                        do {
+                          printf("\nInsert starting node = ");
+                          scanf("%d", &id1);
+                        } while(!checkNodeValidity(G, id1));
+
+                        do {
+                          printf("Insert destination node = ");
+                          scanf("%d", &id2);
+                        } while(!checkNodeValidity(G, id2));
+
                         printf("Insert number of threads: ");
                         scanf("%d", &numThreads);
                         

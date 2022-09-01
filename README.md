@@ -3,7 +3,8 @@
 ## Introduction
 A* is a widely used pathfinding algorithm for traversing Graphs; it extends Dijkstra's algorithm by introducing the concept of **Heuristic Function** which plays a key role in making more optimal decisions at each step.
 
-In this project we developed several versions of this algorithm, both **sequential** and **parallel** ones, with the goal of testing one against the other and getting a final result that summarises their overall performances.
+
+The project was developed in **C** on a **Unix-like** architecture and implements several versions of this algorithm, both **sequential** and **parallel** ones, with the goal of testing one against the other and getting a final result that summarises their overall performances.
 
 ## Compilation Guide
 The code can be compiled by means of a single **Makefile** in four different ways:
@@ -18,9 +19,23 @@ The code can be compiled by means of a single **Makefile** in four different way
 
 
 ## Execution Guide
-When executed, **AStar**, **AStar_debug** and **AStar_time**, will show the same menu shown in the picture below.
+When executed, **AStar**, **AStar_debug** and **AStar_time**, will show the following menu.
 
-![Menu image](img/menu1.PNG)
+```
+Operations on weighted directed graphs
+===============
+1. Load graph from file (sequential)
+2. Load graph from file (parallel)
+---
+3. Shortest path with sequential A*
+4. Shortest path with SPA*
+5. Shortest path with SPA* Version 2
+6. Shortest path with HDA (Courirer Master)
+7. Shortest path with HDA (NO Courirer Master)
+8. Free graph and exit
+===============
+Enter your choice :
+```
 
 ### Graph Loading
 At first it will be neccessary to load a Graph into memory; this is made possible by **options 1 and 2** that will ask for the **.bin** file to be loaded and also if we want to start the **numbering of nodes from 0 or 1**. In addition **option 2** will also ask for the number of threads that are to be used for the load of the graph.
@@ -28,28 +43,38 @@ At first it will be neccessary to load a Graph into memory; this is made possibl
 ### Graph .bin Files format
 In order for a .bin file to be used for the representation of a graph, it has to follow specific format rules defined by us:
 
-- **First row** must be an **integer N** that specifies the total amount of nodes of the graph
+- **First row** must be an **integer N** (4 Bytes) that specifies the total amount of nodes in the graph
 
 - The following **N rows** have to define the **cordinates of each node in this way**:
-    + one **float** for the first cordinate .
-    + one **float** for the second cordinate.
+    + one **float** (4 Bytes) for the first cordinate.
+    + one **float** (4 Bytes) for the second cordinate.
 
 
 -  Succeeding the list of nodes, it has to be represented the **list of edges** that will reach until the end of the file; **edges must be represented in the following way**:
 
-    + one **int** for the precursor of the edge
-    + one **int** for the successor of the edge
-    + one **float** for the weight of the edge
+    + one **int** (4 Bytes) for the precursor of the edge
+    + one **int** (4 Bytes) for the successor of the edge
+    + one **float** (4 Bytes) for the weight of the edge
 
 ### Execution of a version of A*
-Once a Graph has been loaded it will be possible to choose among one of the A* versions to be executed (from **option 3 to option 7**); each version will require some specific settings to be chosen by the user prior to the execution of the algorithm.
+Once a Graph has been loaded it will be possible to choose among one of the A* versions to be executed (from **option 3 to option 7**); each version will require some specific settings to be chosen by the user, prior to the execution of the algorithm.
 
 ### Settings of A* implementation
 The available settings introduced above will be now described thoroughly:
 
 - **Start** and **End** nodes: respectively the nodes for which a path has to be searched.
+```
+Enter your choice : 4
 
-- **Number of threads**: parameter required only for the concurrent implementations of A* (**options from 4 to 7**), it defines the number of threads to be used for the path traversing.
+Insert starting node = 2
+Insert destination node = 10
+```
+
+- **Number of threads**: parameter required only for the concurrent implementations of A* (**options from 4 to 7**), it defines the number of threads to be used for the path finding.
+
+```
+Insert number of threads: 4
+```
 
 - **Type of search**: this parameter defines the type of search that will be performed by the algorithm inside the builtin **priority queue**.
     
@@ -58,6 +83,13 @@ The available settings introduced above will be now described thoroughly:
 
     + **PARALLEL SEARCH**: available only in sequential versions of the algorithm (**option 3**) performs a multi-threaded search, the amount of threads generated will be the same as the amount of cores available in the machine.
 
+    ```
+    Which kind of search do you want to perform?
+        1 -> LINEAR SEARCH
+        2 -> CONSTANT SEARCH
+        3 -> PARALLEL SEARCH
+        Enter your choice :
+    ```
 
 - **Heuristic Function**: defines the function to be used in order to compute the distance from a generic node to the destination.
 
@@ -66,6 +98,14 @@ The available settings introduced above will be now described thoroughly:
     + **Euclidean Distance**: Computes the **Euclidean Distance** between two points on a plane (optimal when using **Cartesian cordinates**).
 
     + **Haversine Distance**: Computes the angular distance between two points on a sphere (optimal when using **Geographic cordinates**).
+
+    ```
+    Insert the heuristic function h(x) to use:
+        1: Dijkstra emulator
+        2: Euclidean distance
+        3: Haversine formula
+        Enter your choice :
+    ```
 
 
 - **Hash Function**: choosing an hash function is required when executing the two **HDA versions** of A* (**options 6 and 7**); each of them will be explained in detail in the project documentation.
@@ -79,6 +119,16 @@ The available settings introduced above will be now described thoroughly:
     + **Abstract (State) Zobrist Hash**
 
     + **Abstract (Feature) Zobsrist Hash**
+
+    ```
+    Insert the hash function hash(x) to use:
+        1: Random Hash
+        2: Multiplicative Hash
+        3: Zobrist Hash
+        4: Abstract (State) Zobrist Hash
+        5: Abstract (Feature) Zobrist Hash
+        Enter your choice : 
+    ```
 
 
 
