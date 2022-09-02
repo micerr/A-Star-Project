@@ -58,7 +58,7 @@ typedef struct point_s{
 }Point;
 
 static void* genPoint(Point* points, int n, int maxV);
-static void printAnalytics(char *name, int isConcurrent, int numTh, Analytics, int **correctPath, int *lenCorrect, int *expandedSeq);
+static void printAnalytics(FILE *fp, char *name, int isConcurrent, int numTh, Analytics, int **correctPath, int *lenCorrect, int *expandedSeq);
 static void* select_heuristic();
 
 int main(int argc, char **argv){
@@ -108,6 +108,8 @@ int main(int argc, char **argv){
 
     genPoint(points, P, G->V);
 
+    FILE *fp = stdout;
+
     for(int i=0; i<P; i++){
         int *correctPath = NULL, correctLen = -1, expandedSeq = -1;
 
@@ -117,11 +119,11 @@ int main(int argc, char **argv){
         stats->totTime = computeTime(begin, stats->endTotTime);
 
         int distance = Hhaver(STsearchByIndex(G->coords, points[i].src), STsearchByIndex(G->coords, points[i].dst));
-        printf("Test on path (%d, %d), cost: %d, hops: %d, crow flies distance: %dm\n", points[i].src, points[i].dst, stats->len != 0 ? stats->cost : -1, stats->len-1, distance);
-        printf("%-26s%-10s%-10s%-7s%-13s%-17s%-17s%-18s%-25s%-18s%-15s%-6s\n","Algorithm","Threads","Cost", "Hops","Total Time", "Algorithm Time", "Expanded Nodes", "Extracted Nodes","Communication Overhead", "Search Overhead", "Load Balance", "PASSED");
-        printf("---------------------------------------------------------------------------------------------\n");
+        fprintf(fp,"Test on path (%d, %d), cost: %d, hops: %d, crow flies distance: %dm\n", points[i].src, points[i].dst, stats->len != 0 ? stats->cost : -1, stats->len-1, distance);
+        fprintf(fp,"%-26s%-10s%-10s%-7s%-13s%-17s%-17s%-18s%-25s%-18s%-15s%-6s\n","Algorithm","Threads","Cost", "Hops","Total Time", "Algorithm Time", "Expanded Nodes", "Extracted Nodes","Communication Overhead", "Search Overhead", "Load Balance", "PASSED");
+        fprintf(fp,"---------------------------------------------------------------------------------------------\n");
 
-        printAnalytics("Dijkstra", 0, 1, stats, &correctPath, &correctLen, &expandedSeq);
+        printAnalytics(fp, "Dijkstra", 0, 1, stats, &correctPath, &correctLen, &expandedSeq);
 
         for(int j=0; algorithms[j].isConcurrent != -1; j++){
             if(!algorithms[j].isConcurrent){
@@ -132,7 +134,7 @@ int main(int argc, char **argv){
                 stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, 1, strcmp(algorithms[j].name, "A* Dijkstra")==0 ? Hdijkstra : heuristic, 2);
                 stats->totTime = computeTime(begin, stats->endTotTime);
                 
-                printAnalytics(algorithms[j].name, algorithms[j].isConcurrent, 1, stats, &correctPath, &correctLen, &expandedSeq);
+                printAnalytics(fp, algorithms[j].name, algorithms[j].isConcurrent, 1, stats, &correctPath, &correctLen, &expandedSeq);
                 ANALYTICSfree(stats);
             }else{
                 // concurrent algorithms SPA
@@ -144,13 +146,15 @@ int main(int argc, char **argv){
                     stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, threads[k], heuristic, 2);
                     stats->totTime = computeTime(begin, stats->endTotTime);
 
-                    printAnalytics(algorithms[j].name, algorithms[j].isConcurrent, threads[k], stats, &correctPath, &correctLen, &expandedSeq);
+                    printAnalytics(fp, algorithms[j].name, algorithms[j].isConcurrent, threads[k], stats, &correctPath, &correctLen, &expandedSeq);
                     ANALYTICSfree(stats);
                 }
                 // concurrent algorithms HDA
                 for(int n=0; hashF[n].hash!=NULL && algorithms[j].isConcurrent == 2; n++){
                     for(int k=0; threads[k]!=-1; k++){
                         if(hashF[n].hash == randomHashing && threads[k]>4)
+                            break;
+                        if(algorithms[j].hda == ASTARhdaMaster && threads[k]>10)
                             break;
                         begin = TIMERgetTime();
 
@@ -160,7 +164,7 @@ int main(int argc, char **argv){
                         char name[64];
                         sprintf(name,"%s%s", hashF[n].name, algorithms[j].name);
 
-                        printAnalytics(name, algorithms[j].isConcurrent, threads[k], stats, &correctPath, &correctLen, &expandedSeq);
+                        printAnalytics(fp, name, algorithms[j].isConcurrent, threads[k], stats, &correctPath, &correctLen, &expandedSeq);
                         ANALYTICSfree(stats);
                     }
                 }
@@ -169,8 +173,8 @@ int main(int argc, char **argv){
         }
         if(correctPath != NULL)
             free(correctPath);
-        printf("---------------------------------------------------------------------------------------------\n");
-        printf("\n");
+        fprintf(fp,"---------------------------------------------------------------------------------------------\n");
+        fprintf(fp,"\n");
     }
 
     // deallocation
@@ -183,7 +187,7 @@ int main(int argc, char **argv){
 /*
     Print all the statistics
 */
-static void printAnalytics(char *name, int isConcurrent, int numTh, Analytics stats, int **correctPath, int *lenCorrect, int *expandedSeq){
+static void printAnalytics(FILE *fp, char *name, int isConcurrent, int numTh, Analytics stats, int **correctPath, int *lenCorrect, int *expandedSeq){
 		int ok = 1;
 
         //checks if passed or not
@@ -213,26 +217,26 @@ static void printAnalytics(char *name, int isConcurrent, int numTh, Analytics st
             }
 		}
 
-    printf("%-26s%-10d", numTh==1 ? name : "", numTh);
+    fprintf(fp, "%-26s%-10d", numTh==1 ? name : "", numTh);
     if(stats->len != 0)
-        printf("%-10d", stats->cost);
+        fprintf(fp, "%-10d", stats->cost);
     else
-        printf("%-10s", "no path");
-    printf("%-7d", stats->len-1);
+        fprintf(fp, "%-10s", "no path");
+    fprintf(fp, "%-7d", stats->len-1);
     if(stats->algorithmTime < 0.010)
-        printf("%-13.6f%-17.6f",stats->totTime, stats->algorithmTime);
+        fprintf(fp, "%-13.6f%-17.6f",stats->totTime, stats->algorithmTime);
     else
-        printf("%-13.3f%-17.3f",stats->totTime, stats->algorithmTime);
-    printf("%-17d%-18d", stats->expandedNodes, stats->numExtr);
+        fprintf(fp, "%-13.3f%-17.3f",stats->totTime, stats->algorithmTime);
+    fprintf(fp, "%-17d%-18d", stats->expandedNodes, stats->numExtr);
     
     double so = ((float)stats->expandedNodes/(*expandedSeq))-1.0;
     if(isConcurrent == 2){
-        printf(stats->co < 0.01 ? (stats->co == 0 ? "%-25.0f" :"%-25.6f") : "%-25.3f", stats->co);
-        printf(so < 0.01 ? (so == 0 ? "%-18.0f" : "%-18.6f") : "%-18.3f",so);
-        printf(stats->loadBalance < 0.01 ? (stats->loadBalance == 0 ? "%-15.0f" : "%-15.6f") : "%-15.3f",stats->loadBalance);
+        fprintf(fp, stats->co < 0.01 ? (stats->co == 0 ? "%-25.0f" :"%-25.6f") : "%-25.3f", stats->co);
+        fprintf(fp, so < 0.01 ? (so == 0 ? "%-18.0f" : "%-18.6f") : "%-18.3f",so);
+        fprintf(fp, stats->loadBalance < 0.01 ? (stats->loadBalance == 0 ? "%-15.0f" : "%-15.6f") : "%-15.3f",stats->loadBalance);
     }else
-        printf("%-25s%-18s%-15s","-","-","-");
-    printf("%-6s\n",ok ? "OK" : "NO");
+        fprintf(fp, "%-25s%-18s%-15s","-","-","-");
+    fprintf(fp, "%-6s\n",ok ? "OK" : "NO");
     return;
 }
 

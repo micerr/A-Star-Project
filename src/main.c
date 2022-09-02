@@ -7,7 +7,7 @@
 #include "Heuristic.h"
 #include "PQ.h"
 #include "Hash.h"
-#define MAXC 11
+#define MAXC 256
 #define SEQUENTIAL 0
 #define PARALLEL 1
 
