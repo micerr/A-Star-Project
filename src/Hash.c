@@ -74,7 +74,7 @@ Hash HASHinit(Graph G, int numTh, int (*hfunc)(Hash h, int v)){
 }
 
 void HASHfree(Hash h){
-    if(h->hfunc == zobristHashing){
+    if(h->hfunc == zobristHashing || h->hfunc == abstractStateZobristHashing || h->hfunc == abstractFeatureZobristHashing){
         for(int i=0; i<h->t; i++)
             free(h->T[i]);
         free(h->T);
