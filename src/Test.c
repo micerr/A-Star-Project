@@ -11,13 +11,14 @@
 #include "PQ.h"
 #include "./utility/Timer.h"
 
-#define P 10
+#define P 1
 #define maxNameAlg 20
 #define maxNameHash 12
 #define nSeq 2
 
 struct analytics_s{
     int *path, len, cost, expandedNodes, numExtr;
+    unsigned int byte;
     double loadBalance, co;
     double totTime, algorithmTime;
     struct timeval endTotTime;
@@ -120,7 +121,7 @@ int main(int argc, char **argv){
 
         int distance = Hhaver(STsearchByIndex(G->coords, points[i].src), STsearchByIndex(G->coords, points[i].dst));
         fprintf(fp,"Test on path (%d, %d), cost: %d, hops: %d, crow flies distance: %dm\n", points[i].src, points[i].dst, stats->len != 0 ? stats->cost : -1, stats->len-1, distance);
-        fprintf(fp,"%-26s%-10s%-10s%-7s%-13s%-10s%-17s%-10s%-17s%-18s%-25s%-18s%-15s%-6s\n","Algorithm","Threads","Cost", "Hops","Total Time", "SpeedUp", "Algorithm Time", "SpeedUp", "Expanded Nodes", "Extracted Nodes","Communication Overhead", "Search Overhead", "Load Balance", "PASSED");
+        fprintf(fp,"%-26s%-10s%-10s%-7s%-13s%-10s%-17s%-10s%-17s%-18s%-25s%-18s%-15s%-14s%-6s\n","Algorithm","Threads","Cost", "Hops","Total Time", "SpeedUp", "Algorithm Time", "SpeedUp", "Expanded Nodes", "Extracted Nodes","Communication Overhead", "Search Overhead", "Load Balance","Memory Size", "PASSED");
         fprintf(fp,"---------------------------------------------------------------------------------------------\n");
 
         printAnalytics(fp, "Dijkstra", 0, 1, stats, &correctPath, &correctLen, &extractedSeq, &totTime1, &algTime1);
@@ -239,6 +240,9 @@ static void printAnalytics(FILE *fp, char *name, int isConcurrent, int numTh, An
         fprintf(fp, stats->loadBalance < 0.01 ? (stats->loadBalance == 0 ? "%-15.0f" : "%-15.6f") : "%-15.3f",stats->loadBalance);
     }else
         fprintf(fp, "%-25s%-18s%-15s","-","-","-");
+
+    fprintf(fp, stats->byte > 1024 ? (stats->byte > 1048576 ? (stats->byte > 1073741824 ? "GB %-14.2f" : "MB %-14.2f" ) : "KB %-14.2f" ) : "B %-14.2f"
+        , stats->byte > 1024 ? (stats->byte > 1048576 ? (stats->byte > 1073741824 ? (float)stats->byte/1073741824 : (float)stats->byte/1048576 ) : (float)stats->byte/1024 ) : (float)stats->byte/1.0);
     fprintf(fp, "%-6s\n",ok ? "OK" : "NO");
     return;
 }
@@ -262,11 +266,12 @@ static void* genPoint(Point* points, int n, int maxV){
     return points;
 }
 
-Analytics ANALYTICSsave(Graph G, int start, int end, int *path, int cost, int numExtr, int maxNodeAssigned, float avgNodeAssigned, float comOverhead, double algorithmTime){
+Analytics ANALYTICSsave(Graph G, int start, int end, int *path, int cost, int numExtr, int maxNodeAssigned, float avgNodeAssigned, float comOverhead, double algorithmTime, int byte){
     struct timeval now = TIMERgetTime();
 
     Analytics stats = malloc(sizeof(struct analytics_s));
 
+    stats->byte = byte;
     stats->numExtr = numExtr;
     stats->endTotTime = now;
     stats->cost = cost;

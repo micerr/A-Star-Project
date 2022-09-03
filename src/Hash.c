@@ -7,7 +7,7 @@
 #include "Graph.h"
 #include "utility/Timer.h"
 
-#define GOLD_RATIO (sqrtl(5)-1)/2  
+#define GOLD_RATIO (sqrt(5)-1)/2  
 #define C 10000.0
 
 struct hash_s{
@@ -150,4 +150,15 @@ static int abstraction(int s){
     short int first=c/100, second=d/100;
 
     return (first<<16) + second;    
+}
+
+int HASHgetByteSize(Hash h){
+    int size =0;
+    if(h->hfunc == zobristHashing 
+        || h->hfunc == abstractFeatureZobristHashing
+        || h->hfunc == abstractStateZobristHashing){
+            size += sizeof(int*) * h->t;
+            size += sizeof(int) * (1<<h->r)* h->t;
+        }
+    return size;
 }

@@ -150,15 +150,18 @@ Analytics ASTARSimpleParallel(Graph G, int start, int end, int numTH, int (*h)(C
 
   Analytics stats = NULL;
   #ifdef ANALYTICS
-    stats = ANALYTICSsave(G, start, end, path, bCost, nExtractions,0,0,0, TIMERgetElapsed(timer));
+    int size = 0;
+    size += PQgetByteSize(openSet_PQ); // openSet
+    size += G->V * sizeof(int);     // path
+    size += G->V * sizeof(int);     // closedSet
+    size += G->V * sizeof(int);     // hscores
+    size += sizeof(void *) * 4;     // pointers
+    size += sizeof(pthread_mutex_t) * 2 + sizeof(pthread_cond_t);
+    size += numTH * sizeof(thArg_t);
+    stats = ANALYTICSsave(G, start, end, path, bCost, nExtractions,0,0,0, TIMERgetElapsed(timer), size);
   #endif
   #ifdef TIME
-    int sizeofPath = sizeof(int)*G->V;
-    int sizeofClosedSet = sizeof(float)*G->V;
-    int sizeofPQ = sizeof(PQ*) + PQmaxSize(openSet_PQ)*sizeof(Item);
-    int total = sizeofPath+sizeofClosedSet+sizeofPQ;
     int expandedNodes = 0;
-    printf("sizeofPath= %d B (%d MB *2), sizeofClosedSet= %d B (%d MB), sizeofOpenSet= %d B (%d MB), TOT= %d B (%d MB)\n", sizeofPath, sizeofPath>>20, sizeofClosedSet, sizeofClosedSet>>20, sizeofPQ, sizeofPQ>>20, total, total>>20);
     for(int i=0;i<G->V;i++){
       if(path[i]>=0)
         expandedNodes++;

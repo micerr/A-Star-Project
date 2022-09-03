@@ -22,7 +22,7 @@ struct pqueue {
   Item *A; //array of Items.
   int *qp;
   int heapsize; // number of elements in the priority queues
-  int currN;
+  int currN, maxN;
   int search_type;
   // thread global paramiters
   int pos, target, prio, finished, stop;
@@ -91,6 +91,7 @@ PQ PQinit(int maxN, int type) {
   }
   
   pq->currN = 5;
+  pq->maxN = maxN;
   pq->search_type = type;
 
   pq->A = malloc(pq->currN * sizeof(Item));
@@ -439,7 +440,7 @@ int PQsearch(PQ pq, int node_index, int *priority){
   else if(pq->search_type == CONSTANT_SEARCH){
     pos = pq->qp[node_index];
 
-    if(priority != NULL){
+    if(priority != NULL && pos >= 0 && pos < pq->currN ){
       *priority = (pq->A[pos]).priority;
     }
   }
@@ -587,5 +588,17 @@ float PQgetPriority(PQ pq, int index){
 }
 
 
-
+int PQgetByteSize(PQ pq){
+  int size = 0;
+  size += sizeof(*pq);
+  size += pq->currN * sizeof(Item);
+  size += sizeof(void *) * 7; // all the pointers in the struct
+  if(pq->search_type == CONSTANT_SEARCH){
+    size += pq->maxN * sizeof(int);
+  }else if(pq->search_type == PARALLEL_SEARCH){
+    size += sizeof(pthread_barrier_t) * 3 + sizeof(pthread_mutex_t);
+    size += NUM_TH * sizeof(threadArg_t);
+  }
+  return size;
+}
 

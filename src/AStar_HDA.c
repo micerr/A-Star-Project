@@ -45,6 +45,7 @@ typedef struct{
     int *nMsgSnt;
     int *nMsgRcv;
     int *stop, *nStops;
+    int pqSize;
     Queue S2M, M2S;
     Queue **S2S;
     pthread_mutex_t *meCost;
@@ -56,7 +57,7 @@ typedef struct{
     Hash hash;
     #if defined TIME || defined ANALYTICS
         Timer timer;
-        int *nExtractions, *maxNodeAssigned, *avgNodeAssigned, *sent2Other;
+        int *nExtractions, *maxNodeAssigned, *avgNodeAssigned, *selfAnalyzed;
         pthread_mutex_t *meStats;
     #endif 
 } slaveArg_t;
@@ -192,7 +193,7 @@ static Analytics ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord
     #if defined TIME || defined ANALYTICS
         Timer timer;
         timer = TIMERinit(numTH);
-        int nExtractions = 0, maxNodeAssigned=0, avgNodeAssigned=0, sent2Other=0;
+        int nExtractions = 0, maxNodeAssigned=0, avgNodeAssigned=0, selfAnalyzed=0;
         pthread_mutex_t meStats = PTHREAD_MUTEX_INITIALIZER;
     #endif
 
@@ -253,7 +254,7 @@ static Analytics ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord
             slaveArgArr[i].avgNodeAssigned = &avgNodeAssigned;
             slaveArgArr[i].nExtractions = &nExtractions;
             slaveArgArr[i].meStats = &meStats;
-            slaveArgArr[i].sent2Other = &sent2Other;
+            slaveArgArr[i].selfAnalyzed = &selfAnalyzed;
         #endif
     }
 
@@ -274,10 +275,31 @@ static Analytics ASTARhda(Graph G, int start, int end, int numTH, int (*h)(Coord
 
     Analytics stats = NULL;
     #ifdef ANALYTICS
-        int R = 0;
+        int size = 0;
+        size += G->V * sizeof(int);     // hscores
+        size += G->V * sizeof(int);     // path
+        size += numTH*2 * sizeof(int);   // messages
+        size += sizeof(void*)*(12+numTH);       // pointers
+        size += sizeof(pthread_mutex_t)*2 + sizeof(sem_t)*(1+numTH);
+        size += HASHgetByteSize(hash);
+        if(isMaster){
+            size += 2*numTH * sizeof(Queue);
+            size += 2*numTH * (sizeof(void *)*4 + sizeof(pthread_mutex_t)*2 );
+            size += avgNodeAssigned * sizeof(HItem*); // avg right now is the sum and NOT the avg
+        }else{
+            size += numTH*numTH * sizeof(Queue);
+            size += numTH*numTH * (sizeof(void *)*4 + sizeof(pthread_mutex_t)*2 );
+            size += avgNodeAssigned * sizeof(HItem*); // avg right now is the sum and NOT the avg
+        }
+        size += sizeof(masterArg_t) + sizeof(slaveArg_t) * numTH;
+        size += numTH*G->V * sizeof(int); // closedSet
         for(i=0; i<numTH; i++)
-            R += nMsgRcv[i];
-        stats = ANALYTICSsave(G, start, end, path, bCost, nExtractions, maxNodeAssigned, avgNodeAssigned/numTH, (float)sent2Other/R, TIMERgetElapsed(timer));
+            size += slaveArgArr[i].pqSize;
+
+        int S = 0;
+        for(i=0; i<numTH; i++)
+            S += nMsgSnt[i];
+        stats = ANALYTICSsave(G, start, end, path, bCost, nExtractions, maxNodeAssigned, avgNodeAssigned/numTH, 1-(float)selfAnalyzed/S, TIMERgetElapsed(timer), size);
     #endif
 
     #ifndef ANALYTICS
@@ -439,7 +461,7 @@ static void *slaveTH(void *par){
     ptr_node t;
     int gScore, fScore, newGscore;
     #ifdef ANALYTICS
-        int nExtractions=0, sent2Other=0;
+        int nExtractions=0, selfAnalyzed=0;
     #endif
 
     //init the openSet PQ
@@ -491,8 +513,6 @@ static void *slaveTH(void *par){
             #ifdef TIME
                 TIMERstopEprint(arg->timer);
             #endif
-            //destroy openSet PQ
-            PQfree(openSet);
             #if defined TIME || defined ANALYTICS
                 int expandedNodes = 0;
                 for(i=0; i<arg->G->V; i++)
@@ -508,9 +528,12 @@ static void *slaveTH(void *par){
                     *(arg->maxNodeAssigned) = expandedNodes;
                 *(arg->avgNodeAssigned) += expandedNodes;
                 *arg->nExtractions += nExtractions;
-                *arg->sent2Other += sent2Other;
+                *arg->selfAnalyzed += selfAnalyzed;
                 pthread_mutex_unlock(arg->meStats);
+                arg->pqSize = PQgetByteSize(openSet);
             #endif
+            //destroy openSet PQ
+            PQfree(openSet);
             //destroy closedSet
             free(closedSet);
             pthread_exit(NULL);
@@ -584,35 +607,24 @@ static void *slaveTH(void *par){
             owner = hash(arg->hash, t->v);
             message = HITEMinit(t->v, newGscore, extrNode.index, owner, NULL);
 
-            if(arg->isMaster){
-
-                if(owner == arg->id){
-                    // avoid passing through the master
-                    QUEUEtailInsert(arg->M2S, message);
-                    sem_post(arg->semToDo);
-                }else{
-                    QUEUEtailInsert(arg->S2M, message);
-                    sem_post(arg->semM); // tells the master that there is a message in the queue
-                    #ifdef ANALYTICS
-                        sent2Other++;
-                    #endif
-                }
-
+            if(owner == arg->id){
+                analyzeNode(arg, openSet, closedSet, message);
+                free(message);
+                nRcv ++; // Because we have aready done the work
+                #ifdef ANALYTICS
+                    selfAnalyzed++;
+                #endif
+            }else if(arg->isMaster){
+                QUEUEtailInsert(arg->S2M, message);
+                sem_post(arg->semM); // tells the master that there is a message in the queue
             }else{
                 QUEUEtailInsert(arg->S2S[owner][arg->id], message);
                 sem_post(arg->semS[owner]); // notify the owner that there is a message
-
-                #ifdef ANALYTICS
-                    if(owner != arg->id)
-                        sent2Other++;
-                #endif
-
                 #ifdef DEBUG
                     printf("send from %d to %d message(n=%d, n'=%d)\n", arg->id, message->owner, message->father, message->index);
                 #endif
             }
-
-            nSnt++; // inrement the number of message sent
+            nSnt++; // increment the number of messages sent
         }
     }
 

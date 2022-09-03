@@ -13,5 +13,6 @@ int multiplicativeHashing(Hash h, int v);
 int zobristHashing(Hash h, int v);
 int abstractStateZobristHashing(Hash h, int v);
 int abstractFeatureZobristHashing(Hash h, int v);
+int HASHgetByteSize(Hash h);
 
 #endif
