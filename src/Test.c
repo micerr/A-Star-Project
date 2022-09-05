@@ -106,8 +106,11 @@ int main(int argc, char **argv){
 
     // Allocate 10 points, in which we will do tests
     Point *points =(Point *) malloc(P*sizeof(Point));
+    Point veryLongPath = {13013734, 854482}; // 11795 hops
 
     genPoint(points, P, G->V);
+
+    points[0] = veryLongPath;
 
     FILE *fp = stdout;
 
@@ -154,8 +157,6 @@ int main(int argc, char **argv){
                 for(int n=0; hashF[n].hash!=NULL && algorithms[j].isConcurrent == 2; n++){
                     for(int k=0; threads[k]!=-1; k++){
                         if(hashF[n].hash == randomHashing && threads[k]>4)
-                            break;
-                        if(algorithms[j].hda == ASTARhdaMaster && threads[k]>10)
                             break;
                         begin = TIMERgetTime();
 
@@ -257,6 +258,8 @@ static void* genPoint(Point* points, int n, int maxV){
     struct timeval now = TIMERgetTime();
 
     srand(now.tv_sec+now.tv_usec);
+
+    printf("%ld\n",now.tv_sec+now.tv_usec);
 
     for(int i=0; i<n; i++){
         points[i].src = rand()/((RAND_MAX + 1u)/maxV);

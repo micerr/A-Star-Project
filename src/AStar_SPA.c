@@ -339,8 +339,7 @@ static void* thFunction(void *par){
         break;
       }
 
-      // check that the successor doesn't come from the extracted done, to avoid loops
-      // dovrebbe essere inutile perche comunque avrebbe un costo maggiore, ma serve
+      // pruning
       if(path[extrNode.index] == t->v){
         pthread_mutex_unlock(arg->meNodes);
         #ifdef DEBUG

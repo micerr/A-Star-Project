@@ -604,6 +604,17 @@ static void *slaveTH(void *par){
                 printf("%d: expanded node %d->%d\n", arg->id, extrNode.index, t->v);
             #endif
 
+            // same check is done before, but this will avoid the insertion in the queue
+            // no mutex, we don't want slow down the algorithm
+            // the worst case is that the the node is put in the queue, but isn't a problem
+            // beacuse the same check is done after
+            if(newGscore + arg->hScores[t->v] >= *(arg->bCost))
+                continue;
+            
+            // pruning
+            if(arg->path[extrNode.index] == t->v)
+                continue;
+
             owner = hash(arg->hash, t->v);
             message = HITEMinit(t->v, newGscore, extrNode.index, owner, NULL);
 
