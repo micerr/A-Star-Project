@@ -1,0 +1,48 @@
+01-NY
+	Max: 961 - Min: 62 - Mean: 381
+		Range considerato: [200;600] v
+
+02-BAY
+	Max: 1137 - Min: 33 - Mean: 495
+		Range considerato: [300;800] v
+
+03-COL
+	Max: 1846 - Min: 70 - Mean: 650
+		Range considerato: [500;1000] v
+
+04-FLA
+	Max: 3034 - Min: 135 - Mean: 1084
+		Range considerato: [800;1200] v
+
+05-NW
+	Max: 2147 - Min: 115 - Mean: 1087
+		Range considerato: [800;1200] v
+
+06-NE
+	Max: 2902 - Min: 51 - Mean: 1131
+		Range considerato: [900; 1300] v 
+
+07-CAL
+	Max: 3223 - Min: 152 - Mean: 1214
+		Range considerato: [900;1300] v
+
+08-LKS
+	Max: 6353 - Min: 243 - Mean: 2255
+		Range considerato: [2000;2500]
+
+09-E
+	Max: 5343 - Min: 164 - Mean: 2108
+		Range considerato: [2000;2400]
+
+10-W
+	Max: 5848 - Min: 128 - Mean: 2705
+		Range considerato: [2500;3000]
+
+11-CTR
+	Max: 8071 - Min: 477 - Mean: 3294
+		Range considerato: [3000;3500]
+
+12-USA
+	Max: 12065 - Min: 691 - Mean: 5054
+		Range considerato: [5000;5500]
+

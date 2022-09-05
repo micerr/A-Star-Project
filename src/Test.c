@@ -112,11 +112,13 @@ int main(int argc, char **argv){
 
     //points[0] = veryLongPath;
 
-    FILE *fp = fopen("12-USA-test.txt","w+");
+    FILE *fp = fopen("08-LKS-test.txt","w+");
     if(fp == NULL){
         printf("Error creaing test.txt\n");
         exit(1);
     }
+
+    int lowB = 2000, upB = 2500;
 
     for(int i=0; i<P; i++){
         int *correctPath = NULL, correctLen = -1, extractedSeq = -1;
@@ -125,12 +127,13 @@ int main(int argc, char **argv){
 
         stats = GRAPHspD(G, points[i].src, points[i].dst, CONSTANT_SEARCH);
 
-        if(stats->len-1 < 1000 || stats->len-1>1500){
+        if(stats->len-1 < lowB || stats->len-1 > upB){
             printf("\tFound path with %d hops.\n", stats->len-1);
             genPoint(&points[i], 1, G->V);
             i=i-1;
             continue;
-        }
+        }else
+            printf("Good path found.\n");
 
         stats->totTime = computeTime(begin, stats->endTotTime);
 
