@@ -30,7 +30,6 @@ struct algorithms_s{
     char name[maxNameAlg+maxNameHash];
     int isConcurrent;
 } algorithms[] = {
-    {ASTARSequentialAStar, NULL, "A* Dijkstra", 0},
     {ASTARSequentialAStar, NULL, "A*", 0},
     {NULL, ASTARhdaNoMaster, "HDA", 2},
     {NULL, ASTARhdaMaster, "HDA w Master", 2},
@@ -119,7 +118,7 @@ int main(int argc, char **argv){
         double totTime1 = -1.0, algTime1 = -1;
         begin = TIMERgetTime();
 
-        stats = GRAPHspD(G, points[i].src, points[i].dst, CONSTANT_SEARCH);
+        stats = ASTARSequentialAStar(G, points[i].src, points[i].dst, 1, Hdijkstra, CONSTANT_SEARCH);
         stats->totTime = computeTime(begin, stats->endTotTime);
 
         int distance = Hhaver(STsearchByIndex(G->coords, points[i].src), STsearchByIndex(G->coords, points[i].dst));
@@ -127,7 +126,7 @@ int main(int argc, char **argv){
         fprintf(fp,"%-26s%-10s%-10s%-7s%-13s%-10s%-17s%-10s%-17s%-18s%-25s%-18s%-15s%-14s%-6s\n","Algorithm","Threads","Cost", "Hops","Total Time", "SpeedUp", "Algorithm Time", "SpeedUp", "Expanded Nodes", "Extracted Nodes","Communication Overhead", "Search Overhead", "Load Balance","Memory Size", "PASSED");
         fprintf(fp,"---------------------------------------------------------------------------------------------\n");
 
-        printAnalytics(fp, "Dijkstra", 0, 1, stats, &correctPath, &correctLen, &extractedSeq, &totTime1, &algTime1);
+        printAnalytics(fp, "A* Dijkstra", 0, 1, stats, &correctPath, &correctLen, &extractedSeq, &totTime1, &algTime1);
 
         for(int j=0; algorithms[j].isConcurrent != -1; j++){
             if(!algorithms[j].isConcurrent){
@@ -135,7 +134,7 @@ int main(int argc, char **argv){
                 begin = TIMERgetTime();
                 
 
-                stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, 1, strcmp(algorithms[j].name, "A* Dijkstra")==0 ? Hdijkstra : heuristic, 2);
+                stats = algorithms[j].algorithm(G, points[i].src, points[i].dst, 1, heuristic, CONSTANT_SEARCH);
                 stats->totTime = computeTime(begin, stats->endTotTime);
                 
                 printAnalytics(fp, algorithms[j].name, algorithms[j].isConcurrent, 1, stats, &correctPath, &correctLen, &extractedSeq, &totTime1, &algTime1);
