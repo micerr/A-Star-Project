@@ -106,13 +106,17 @@ int main(int argc, char **argv){
 
     // Allocate 10 points, in which we will do tests
     Point *points =(Point *) malloc(P*sizeof(Point));
-    Point veryLongPath = {13013734, 854482}; // 11795 hops
+    // Point veryLongPath = {13013734, 854482}; // 11795 hops
 
     genPoint(points, P, G->V);
 
-    points[0] = veryLongPath;
+    //points[0] = veryLongPath;
 
-    FILE *fp = stdout;
+    FILE *fp = fopen("12-USA-test.txt","w+");
+    if(fp == NULL){
+        printf("Error creaing test.txt\n");
+        exit(1);
+    }
 
     for(int i=0; i<P; i++){
         int *correctPath = NULL, correctLen = -1, extractedSeq = -1;
@@ -120,6 +124,14 @@ int main(int argc, char **argv){
         begin = TIMERgetTime();
 
         stats = GRAPHspD(G, points[i].src, points[i].dst, CONSTANT_SEARCH);
+
+        if(stats->len-1 < 1000 || stats->len-1>1500){
+            printf("\tFound path with %d hops.\n", stats->len-1);
+            genPoint(&points[i], 1, G->V);
+            i=i-1;
+            continue;
+        }
+
         stats->totTime = computeTime(begin, stats->endTotTime);
 
         int distance = Hhaver(STsearchByIndex(G->coords, points[i].src), STsearchByIndex(G->coords, points[i].dst));
