@@ -116,7 +116,7 @@ int main(int argc, char **argv){
         printf("Error creaing test.txt\n");
         exit(1);
     }
-
+    fp = stdout;
     int lowB = 5000, upB = 5500;
 
     for(int i=0; i<P; i++){
@@ -207,7 +207,7 @@ static void printAnalytics(FILE *fp, char *name, int isConcurrent, int numTh, An
 	int ok = 1;
 
     //checks if passed or not
-	if(strcmp(name, "Dijkstra") == 0){
+	if(strcmp(name, "A* Dijkstra") == 0){
         *lenCorrect = stats->len;
         if(stats->len != 0){
             *correctPath = malloc(stats->len*sizeof(int));
