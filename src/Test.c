@@ -111,13 +111,13 @@ int main(int argc, char **argv){
 
     //points[0] = veryLongPath;
 
-    FILE *fp = fopen("12-USA-test.txt","w+");
+    FILE *fp = fopen("04-FLA-test.txt","w+");
     if(fp == NULL){
         printf("Error creaing test.txt\n");
         exit(1);
     }
-    fp = stdout;
-    int lowB = 5000, upB = 5500;
+    
+    int lowB = 800, upB = 1200;
 
     for(int i=0; i<P; i++){
         int *correctPath = NULL, correctLen = -1, extractedSeq = -1;
