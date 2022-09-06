@@ -28,21 +28,21 @@
 
 08-LKS
 	Max: 6353 - Min: 243 - Mean: 2255
-		Range considerato: [2000;2500]
+		Range considerato: [2000;2500] v
 
 09-E
 	Max: 5343 - Min: 164 - Mean: 2108
-		Range considerato: [2000;2400]
+		Range considerato: [2000;2400] v
 
 10-W
 	Max: 5848 - Min: 128 - Mean: 2705
-		Range considerato: [2500;3000]
+		Range considerato: [2500;3000] v
 
 11-CTR
 	Max: 8071 - Min: 477 - Mean: 3294
-		Range considerato: [3000;3500]
+		Range considerato: [3000;3500] v
 
 12-USA
 	Max: 12065 - Min: 691 - Mean: 5054
-		Range considerato: [5000;5500]
+		Range considerato: [5000;5500] v
 
