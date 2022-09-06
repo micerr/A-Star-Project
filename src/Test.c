@@ -172,6 +172,8 @@ int main(int argc, char **argv){
                     for(int k=0; threads[k]!=-1; k++){
                         if(hashF[n].hash == randomHashing && threads[k]>4)
                             break;
+                        if(algorithms[j].hda == ASTARhdaMaster && threads[k]>10)
+                            break;
                         begin = TIMERgetTime();
 
                         stats = algorithms[j].hda(G, points[i].src, points[i].dst, threads[k], heuristic, 2, hashF[n].hash);
