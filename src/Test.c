@@ -111,13 +111,15 @@ int main(int argc, char **argv){
 
     //points[0] = veryLongPath;
 
-    FILE *fp = fopen("12-USA-test.txt","w+");
-    if(fp == NULL){
-        printf("Error creaing test.txt\n");
-        exit(1);
-    }
+    //FILE *fp = fopen("12-USA-test.txt","w+");
+    //if(fp == NULL){
+    //    printf("Error creaing test.txt\n");
+    //    exit(1);
+    //}
+
+    FILE *fp = stdout;
     
-    int lowB = 5000, upB = 5500;
+    //int lowB = 5000, upB = 5500;
 
     for(int i=0; i<P; i++){
         int *correctPath = NULL, correctLen = -1, extractedSeq = -1;
@@ -126,19 +128,19 @@ int main(int argc, char **argv){
 
         stats = ASTARSequentialAStar(G, points[i].src, points[i].dst, 1, Hdijkstra, CONSTANT_SEARCH);
 
-        if(stats->len-1 < lowB || stats->len-1 > upB){
-            printf("\tFound path with %d hops.\n", stats->len-1);
-            genPoint(&points[i], 1, G->V);
-            i=i-1;
-            continue;
-        }else
-            printf("Good path found.\n");
+        //if(stats->len-1 < lowB || stats->len-1 > upB){
+        //    printf("\tFound path with %d hops.\n", stats->len-1);
+        //    genPoint(&points[i], 1, G->V);
+        //    i=i-1;
+        //    continue;
+        //}else
+        //    printf("Good path found.\n");
 
         stats->totTime = computeTime(begin, stats->endTotTime);
 
         int distance = Hhaver(STsearchByIndex(G->coords, points[i].src), STsearchByIndex(G->coords, points[i].dst));
         fprintf(fp,"Test on path (%d, %d), cost: %d, hops: %d, crow flies distance: %dm\n", points[i].src, points[i].dst, stats->len != 0 ? stats->cost : -1, stats->len-1, distance);
-        fprintf(fp,"%-26s%-10s%-10s%-7s%-13s%-10s%-17s%-10s%-17s%-18s%-25s%-18s%-15s%-14s%-6s\n","Algorithm","Threads","Cost", "Hops","Total Time", "SpeedUp", "Algorithm Time", "SpeedUp", "Expanded Nodes", "Extracted Nodes","Communication Overhead", "Search Overhead", "Load Balance","Memory Size", "PASSED");
+        fprintf(fp,"%-26s%-10s%-10s%-7s%-13s%-10s%-17s%-10s%-17s%-18s%-25s%-18s%-15s%-14s\n","Algorithm","Threads","Cost", "Hops","Total Time", "SpeedUp", "Algorithm Time", "SpeedUp", "Expanded Nodes", "Extracted Nodes","Communication Overhead", "Search Overhead", "Load Balance","Memory Size");
         fprintf(fp,"---------------------------------------------------------------------------------------------\n");
 
         printAnalytics(fp, "A* Dijkstra", 0, 1, stats, &correctPath, &correctLen, &extractedSeq, &totTime1, &algTime1);
@@ -260,7 +262,7 @@ static void printAnalytics(FILE *fp, char *name, int isConcurrent, int numTh, An
 
     fprintf(fp, stats->byte > 1024 ? (stats->byte > 1048576 ? (stats->byte > 1073741824 ? "GB %-14.2f" : "MB %-14.2f" ) : "KB %-14.2f" ) : "B %-14.2f"
         , stats->byte > 1024 ? (stats->byte > 1048576 ? (stats->byte > 1073741824 ? (float)stats->byte/1073741824 : (float)stats->byte/1048576 ) : (float)stats->byte/1024 ) : (float)stats->byte/1.0);
-    fprintf(fp, "%-6s\n",ok ? "OK" : "NO");
+    fprintf(fp,"\n");
     return;
 }
 
