@@ -12,7 +12,6 @@
 #include "PQ.h"
 #include "AStar.h"
 #include "Heuristic.h"
-#include "./utility/BitArray.h"
 #include "./utility/Item.h"
 #include "./utility/Timer.h"
 

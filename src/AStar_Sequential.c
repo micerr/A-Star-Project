@@ -13,7 +13,6 @@
 #include "PQ.h"
 #include "Heuristic.h"
 #include "Test.h"
-#include "./utility/BitArray.h"
 #include "./utility/Item.h"
 #include "./utility/Timer.h"
 

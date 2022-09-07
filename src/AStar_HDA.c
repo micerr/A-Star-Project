@@ -9,7 +9,6 @@
 #include "Queue.h"
 #include "PQ.h"
 #include "Hash.h"
-#include "./utility/BitArray.h"
 #include "./utility/Timer.h"
 
 
